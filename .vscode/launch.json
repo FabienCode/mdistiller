@@ -14,7 +14,7 @@
             "justMyCode": true,
             "args": [
                 "--cfg",
-                "/home/fabien/Documents/project/2d/mdistiller/configs/cifar100/fitnet.yaml"
+                "configs/cifar100/mdis.yaml"
             ]
         }
     ]

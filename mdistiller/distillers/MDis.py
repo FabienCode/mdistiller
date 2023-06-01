@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 
+# Decoupled Knowledge Distillation(CVPR 2022)
+
 
 def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
     gt_mask = _get_gt_mask(logits_student, target)
@@ -35,6 +37,26 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
 def fitnet_loss(feature_s, feature_t, weight):
     return weight * F.mse_loss(feature_s, feature_t)
 
+#   Paying More Attention to Attention: Improving the Performance of Convolutional Neural Networks via Attention Transfer
+#   src code: https://github.com/szagoruyko/attention-transfer
+#   AT loss
+
+
+def single_stage_at_loss(f_s, f_t, p):
+    def _at(feat, p):
+        return F.normalize(feat.pow(p).mean(1).reshape(feat.size(0), -1))
+
+    s_H, t_H = f_s.shape[2], f_t.shape[2]
+    if s_H > t_H:
+        f_s = F.adaptive_avg_pool2d(f_s, (t_H, t_H))
+    elif s_H < t_H:
+        f_t = F.adaptive_avg_pool2d(f_t, (s_H, s_H))
+    return (_at(f_s, p) - _at(f_t, p)).pow(2).mean()
+
+
+def at_loss(g_s, g_t, p):
+    return sum([single_stage_at_loss(f_s, f_t, p) for f_s, f_t in zip(g_s, g_t)])
+
 
 def _get_gt_mask(logits, target):
     target = target.reshape(-1)
@@ -56,7 +78,6 @@ def cat_mask(t, mask1, mask2):
 
 
 class MDis(Distiller):
-    """Decoupled Knowledge Distillation(CVPR 2022)"""
 
     def __init__(self, student, teacher, cfg):
         super(MDis, self).__init__(student, teacher)
@@ -68,10 +89,16 @@ class MDis(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
+        # AT super-parameters setting
+        self.p = cfg.AT.P
+        self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
+        self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
+        self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
+
     def forward_train(self, image, target, **kwargs):
-        logits_student, _ = self.student(image)
+        logits_student, feature_student = self.student(image)
         with torch.no_grad():
-            logits_teacher, _ = self.teacher(image)
+            logits_teacher, feature_teacher = self.teacher(image)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
@@ -83,8 +110,12 @@ class MDis(Distiller):
             self.beta,
             self.temperature,
         )
+        loss_at = self.at_loss_weight * at_loss(
+            feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
+        )
+        loss_kd = self.weight_at * loss_at + self.weight_dkd * loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_dkd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
