@@ -92,8 +92,8 @@ class MDis(Distiller):
         # AT super-parameters setting
         self.p = cfg.AT.P
         self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
-        self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
-        self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
+        # self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
+        # self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -102,6 +102,7 @@ class MDis(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        # KD losses
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             logits_student,
             logits_teacher,
@@ -113,7 +114,7 @@ class MDis(Distiller):
         loss_at = self.at_loss_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
-        loss_kd = self.weight_at * loss_at + self.weight_dkd * loss_dkd
+        loss_kd = (loss_at*loss_at + loss_dkd*loss_dkd)/ (loss_at + loss_dkd)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
