@@ -102,7 +102,8 @@ class MDis(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        # KD losses
+        # ! multi KD losses !
+        # DKD loss
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             logits_student,
             logits_teacher,
@@ -111,10 +112,11 @@ class MDis(Distiller):
             self.beta,
             self.temperature,
         )
-        loss_at = self.at_loss_weight * at_loss(
+        # at loss
+        loss_at = at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
-        loss_kd = (loss_at*loss_at + loss_dkd*loss_dkd)/ (loss_at + loss_dkd)
+        loss_kd = self.at_loss_weight * (loss_at*loss_at + loss_dkd*loss_dkd)/ (loss_at + loss_dkd)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
