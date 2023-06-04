@@ -113,10 +113,10 @@ class MDis(Distiller):
             self.temperature,
         )
         # at loss
-        loss_at = at_loss(
+        loss_at = self.at_loss_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
-        loss_kd = self.at_loss_weight * (loss_at*loss_at + loss_dkd*loss_dkd)/ (loss_at + loss_dkd)
+        loss_kd = 3 * (loss_at*loss_at + loss_dkd*loss_dkd)/ (loss_at + loss_dkd)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
