@@ -126,6 +126,11 @@ class MDis(Distiller):
 
     def __init__(self, student, teacher, cfg):
         super(MDis, self).__init__(student, teacher)
+        expansion = 4
+        # KD feature to logits
+        # self.logits_fc = nn.Sequential(
+        #     nn.Linear(64, )
+        # )
 
         # DKD super-parameters setting
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
@@ -157,6 +162,7 @@ class MDis(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
+        # tmp is kd + at + rkd                    
         loss_ori_kd = kd_loss(logits_student, logits_teacher, self.kd_temperature)
         # at loss
         loss_at = self.at_loss_weight * at_loss(

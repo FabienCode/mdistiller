@@ -14,7 +14,9 @@
             "justMyCode": true,
             "args": [
                 "--cfg",
-                "configs/cifar100/mdis.yaml"
+                "configs/cifar100/mdis.yaml",
+                "--log_wandb",
+                "False"
             ]
         }
     ]
