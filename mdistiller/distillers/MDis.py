@@ -68,7 +68,7 @@ def _get_gt_mask(logits, target):
 def _pdist(e, squared, eps):
     e_square = e.pow(2).sum(dim=1)
     prod = e @ e.t()
-    res = (e_square.unsqueeze(1) + e.square.unsqueeze(0) - 2 * prod).clamp(min=eps)
+    res = (e_square.unsqueeze(1) + e_square.square.unsqueeze(0) - 2 * prod).clamp(min=eps)
 
     if not squared:
         res = res.sqrt()
