@@ -59,7 +59,7 @@ class BaseTrainer(object):
             wandb.log(log_dict)
         if log_dict["test_acc"] > self.best_acc:
             self.best_acc = log_dict["test_acc"]
-            if self.cfg.LOG.WANDB:
+            if self.cfg.log_wandb:
                 wandb.run.summary["best_acc"] = self.best_acc
         # worklog.txt
         with open(os.path.join(self.log_path, "worklog.txt"), "a") as writer:
