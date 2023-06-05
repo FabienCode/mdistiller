@@ -165,12 +165,12 @@ class MDis(Distiller):
         self.rkd_eps = cfg.RKD.PDIST.EPSILON
         self.rkd_distance_weight = cfg.RKD.DISTANCE_WEIGHT
         self.rkd_angle_weight = cfg.RKD.ANGLE_WEIGHT
-        self.rkd_kd_weight = 1
+        self.rkd_kd_weight = 3
 
         # AT super-parameters setting
         self.p = cfg.AT.P
         self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
-        self.at_kd_weight = 0.3
+        self.at_kd_weight = 300
         # self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
         # self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
 
@@ -192,13 +192,13 @@ class MDis(Distiller):
         for i in range(len(feature_teacher["feats"][1:])):
             kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
                                                         .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        loss_layers_logits = layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_ori_kd = kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # at loss
-        loss_at = self.at_loss_weight * at_loss(
+        loss_at = self.at_kd_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
-        loss_rkd = self.rkd_feat_loss_weight * rkd_loss(
+        loss_rkd = self.rkd_kd_weight * rkd_loss(
             feature_student["pooled_feat"],
             feature_teacher["pooled_feat"],
             self.rkd_squared,
