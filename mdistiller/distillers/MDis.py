@@ -59,6 +59,13 @@ def kd_loss(logits_student, logits_teacher, temperature):
     loss_kd *= temperature ** 2
     return loss_kd
 #### kd end #####
+# Modify Distilling the Knowledge in a Neural Network --> each block feature logits
+def layers_kd_loss(layers_logits_student, layers_logits_teacher, temperature):
+    logits_loss = 0.
+    for i, (logits_student, logits_teacher) in enumerate(zip(layers_logits_student, layers_logits_teacher)):
+        logits_loss += kd_loss(logits_student, logits_teacher, temperature)
+    return logits_loss
+
 def _get_gt_mask(logits, target):
     target = target.reshape(-1)
     mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
@@ -127,10 +134,21 @@ class MDis(Distiller):
     def __init__(self, student, teacher, cfg):
         super(MDis, self).__init__(student, teacher)
         expansion = 4
+        num_classes = student.fc.out_features
         # KD feature to logits
-        # self.logits_fc = nn.Sequential(
-        #     nn.Linear(64, )
-        # )
+        self.logits_fc = nn.Sequential(
+            nn.Linear(self.student.layer1[0].conv2.out_channels, num_classes),
+            nn.Linear(self.student.layer2[0].conv2.out_channels, num_classes),
+            nn.Linear(self.student.layer3[0].conv2.out_channels, num_classes)
+        )
+        self.logits_avg = nn.Sequential(
+            nn.AvgPool2d(32),
+            nn.AvgPool2d(16),
+            nn.AvgPool2d(8)
+        )
+
+        # ori logits KD setting
+        self.ori_logits_kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
 
         # DKD super-parameters setting
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
@@ -162,23 +180,33 @@ class MDis(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
-        # tmp is kd + at + rkd                    
-        loss_ori_kd = kd_loss(logits_student, logits_teacher, self.kd_temperature)
+        # tmp is kd + at + rkd
+        kd_logits_student = []
+        for i in range(len(feature_student["feats"][1:])):
+            kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
+                                                        .reshape(feature_student["feats"][i+1].shape[0], -1)))
+        kd_logits_teacher = []
+        for i in range(len(feature_teacher["feats"][1:])):
+            kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
+                                                        .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
+        loss_layers_logits = layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        # loss_ori_kd = kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # at loss
-        loss_at = self.at_loss_weight * at_loss(
-            feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
-        )
-        loss_rkd = self.rkd_feat_loss_weight * rkd_loss(
-            feature_student["pooled_feat"],
-            feature_teacher["pooled_feat"],
-            self.rkd_squared,
-            self.rkd_eps,
-            self.rkd_distance_weight,
-            self.rkd_angle_weight,
-        )
+        # loss_at = self.at_loss_weight * at_loss(
+        #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
+        # )
+        # loss_rkd = self.rkd_feat_loss_weight * rkd_loss(
+        #     feature_student["pooled_feat"],
+        #     feature_teacher["pooled_feat"],
+        #     self.rkd_squared,
+        #     self.rkd_eps,
+        #     self.rkd_distance_weight,
+        #     self.rkd_angle_weight,
+        # )
         # ! multi KD losses ! End #######
-        kd_sum = loss_ori_kd + loss_at + loss_rkd
-        loss_kd = loss_ori_kd / kd_sum * loss_ori_kd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        # kd_sum = loss_layers_logits + loss_at + loss_rkd
+        # loss_kd = loss_layers_logits / kd_sum * loss_layers_logits + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        loss_kd = loss_layers_logits
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,

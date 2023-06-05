@@ -16,7 +16,9 @@
                 "--cfg",
                 "configs/cifar100/mdis.yaml",
                 "--log_wandb",
-                "False"
+                "False",
+                "SOLVER.BATCH_SIZE",
+                "8"
             ]
         }
     ]
