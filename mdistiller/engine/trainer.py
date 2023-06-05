@@ -52,7 +52,7 @@ class BaseTrainer(object):
             self.tf_writer.add_scalar(k, v, epoch)
         self.tf_writer.flush()
         # wandb log
-        if self.cfg.LOG.WANDB:
+        if self.cfg.log_wandb:
             import wandb
 
             wandb.log({"current lr": lr})
