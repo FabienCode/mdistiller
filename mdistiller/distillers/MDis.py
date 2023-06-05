@@ -149,6 +149,7 @@ class MDis(Distiller):
 
         # ori logits KD setting
         self.ori_logits_kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
+        self.layers_kd_weight = 30
 
         # DKD super-parameters setting
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
@@ -164,10 +165,12 @@ class MDis(Distiller):
         self.rkd_eps = cfg.RKD.PDIST.EPSILON
         self.rkd_distance_weight = cfg.RKD.DISTANCE_WEIGHT
         self.rkd_angle_weight = cfg.RKD.ANGLE_WEIGHT
+        self.rkd_kd_weight = 1
 
         # AT super-parameters setting
         self.p = cfg.AT.P
         self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
+        self.at_kd_weight = 0.3
         # self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
         # self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
 
@@ -180,7 +183,7 @@ class MDis(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
-        # tmp is kd + at + rkd
+        # tmp is multi_logits_kd + at + rkd
         kd_logits_student = []
         for i in range(len(feature_student["feats"][1:])):
             kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
@@ -192,21 +195,21 @@ class MDis(Distiller):
         loss_layers_logits = layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_ori_kd = kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # at loss
-        # loss_at = self.at_loss_weight * at_loss(
-        #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
-        # )
-        # loss_rkd = self.rkd_feat_loss_weight * rkd_loss(
-        #     feature_student["pooled_feat"],
-        #     feature_teacher["pooled_feat"],
-        #     self.rkd_squared,
-        #     self.rkd_eps,
-        #     self.rkd_distance_weight,
-        #     self.rkd_angle_weight,
-        # )
+        loss_at = self.at_loss_weight * at_loss(
+            feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
+        )
+        loss_rkd = self.rkd_feat_loss_weight * rkd_loss(
+            feature_student["pooled_feat"],
+            feature_teacher["pooled_feat"],
+            self.rkd_squared,
+            self.rkd_eps,
+            self.rkd_distance_weight,
+            self.rkd_angle_weight,
+        )
         # ! multi KD losses ! End #######
-        # kd_sum = loss_layers_logits + loss_at + loss_rkd
-        # loss_kd = loss_layers_logits / kd_sum * loss_layers_logits + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
-        loss_kd = loss_layers_logits
+        kd_sum = loss_layers_logits + loss_at + loss_rkd
+        loss_kd = loss_layers_logits / kd_sum * loss_layers_logits + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        # loss_kd = loss_layers_logits
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
