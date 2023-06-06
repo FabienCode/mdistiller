@@ -84,28 +84,29 @@ class DKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        kd_logits_student = []
-        for i in range(len(feature_student["feats"][1:])):
-            kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-                                                        .reshape(feature_student["feats"][i+1].shape[0], -1)))
-        kd_logits_teacher = []
-        for i in range(len(feature_teacher["feats"][1:])):
-            kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
-                                                        .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student, 
-                                                                        kd_logits_teacher, 
-                                                                        target, 
-                                                                        self.alpha, 
-                                                                        self.beta, 
-                                                                        self.temperature)
-        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
+        # KD loss
+        # kd_logits_student = []
+        # for i in range(len(feature_student["feats"][1:])):
+        #     kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
+        #                                                 .reshape(feature_student["feats"][i+1].shape[0], -1)))
+        # kd_logits_teacher = []
+        # for i in range(len(feature_teacher["feats"][1:])):
+        #     kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
+        #                                                 .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student, 
+        #                                                                 kd_logits_teacher, 
+        #                                                                 target, 
+        #                                                                 self.alpha, 
+        #                                                                 self.beta, 
+        #                                                                 self.temperature)
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,

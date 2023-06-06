@@ -47,6 +47,11 @@ def cat_mask(t, mask1, mask2):
     t2 = (t * mask2).sum(1, keepdims=True)
     rt = torch.cat([t1, t2], dim=1)
     return rt
+
+
+def layers_dkd(logits_students, logits_teachers, target, alpha, beta, temperature):
+    return sum([dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature) for logits_student, logits_teacher in zip(logits_students, logits_teachers)])
+
 ##### DKD end #####
 
 def fitnet_loss(feature_s, feature_t, weight):
@@ -82,7 +87,6 @@ def layers_kd_loss(layers_logits_student, layers_logits_teacher, temperature):
     for i, (logits_student, logits_teacher) in enumerate(zip(layers_logits_student, layers_logits_teacher)):
         logits_loss += kd_loss(logits_student, logits_teacher, temperature)
     return logits_loss
-
 
 
 # RKD Relational Knowledge Disitllation, CVPR2019
@@ -221,8 +225,8 @@ class MDis(Distiller):
             self.rkd_angle_weight,
         )
         # ! multi KD losses ! End #######
-        loss_kd = loss_dkd + loss_at + loss_rkd
-        # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        kd_sum = loss_dkd + loss_at + loss_rkd
+        loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
         # loss_kd = loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
