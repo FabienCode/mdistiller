@@ -148,7 +148,7 @@ class MDis(Distiller):
             nn.AvgPool2d(16),
             nn.AvgPool2d(8)
         )
-
+        self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
         # ori logits KD setting
         self.ori_logits_kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
         self.layers_kd_weight = 30
@@ -186,21 +186,33 @@ class MDis(Distiller):
 
         # ! multi KD losses ! Begin #######
         # tmp is dkd + at + rkd
-        kd_logits_student = []
-        for i in range(len(feature_student["feats"][1:])):
-            kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-                                                        .reshape(feature_student["feats"][i+1].shape[0], -1)))
-        kd_logits_teacher = []
-        for i in range(len(feature_teacher["feats"][1:])):
-            kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
-                                                        .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        # kd_logits_student = []
+        # for i in range(len(feature_student["feats"][1:])):
+        #     kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
+        #                                                 .reshape(feature_student["feats"][i+1].shape[0], -1)))
+        # kd_logits_teacher = []
+        # for i in range(len(feature_teacher["feats"][1:])):
+        #     kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
+        #                                                 .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
+        # loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_ori_kd = kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
-        # at loss
-        loss_at = self.at_kd_weight * at_loss(
+        ###### DKD loss
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
+        ###### AT loss self.at_kd_weight
+        at_kd_weight = 1
+        loss_at = at_kd_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
-        loss_rkd = self.rkd_kd_weight * rkd_loss(
+        ###### RKD loss self.rkd_kd_weight
+        rkd_kd_weight = 1
+        loss_rkd = rkd_kd_weight * rkd_loss(
             feature_student["pooled_feat"],
             feature_teacher["pooled_feat"],
             self.rkd_squared,
@@ -209,9 +221,9 @@ class MDis(Distiller):
             self.rkd_angle_weight,
         )
         # ! multi KD losses ! End #######
-        kd_sum = loss_layers_logits + loss_at + loss_rkd
-        loss_kd = loss_layers_logits / kd_sum * loss_layers_logits + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
-        # loss_kd = loss_layers_logits
+        loss_kd = loss_dkd + loss_at + loss_rkd
+        # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        # loss_kd = loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
