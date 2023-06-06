@@ -31,6 +31,23 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
     )
     return alpha * tckd_loss + beta * nckd_loss
 
+def _get_gt_mask(logits, target):
+    target = target.reshape(-1)
+    mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
+    return mask
+
+def _get_other_mask(logits, target):
+    target = target.reshape(-1)
+    mask = torch.ones_like(logits).scatter_(1, target.unsqueeze(1), 0).bool()
+    return mask
+
+
+def cat_mask(t, mask1, mask2):
+    t1 = (t * mask1).sum(dim=1, keepdims=True)
+    t2 = (t * mask2).sum(1, keepdims=True)
+    rt = torch.cat([t1, t2], dim=1)
+    return rt
+##### DKD end #####
 
 def fitnet_loss(feature_s, feature_t, weight):
     return weight * F.mse_loss(feature_s, feature_t)
@@ -66,10 +83,7 @@ def layers_kd_loss(layers_logits_student, layers_logits_teacher, temperature):
         logits_loss += kd_loss(logits_student, logits_teacher, temperature)
     return logits_loss
 
-def _get_gt_mask(logits, target):
-    target = target.reshape(-1)
-    mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
-    return mask
+
 
 # RKD Relational Knowledge Disitllation, CVPR2019
 def _pdist(e, squared, eps):
@@ -116,18 +130,6 @@ def rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weigh
     return loss
 
 
-def _get_other_mask(logits, target):
-    target = target.reshape(-1)
-    mask = torch.ones_like(logits).scatter_(1, target.unsqueeze(1), 0).bool()
-    return mask
-
-
-def cat_mask(t, mask1, mask2):
-    t1 = (t * mask1).sum(dim=1, keepdims=True)
-    t2 = (t * mask2).sum(1, keepdims=True)
-    rt = torch.cat([t1, t2], dim=1)
-    return rt
-
 
 class MDis(Distiller):
 
@@ -152,7 +154,7 @@ class MDis(Distiller):
         self.layers_kd_weight = 30
 
         # DKD super-parameters setting
-        self.ce_loss_weight = cfg.DKD.CE_WEIGHT
+        self.dkd_kd_weight = 1
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
         self.temperature = cfg.DKD.T
@@ -183,7 +185,7 @@ class MDis(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
-        # tmp is multi_logits_kd + at + rkd
+        # tmp is dkd + at + rkd
         kd_logits_student = []
         for i in range(len(feature_student["feats"][1:])):
             kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
