@@ -209,12 +209,12 @@ class MDis(Distiller):
         for i in range(len(feature_teacher["feats"][1:])):
             kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
                                                         .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student, 
-                                                                        kd_logits_teacher, 
-                                                                        target, 
-                                                                        self.alpha, 
-                                                                        self.beta, 
-                                                                        self.temperature)
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student,
+                                   kd_logits_teacher, 
+                                   target, 
+                                   self.alpha, 
+                                   self.beta, 
+                                   self.temperature)
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
         #     logits_teacher,
@@ -239,8 +239,8 @@ class MDis(Distiller):
             self.rkd_angle_weight,
         )
         # ! multi KD losses ! End #######
-        loss_kd = loss_dkd + loss_at + loss_rkd
-        # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
+        kd_sum = loss_dkd + loss_at + loss_rkd
+        loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
         # loss_kd = loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
