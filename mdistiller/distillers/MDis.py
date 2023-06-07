@@ -80,13 +80,14 @@ def kd_loss(logits_student, logits_teacher, temperature):
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
     loss_kd *= temperature ** 2
     return loss_kd
-#### kd end #####
+
 # Modify Distilling the Knowledge in a Neural Network --> each block feature logits
 def layers_kd_loss(layers_logits_student, layers_logits_teacher, temperature):
     logits_loss = 0.
     for i, (logits_student, logits_teacher) in enumerate(zip(layers_logits_student, layers_logits_teacher)):
         logits_loss += kd_loss(logits_student, logits_teacher, temperature)
     return logits_loss
+#### kd end #####
 
 
 # RKD Relational Knowledge Disitllation, CVPR2019
@@ -214,7 +215,7 @@ class MDis(Distiller):
         kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
         dkd_kd_weight = 0.1
-        loss_dkd = dkd_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        loss_dkd = min(kwargs["epoch"] / self.warmup, dkd_kd_weight) * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
         #     logits_teacher,
@@ -225,7 +226,7 @@ class MDis(Distiller):
         # )
         ###### AT loss self.at_kd_weight
         at_kd_weight = 30
-        loss_at = at_kd_weight * at_loss(
+        loss_at = min(kwargs["epoch"] / self.warmup, at_kd_weight) * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
         ###### RKD loss self.rkd_kd_weight
@@ -238,7 +239,7 @@ class MDis(Distiller):
             kd_pooled_teacher.append(self.logits_avg[i](feature_teacher["feats"][i+1]).reshape(bs, -1))
         kd_pooled_teacher.append(feature_teacher["pooled_feat"])
         rkd_kd_weight = 0.1
-        loss_rkd = rkd_kd_weight * layers_rkd_loss(
+        loss_rkd = min(kwargs["epoch"] / self.warmup, rkd_kd_weight) * layers_rkd_loss(
             kd_pooled_student,
             kd_pooled_teacher,
             self.rkd_squared,
