@@ -192,6 +192,7 @@ class MDis(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
+        ###### DKD loss
         kd_logits_student = []
         for i in range(len(feature_student["feats"][1:-1])):
             # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
@@ -208,38 +209,24 @@ class MDis(Distiller):
                 kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1)))
         kd_logits_teacher.append(logits_teacher)
-        loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
-        loss_ori_kd = kd_loss(logits_student, logits_teacher, self.kd_temperature)
-        ###### DKD loss
-        # kd_logits_student = []
-        # for i in range(len(feature_student["feats"][1:])):
-        #     kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-        #                                                 .reshape(feature_student["feats"][i+1].shape[0], -1)))
-        # kd_logits_teacher = []
-        # for i in range(len(feature_teacher["feats"][1:])):
-        #     kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
-        #                                                 .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        # loss_dkd = 10 * min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student,
-        #                            kd_logits_teacher, 
-        #                            target, 
-        #                            self.alpha, 
-        #                            self.beta, 
-        #                            self.temperature)
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
+        dkd_kd_weight = 1
+        loss_dkd = dkd_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
         ###### AT loss self.at_kd_weight
-        at_kd_weight = 10
+        at_kd_weight = 1
         loss_at = at_kd_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
         ###### RKD loss self.rkd_kd_weight
-        rkd_kd_weight = 0.1
+        rkd_kd_weight = 1
         loss_rkd = rkd_kd_weight * rkd_loss(
             feature_student["pooled_feat"],
             feature_teacher["pooled_feat"],

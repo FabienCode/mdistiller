@@ -49,6 +49,9 @@ def rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weigh
     loss = distance_weight * loss_d + angle_weight * loss_a
     return loss
 
+def layers_rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weight=50):
+    return sum([rkd_loss(s, t, squared, eps, distance_weight, angle_weight) for s, t in zip(f_s, f_t)])
+
 
 class RKD(Distiller):
     """Relational Knowledge Disitllation, CVPR2019"""
@@ -62,21 +65,47 @@ class RKD(Distiller):
         self.eps = cfg.RKD.PDIST.EPSILON
         self.squared = cfg.RKD.PDIST.SQUARED
 
+        self.logits_avg = nn.Sequential(
+            nn.AvgPool2d(32),
+            nn.AvgPool2d(16),
+            nn.AvgPool2d(8)
+        )
+
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
             _, feature_teacher = self.teacher(image)
 
+        bs = feature_teacher["feats"][0].shape[0]
+        channels = []
+        for i in range(len(feature_student["feats"])):
+            channels.append(feature_student["feats"][i].shape[1])
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        loss_rkd = self.feat_loss_weight * rkd_loss(
-            feature_student["pooled_feat"],
-            feature_teacher["pooled_feat"],
+        kd_pooled_student = []
+        for i in range(len(feature_student["feats"][1:-1])):
+            kd_pooled_student.append(self.logits_avg[i](feature_student["feats"][i+1]).reshape(bs, -1))
+        kd_pooled_student.append(feature_student["pooled_feat"])
+        kd_pooled_teacher = []
+        for i in range(len(feature_teacher["feats"][1:-1])):
+            kd_pooled_teacher.append(self.logits_avg[i](feature_teacher["feats"][i+1]).reshape(bs, -1))
+        kd_pooled_teacher.append(feature_teacher["pooled_feat"])
+        loss_rkd = self.feat_loss_weight * layers_rkd_loss(
+            kd_pooled_student,
+            kd_pooled_teacher,
             self.squared,
             self.eps,
             self.distance_weight,
             self.angle_weight,
         )
+        # loss_rkd = self.feat_loss_weight * rkd_loss(
+        #     feature_student["pooled_feat"],
+        #     feature_teacher["pooled_feat"],
+        #     self.squared,
+        #     self.eps,
+        #     self.distance_weight,
+        #     self.angle_weight,
+        # )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_rkd,
