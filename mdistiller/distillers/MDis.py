@@ -134,7 +134,6 @@ def rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weigh
     return loss
 
 
-
 class MDis(Distiller):
 
     def __init__(self, student, teacher, cfg):
@@ -152,6 +151,7 @@ class MDis(Distiller):
             nn.AvgPool2d(16),
             nn.AvgPool2d(8)
         )
+        # self.logits_avg_1d = nn.
         self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
         # ori logits KD setting
         self.ori_logits_kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
@@ -184,22 +184,32 @@ class MDis(Distiller):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
             logits_teacher, feature_teacher = self.teacher(image)
-
+        bs = feature_teacher["feats"][0].shape[0]
+        channels = []
+        for i in range(len(feature_student["feats"])):
+            channels.append(feature_student["feats"][i].shape[1])
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # ! multi KD losses ! Begin #######
-        # tmp is dkd + at + rkd
-        # kd_logits_student = []
-        # for i in range(len(feature_student["feats"][1:])):
-        #     kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-        #                                                 .reshape(feature_student["feats"][i+1].shape[0], -1)))
-        # kd_logits_teacher = []
-        # for i in range(len(feature_teacher["feats"][1:])):
-        #     kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
-        #                                                 .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        # loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
-        # loss_ori_kd = kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        kd_logits_student = []
+        for i in range(len(feature_student["feats"][1:-1])):
+            # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
+            #                                             .reshape(feature_student["feats"][i+1].shape[0], -1)))
+            with torch.no_grad():
+                tmp_fc = self.student.fc
+                kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        kd_logits_student.append(logits_student)
+        kd_logits_teacher = []
+        for i in range(len(feature_teacher["feats"][1:-1])):
+            with torch.no_grad():
+                tmp_fc = self.teacher.fc
+                kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        kd_logits_teacher.append(logits_teacher)
+        loss_layers_logits = self.layers_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
+        loss_ori_kd = kd_loss(logits_student, logits_teacher, self.kd_temperature)
         ###### DKD loss
         # kd_logits_student = []
         # for i in range(len(feature_student["feats"][1:])):
