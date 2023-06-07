@@ -133,6 +133,9 @@ def rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weigh
     loss = distance_weight * loss_d + angle_weight * loss_a
     return loss
 
+def layers_rkd_loss(f_s, f_t, squared=False, eps=1e-12, distance_weight=25, angle_weight=50):
+    return sum([rkd_loss(s, t, squared, eps, distance_weight, angle_weight) for s, t in zip(f_s, f_t)])
+
 
 class MDis(Distiller):
 
@@ -210,7 +213,7 @@ class MDis(Distiller):
                                                 .reshape(bs, -1)))
         kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
-        dkd_kd_weight = 1
+        dkd_kd_weight = 0.1
         loss_dkd = dkd_kd_weight * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
@@ -221,20 +224,36 @@ class MDis(Distiller):
         #     self.temperature,
         # )
         ###### AT loss self.at_kd_weight
-        at_kd_weight = 1
+        at_kd_weight = 30
         loss_at = at_kd_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
         ###### RKD loss self.rkd_kd_weight
-        rkd_kd_weight = 1
-        loss_rkd = rkd_kd_weight * rkd_loss(
-            feature_student["pooled_feat"],
-            feature_teacher["pooled_feat"],
+        kd_pooled_student = []
+        for i in range(len(feature_student["feats"][1:-1])):
+            kd_pooled_student.append(self.logits_avg[i](feature_student["feats"][i+1]).reshape(bs, -1))
+        kd_pooled_student.append(feature_student["pooled_feat"])
+        kd_pooled_teacher = []
+        for i in range(len(feature_teacher["feats"][1:-1])):
+            kd_pooled_teacher.append(self.logits_avg[i](feature_teacher["feats"][i+1]).reshape(bs, -1))
+        kd_pooled_teacher.append(feature_teacher["pooled_feat"])
+        rkd_kd_weight = 0.1
+        loss_rkd = rkd_kd_weight * layers_rkd_loss(
+            kd_pooled_student,
+            kd_pooled_teacher,
             self.rkd_squared,
             self.rkd_eps,
             self.rkd_distance_weight,
             self.rkd_angle_weight,
         )
+        # loss_rkd = rkd_kd_weight * rkd_loss(
+        #     feature_student["pooled_feat"],
+        #     feature_teacher["pooled_feat"],
+        #     self.rkd_squared,
+        #     self.rkd_eps,
+        #     self.rkd_distance_weight,
+        #     self.rkd_angle_weight,
+        # )
         # ! multi KD losses ! End #######
         kd_sum = loss_dkd + loss_at + loss_rkd
         loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
