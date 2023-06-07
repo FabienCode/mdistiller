@@ -209,7 +209,7 @@ class MDis(Distiller):
         for i in range(len(feature_teacher["feats"][1:])):
             kd_logits_teacher.append(self.logits_fc[i](self.logits_avg[i](feature_teacher["feats"][i+1])\
                                                         .reshape(feature_teacher["feats"][i+1].shape[0], -1)))
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student,
+        loss_dkd = 10 * min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(kd_logits_student,
                                    kd_logits_teacher, 
                                    target, 
                                    self.alpha, 
@@ -224,12 +224,12 @@ class MDis(Distiller):
         #     self.temperature,
         # )
         ###### AT loss self.at_kd_weight
-        at_kd_weight = 1
+        at_kd_weight = 10
         loss_at = at_kd_weight * at_loss(
             feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         )
         ###### RKD loss self.rkd_kd_weight
-        rkd_kd_weight = 1
+        rkd_kd_weight = 0.1
         loss_rkd = rkd_kd_weight * rkd_loss(
             feature_student["pooled_feat"],
             feature_teacher["pooled_feat"],
