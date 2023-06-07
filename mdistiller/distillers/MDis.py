@@ -215,7 +215,6 @@ class MDis(Distiller):
                                    self.alpha, 
                                    self.beta, 
                                    self.temperature)
-        
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
         #     logits_teacher,
