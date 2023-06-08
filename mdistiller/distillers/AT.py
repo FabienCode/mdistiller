@@ -40,8 +40,11 @@ class AT(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        # loss_feat = self.feat_loss_weight * at_loss(
+        #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
+        # )
         loss_feat = self.feat_loss_weight * at_loss(
-            feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
+            feature_student["feats"], feature_teacher["feats"], self.p
         )
         losses_dict = {
             "loss_ce": loss_ce,
