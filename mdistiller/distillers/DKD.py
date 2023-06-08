@@ -65,17 +65,11 @@ class DKD(Distiller):
         self.warmup = cfg.DKD.WARMUP
 
         # layer logits modules
-        # num_classes = student.fc.out_features
-        # self.logits_fc = nn.Sequential(
-        #     nn.Linear(self.student.layer1[0].conv2.out_channels, num_classes),
-        #     nn.Linear(self.student.layer2[0].conv2.out_channels, num_classes),
-        #     nn.Linear(self.student.layer3[0].conv2.out_channels, num_classes)
-        # )
-        # self.logits_avg = nn.Sequential(
-        #     nn.AvgPool2d(32),
-        #     nn.AvgPool2d(16),
-        #     nn.AvgPool2d(8)
-        # )
+        self.logits_avg = nn.Sequential(
+            nn.AvgPool2d(32),
+            nn.AvgPool2d(16),
+            nn.AvgPool2d(8)
+        )
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -90,38 +84,38 @@ class DKD(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # KD loss
-        # kd_logits_student = []
-        # for i in range(len(feature_student["feats"][1:-1])):
-        #     # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-        #     #                                             .reshape(feature_student["feats"][i+1].shape[0], -1)))
-        #     with torch.no_grad():
-        #         tmp_fc = self.student.fc
-        #         kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-        #                                         .reshape(bs, -1)))
-        # kd_logits_student.append(logits_student)
-        # kd_logits_teacher = []
-        # for i in range(len(feature_teacher["feats"][1:-1])):
-        #     with torch.no_grad():
-        #         tmp_fc = self.teacher.fc
-        #         kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-        #                                         .reshape(bs, -1)))
-        # kd_logits_teacher.append(logits_teacher)
-        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(
-        #     kd_logits_student,
-        #     kd_logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
+        kd_logits_student = []
+        for i in range(len(feature_student["feats"][1:-1])):
+            # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
+            #                                             .reshape(feature_student["feats"][i+1].shape[0], -1)))
+            with torch.no_grad():
+                tmp_fc = self.student.fc
+                kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        kd_logits_student.append(logits_student)
+        kd_logits_teacher = []
+        for i in range(len(feature_teacher["feats"][1:-1])):
+            with torch.no_grad():
+                tmp_fc = self.teacher.fc
+                kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        kd_logits_teacher.append(logits_teacher)
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(
+            kd_logits_student,
+            kd_logits_teacher,
             target,
             self.alpha,
             self.beta,
             self.temperature,
         )
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
