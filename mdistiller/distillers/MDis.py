@@ -266,7 +266,7 @@ class MDis(Distiller):
         #     self.rkd_angle_weight,
         # )
         # ! multi KD losses ! End #######
-        kd_sum = loss_dkd + loss_at + loss_rkd
+        loss_kd = loss_dkd + loss_at + loss_rkd
         # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
         # loss_kd = loss_dkd
         losses_dict = {
