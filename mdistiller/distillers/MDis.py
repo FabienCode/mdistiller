@@ -184,6 +184,8 @@ class MDis(Distiller):
         # self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
         # self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
 
+        self.kd_weight = nn.parameter(torch.tensor([1]))
+
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
@@ -271,6 +273,6 @@ class MDis(Distiller):
         # loss_kd = loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_kd,
+            "loss_kd": self.kd_weight * loss_kd,
         }
         return logits_student, losses_dict
