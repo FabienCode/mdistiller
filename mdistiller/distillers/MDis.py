@@ -233,7 +233,7 @@ class MDis(Distiller):
         #     self.temperature,
         # )
         ###### AT loss self.at_kd_weight
-        at_kd_weight = 100
+        at_kd_weight = 50
         loss_at = at_kd_weight * at_loss(feature_student["feats"][1:], 
                                          feature_teacher["feats"][1:], 
                                          self.p)
@@ -246,7 +246,7 @@ class MDis(Distiller):
         for i in range(len(feature_teacher["feats"][1:-1])):
             kd_pooled_teacher.append(self.logits_avg[i](feature_teacher["feats"][i+1]).reshape(bs, -1))
         kd_pooled_teacher.append(feature_teacher["pooled_feat"])
-        rkd_kd_weight = 1
+        rkd_kd_weight = 0.1
         loss_rkd = rkd_kd_weight * layers_rkd_loss(
             kd_pooled_student,
             kd_pooled_teacher,
