@@ -177,10 +177,10 @@ class MDis(Distiller):
         self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
         self.at_kd_weight = 300
 
-        self.kd_weight = nn.Parameter(torch.tensor([1.]), requires_grad=True)
+        # self.kd_weight = nn.ParameterList([nn.Parameter(torch.tensor([1.]), requires_grad=True)])
 
-    def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.kd_weight)
+    # def get_learnable_parameters(self):
+    #     return super().get_learnable_parameters() + [self.kd_weight[0]]
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -233,7 +233,7 @@ class MDis(Distiller):
         #     self.temperature,
         # )
         ###### AT loss self.at_kd_weight
-        at_kd_weight = 1
+        at_kd_weight = 100
         loss_at = at_kd_weight * at_loss(feature_student["feats"][1:], 
                                          feature_teacher["feats"][1:], 
                                          self.p)
@@ -264,7 +264,7 @@ class MDis(Distiller):
         #     self.rkd_angle_weight,
         # )
         # ! multi KD losses ! End #######
-        loss_kd = self.kd_weight * (loss_dkd + loss_at + loss_rkd)
+        loss_kd = loss_dkd + loss_at + loss_rkd
         # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
         # loss_kd = loss_dkd
         losses_dict = {
