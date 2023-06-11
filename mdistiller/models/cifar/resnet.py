@@ -123,7 +123,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(8)
         self.fc = nn.Linear(num_filters[3] * block.expansion, num_classes)
         self.stage_channels = num_filters
-
+        # test
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
