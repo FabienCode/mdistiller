@@ -123,8 +123,6 @@ class ResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(8)
         self.fc = nn.Linear(num_filters[3] * block.expansion, num_classes)
         self.stage_channels = num_filters
-        if kd_para:
-            self.kd_parameter = nn.Parameter(torch.tensor(1.))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
