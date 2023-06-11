@@ -145,11 +145,6 @@ class MDis(Distiller):
         expansion = 4
         num_classes = student.fc.out_features
         # KD feature to logits
-        self.logits_fc = nn.Sequential(
-            nn.Linear(self.student.layer1[0].conv2.out_channels, num_classes),
-            nn.Linear(self.student.layer2[0].conv2.out_channels, num_classes),
-            nn.Linear(self.student.layer3[0].conv2.out_channels, num_classes)
-        )
         self.logits_avg = nn.Sequential(
             nn.AvgPool2d(32),
             nn.AvgPool2d(16),
@@ -181,10 +176,8 @@ class MDis(Distiller):
         self.p = cfg.AT.P
         self.at_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
         self.at_kd_weight = 300
-        # self.weight_at = nn.Parameter(torch.randn(1, requires_grad=True))
-        # self.weight_dkd = nn.Parameter(torch.randn(1, requires_grad=True))
 
-        self.kd_weight = nn.parameter(torch.tensor([1]))
+        self.kd_weight = nn.Parameter(torch.tensor([1.]), requires_grad=True)
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -268,11 +261,11 @@ class MDis(Distiller):
         #     self.rkd_angle_weight,
         # )
         # ! multi KD losses ! End #######
-        loss_kd = loss_dkd + loss_at + loss_rkd
+        loss_kd = self.student.kd_parameter.item() * (loss_dkd + loss_at + loss_rkd)
         # loss_kd = loss_dkd / kd_sum * loss_dkd + loss_at / kd_sum * loss_at + loss_rkd / kd_sum * loss_rkd
         # loss_kd = loss_dkd
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": self.kd_weight * loss_kd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict

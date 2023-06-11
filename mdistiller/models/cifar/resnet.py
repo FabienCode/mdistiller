@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -94,7 +95,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, depth, num_filters, block_name="BasicBlock", num_classes=10):
+    def __init__(self, depth, num_filters, block_name="BasicBlock", num_classes=10, kd_para=False):
         super(ResNet, self).__init__()
         # Model type specifies number of layers for CIFAR-10 model
         if block_name.lower() == "basicblock":
@@ -122,6 +123,8 @@ class ResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(8)
         self.fc = nn.Linear(num_filters[3] * block.expansion, num_classes)
         self.stage_channels = num_filters
+        if kd_para:
+            self.kd_parameter = nn.Parameter(torch.tensor(1.))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -180,6 +183,7 @@ class ResNet(nn.Module):
 
     def get_stage_channels(self):
         return self.stage_channels
+    
 
     def forward(self, x):
         x = self.conv1(x)
