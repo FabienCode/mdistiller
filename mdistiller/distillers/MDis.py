@@ -222,7 +222,7 @@ class MDis(Distiller):
                 #                                 .reshape(bs, -1)))
         kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
-        dkd_kd_weight = 1
+        dkd_kd_weight = 10
         loss_dkd =  min(kwargs["epoch"] / self.warmup, dkd_kd_weight) * layers_kd_loss(kd_logits_student, kd_logits_teacher, self.kd_temperature)
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
