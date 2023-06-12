@@ -14,7 +14,7 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
     pred_teacher = cat_mask(pred_teacher, gt_mask, other_mask)
     log_pred_student = torch.log(pred_student)
     tckd_loss = (
-        F.kl_div(log_pred_student, pred_teacher, reduce=False, reduction='sum')
+        F.kl_div(log_pred_student, pred_teacher, reduce=True, reduction='sum')
         * (temperature**2)
         / target.shape[0]
     )
@@ -25,7 +25,7 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
         logits_student / temperature - 1000.0 * gt_mask, dim=1
     )
     nckd_loss = (
-        F.kl_div(log_pred_student_part2, pred_teacher_part2, reduce=False, reduction='sum')
+        F.kl_div(log_pred_student_part2, pred_teacher_part2, reduce=True, reduction='sum')
         * (temperature**2)
         / target.shape[0]
     )
@@ -142,9 +142,17 @@ class MLogits(Distiller):
                                                 .reshape(bs, -1)))
         kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(
-            logits_student,
-            logits_teacher,
+            kd_logits_student,
+            kd_logits_teacher,
             target,
             self.alpha,
             self.beta,
