@@ -31,9 +31,6 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
     )
     return alpha * tckd_loss + beta * nckd_loss
 
-def layers_dkd(logits_students, logits_teachers, target, alpha, beta, temperature):
-    return sum([dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature) for logits_student, logits_teacher in zip(logits_students, logits_teachers)])
-
 def _get_gt_mask(logits, target):
     target = target.reshape(-1)
     mask = torch.zeros_like(logits).scatter_(1, target.unsqueeze(1), 1).bool()
@@ -84,48 +81,14 @@ class DKD(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # KD loss
-        kd_logits_student = []
-        for i in range(len(feature_student["feats"][1:-1])):
-            # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
-            #                                             .reshape(feature_student["feats"][i+1].shape[0], -1)))
-            with torch.no_grad():
-                tmp_fc = self.student.fc
-                tmp_avg_feature = self.logits_avg[i](feature_student["feats"][i+1])
-                # repeat_avg_feature_s1 = F.interpolate(tmp_avg_feature.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
-                repeat_avg_feature_s2 = F.interpolate(tmp_avg_feature.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()
-                # repeat_avg_feature_s = repeat_avg_feature_s1 + repeat_avg_feature_s2
-                kd_logits_student.append(tmp_fc(repeat_avg_feature_s2.reshape(bs, -1)))
-                # kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                #                                 .reshape(bs, -1)))
-        kd_logits_student.append(logits_student)
-        kd_logits_teacher = []
-        for i in range(len(feature_teacher["feats"][1:-1])):
-            with torch.no_grad():
-                tmp_fc = self.teacher.fc
-                tmp_avg_feature_teacher = self.logits_avg[i](feature_teacher["feats"][i+1])
-                # repeat_avg_feature_t1 = F.interpolate(tmp_avg_feature_teacher.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
-                repeat_avg_feature_t2 = F.interpolate(tmp_avg_feature_teacher.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()
-                # repeat_avg_feature_t = repeat_avg_feature_t1 + repeat_avg_feature_t2
-                kd_logits_teacher.append(tmp_fc(repeat_avg_feature_t2.reshape(bs, -1)))
-                # kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                #                                 .reshape(bs, -1)))
-        kd_logits_teacher.append(logits_teacher)
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * layers_dkd(
-            kd_logits_student,
-            kd_logits_teacher,
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
             target,
             self.alpha,
             self.beta,
             self.temperature,
         )
-        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,

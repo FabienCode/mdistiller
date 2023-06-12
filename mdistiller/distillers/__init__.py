@@ -31,4 +31,5 @@ distiller_dict = {
     "REVIEWKD": ReviewKD,
     "DKD": DKD,
     "MDis": MDis,
+    "MLogits": MLogits
 }
