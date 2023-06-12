@@ -127,7 +127,7 @@ class MLogits(Distiller):
                 # kd_logits_student.append(tmp_fc(repeat_avg_feature_s.reshape(bs, -1)))
                 kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1)))
-        # kd_logits_student.append(logits_student)
+        kd_logits_student.append(logits_student)
         kd_logits_teacher = []
         for i in range(len(feature_teacher["feats"][1:-1])):
             with torch.no_grad():
@@ -139,7 +139,7 @@ class MLogits(Distiller):
                 # kd_logits_teacher.append(tmp_fc(repeat_avg_feature_t.reshape(bs, -1)))
                 kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1)))
-        # kd_logits_teacher.append(logits_teacher)
+        kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             logits_student,
