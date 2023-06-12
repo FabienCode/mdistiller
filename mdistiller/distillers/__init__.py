@@ -13,6 +13,7 @@ from .VID import VID
 from .ReviewKD import ReviewKD
 from .DKD import DKD
 from .MDis import MDis
+from .MLogits import MLogits
 
 distiller_dict = {
     "NONE": Vanilla,
