@@ -159,7 +159,7 @@ class MLogits(Distiller):
         kd_logits_student = []
         for i in range(len(feature_student["feats"][1:-1])):
             with torch.no_grad():
-                tmp_fc = self.teacher.fc
+                tmp_fc = self.student.fc
         #         tmp_avg_feature = self.logits_avg[i](feature_student["feats"][i+1])
         #         repeat_avg_feature_s1 = F.interpolate(tmp_avg_feature.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
         #         repeat_avg_feature_s2 = F.interpolate(tmp_avg_feature.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()
@@ -171,7 +171,7 @@ class MLogits(Distiller):
         kd_logits_teacher = []
         for i in range(len(feature_teacher["feats"][1:-1])):
             with torch.no_grad():
-                tmp_fc = self.student.fc
+                tmp_fc = self.teacher.fc
         #         tmp_avg_feature_teacher = self.logits_avg[i](feature_teacher["feats"][i+1])
         #         repeat_avg_feature_t1 = F.interpolate(tmp_avg_feature_teacher.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
         #         repeat_avg_feature_t2 = F.interpolate(tmp_avg_feature_teacher.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()

@@ -14,6 +14,7 @@ from .ReviewKD import ReviewKD
 from .DKD import DKD
 from .MDis import MDis
 from .MLogits import MLogits
+from .CLD import CLD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -31,5 +32,6 @@ distiller_dict = {
     "REVIEWKD": ReviewKD,
     "DKD": DKD,
     "MDis": MDis,
-    "MLogits": MLogits
+    "MLogits": MLogits,
+    "CLD": CLD
 }
