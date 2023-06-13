@@ -72,6 +72,40 @@ def layers_kd_loss(layers_logits_student, layers_logits_teacher, temperature):
     return logits_loss
 #### kd end #####
 
+class Cross_Distillation(nn.Module):
+    def __init__(self, in_channels, out_channels, num_heads):
+        super(Cross_Distillation, self).__init__()
+        self.query_proj_s = nn.Conv2d(in_channels, out_channels, 1)
+        self.key_proj_t = nn.Conv2d(in_channels, out_channels, 1)
+        self.value_proj_t = nn.Conv2d(in_channels, out_channels, 1)
+        self.attention = nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
+        self.kd_token = nn.Parameter(torch.randn(1, 1, out_channels))
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.reshape = nn.Flatten()
+
+    def forward(self, feature_student, feature_teacher):
+        B, C, H, W = feature_student.shape
+        
+        query = self.query_proj_s(feature_student)
+        key = self.key_proj_t(feature_teacher)
+        value = self.value_proj_t(feature_teacher)
+
+        query = query.permute(0, 2, 3, 1).reshape(B, H*W, -1)
+        key = key.permute(0, 2, 3, 1).reshape(B, H*W, -1)
+        value = value.permute(0, 2, 3, 1).reshape(B, H*W, -1)
+
+        kd_token = self.kd_token.expand(B, -1, -1)
+        query = torch.cat((kd_token, key), dim=1)
+        key = torch.cat((kd_token, key), dim=1)
+        value = torch.cat((kd_token, value), dim=1)
+
+        output, attention_map = self.attention(query, key, value)
+        output = output[:, 0, :].view(B, C, -1, 1)
+        output = self.avgpool(output)
+        output = self.reshape(output)
+
+        return attention_map, output
+
 
 class MLogits(Distiller):
 
@@ -99,7 +133,12 @@ class MLogits(Distiller):
         self.warmup = cfg.DKD.WARMUP
         self.kd_temperature = cfg.KD.TEMPERATURE
 
+        # self.cross_distillation_1 = Cross_Distillation(64, 64, 8)
+
         # self.kd_weight = nn.ParameterList([nn.Parameter(torch.tensor([1.]), requires_grad=True)])
+
+        # distillation attention module
+
 
     # def get_learnable_parameters(self):
     #     return super().get_learnable_parameters() + [self.kd_weight[0]]
@@ -114,32 +153,34 @@ class MLogits(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
+        # test_dis_token, test_attention_map = self.cross_distillation_1(feature_student["feats"][1], feature_teacher["feats"][1])
+
         ###### DKD loss
         kd_logits_student = []
-        for i in range(len(feature_student["feats"][1:-1])):
+        # for i in range(len(feature_student["feats"][1:-1])):
             # kd_logits_student.append(self.logits_fc[i](self.logits_avg[i](feature_student["feats"][i+1])\
             #                                             .reshape(feature_student["feats"][i+1].shape[0], -1)))
-            with torch.no_grad():
-                tmp_fc = self.teacher.fc
+            # with torch.no_grad():
+            #     tmp_fc = self.teacher.fc
         #         tmp_avg_feature = self.logits_avg[i](feature_student["feats"][i+1])
         #         repeat_avg_feature_s1 = F.interpolate(tmp_avg_feature.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
         #         repeat_avg_feature_s2 = F.interpolate(tmp_avg_feature.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()
         #         repeat_avg_feature_s = repeat_avg_feature_s1 + repeat_avg_feature_s2
         #         kd_logits_student.append(tmp_fc(repeat_avg_feature_s.reshape(bs, -1)))
-                kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1)))
+                # kd_logits_student.append(tmp_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                #                                 .reshape(bs, -1)))
         kd_logits_student.append(logits_student)
         kd_logits_teacher = []
-        for i in range(len(feature_teacher["feats"][1:-1])):
-            with torch.no_grad():
-                tmp_fc = self.student.fc
+        # for i in range(len(feature_teacher["feats"][1:-1])):
+        #     with torch.no_grad():
+        #         tmp_fc = self.student.fc
         #         tmp_avg_feature_teacher = self.logits_avg[i](feature_teacher["feats"][i+1])
         #         repeat_avg_feature_t1 = F.interpolate(tmp_avg_feature_teacher.permute(0,2,1,3).contiguous(), size=[int(channels[-1]), 1]).permute(0,2,1,3).contiguous()
         #         repeat_avg_feature_t2 = F.interpolate(tmp_avg_feature_teacher.permute(0,3,2,1).contiguous(), size=[1, int(channels[-1])]).permute(0,3,2,1).contiguous()
         #         repeat_avg_feature_t = repeat_avg_feature_t1 + repeat_avg_feature_t2
         #         kd_logits_teacher.append(tmp_fc(repeat_avg_feature_t.reshape(bs, -1)))
-                kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1)))
+                # kd_logits_teacher.append(tmp_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                #                                 .reshape(bs, -1)))
         kd_logits_teacher.append(logits_teacher)
         # weight --> min(kwargs["epoch"] / self.warmup, 1.0)
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
