@@ -52,7 +52,7 @@ class CLD(Distiller):
         logtis_teachers = []
         for i in range(len(feature_teacher["feats"][1:-1])):
             with torch.no_grad():
-                tmp_t_fc = self.teacher.fc
+                tmp_t_fc = self.student.fc
                 logtis_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1)))
         logtis_teachers.append(logits_teacher)
