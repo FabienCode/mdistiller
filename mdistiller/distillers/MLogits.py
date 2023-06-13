@@ -147,9 +147,9 @@ class MLogits(Distiller):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
             logits_teacher, feature_teacher = self.teacher(image)
-        bs = feature_teacher["feats"][0].shape[0]
-        channels = [feat.shape[1] for feat in feature_student["feats"]]
-        layers_bn_weight = [getattr(self.student, f"layer1")[0].bn2.weight for i in range(3)]
+        # bs = feature_teacher["feats"][0].shape[0]
+        # channels = [feat.shape[1] for feat in feature_student["feats"]]
+        # layers_bn_weight = [getattr(self.student, f"layer1")[0].bn2.weight for i in range(3)]
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
