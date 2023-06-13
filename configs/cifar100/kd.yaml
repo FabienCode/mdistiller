@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "kd,res32x4,res8x4"
-  PROJECT: "cifar100_baselines"
+  TAG: "6.13,v5,kd,res32x4,res8x4"
+  PROJECT: "cifar100_cld"
 DISTILLER:
   TYPE: "KD"
   TEACHER: "resnet32x4"
