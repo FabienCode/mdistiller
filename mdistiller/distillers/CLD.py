@@ -31,6 +31,8 @@ class CLD(Distiller):
             nn.AvgPool2d(16),
             nn.AvgPool2d(8)
         )
+        self.logits_bn = nn.BatchNorm2d(256)
+        
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -55,11 +57,11 @@ class CLD(Distiller):
         # for i in range(len(pooled_student_features)):
         #     pooled_student_features[i][torch.rand(8,100)>0.5] = 0
         # direct add version
-        pooled_teacher_features = [(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1) + feature_teacher["pooled_feat"]) for i in range(1,3)]
+        pooled_teacher_features = [self.logits_bn(self.logits_avg[i]((feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
+                                                 + feature_teacher["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
         pooled_teacher_features.append(feature_teacher["pooled_feat"])
-        pooled_student_features = [(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1) + feature_student["pooled_feat"]) for i in range(1,3)]
+        pooled_student_features = [self.logits_bn(self.logits_avg[i]((feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
+                                                    + feature_student["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
         pooled_student_features.append(feature_student["pooled_feat"])
 
 
