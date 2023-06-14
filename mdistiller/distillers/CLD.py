@@ -25,7 +25,7 @@ class CLD(Distiller):
         self.temperature = cfg.KD.TEMPERATURE
         self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
-
+        self.num_classes = student.fc.out_features
         self.logits_avg = nn.Sequential(
             nn.AvgPool2d(32),
             nn.AvgPool2d(16),
@@ -68,7 +68,7 @@ class CLD(Distiller):
             logits_students = [tmp_fc(feat) for feat in pooled_student_features]
             logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
             for i in range(len(logits_students)):
-                mask = torch.rand(bs, 100) > 0.5
+                mask = torch.rand(bs, self.num_classes) > 0.5
                 logits_students[i][mask] = 0
                 logits_teachers[i][mask] = 0
         # logtis_students = []
