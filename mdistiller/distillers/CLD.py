@@ -68,8 +68,9 @@ class CLD(Distiller):
             logits_students = [tmp_fc(feat) for feat in pooled_student_features]
             logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
             for i in range(len(logits_students)):
-                logits_students[i] = logits_students[i][torch.rand(8, 100) > 0.5]
-                logits_teachers[i] = logits_teachers[i][torch.rand(8, 100) > 0.5]
+                mask = torch.rand(8, 100) > 0.5
+                logits_students[i][mask] = 0
+                logits_teachers[i][mask] = 0
         # logtis_students = []
         # for i in range(len(feature_student["feats"][1:-1])):
         #     with torch.no_grad():
