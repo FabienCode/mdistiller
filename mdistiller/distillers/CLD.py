@@ -92,7 +92,7 @@ class CLD(Distiller):
                 logits_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1)))
         logits_teachers.append(logits_teacher)
-        # add mask
+        # add mask test
         for i in range(len(logits_students)):
             mask = torch.rand(bs, self.num_classes) > 0.5
             logits_students[i][mask] = 0
