@@ -18,7 +18,7 @@ def layer_kd_loss(logits_students, logits_teachers, temperature):
 
 
 class CLD(Distiller):
-    """Chain-of-Logits knowledge distillation"""
+    """Chain-of-Logits knowledge distillation via masked layers knowledge"""
 
     def __init__(self, student, teacher, cfg):
         super(CLD, self).__init__(student, teacher)
@@ -41,27 +41,39 @@ class CLD(Distiller):
         # student logtis
         bs = feature_teacher["feats"][0].shape[0]
         channels = [feat.shape[1] for feat in feature_student["feats"]]
-        logtis_students = []
-        for i in range(len(feature_student["feats"][1:-1])):
-            with torch.no_grad():
-                tmp_s_fc = self.student.fc
-                logtis_students.append(tmp_s_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1)))
-        logtis_students.append(logits_student)
-        # teacher logits
-        logtis_teachers = []
-        for i in range(len(feature_teacher["feats"][1:-1])):
-            with torch.no_grad():
-                tmp_t_fc = self.student.fc
-                logtis_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-                                                .reshape(bs, -1)))
-        logtis_teachers.append(logits_teacher)
+
+        # add final avg pool feature
+        add_teacher_feature = [(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1) + feature_teacher["pooled_feat"]) for i in range(1,3)]
+        add_teacher_feature.append(feature_teacher["pooled_feat"])
+        add_student_feature = [(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1) + feature_student["pooled_feat"]) for i in range(1,3)]
+        add_student_feature.append(feature_student["pooled_feat"])
+        with torch.no_grad():
+            tmp_fc = self.student.fc
+            logits_students = [tmp_fc(feat) for feat in add_student_feature]
+            logits_teachers = [tmp_fc(feat) for feat in add_teacher_feature]
+        # logtis_students = []
+        # for i in range(len(feature_student["feats"][1:-1])):
+        #     with torch.no_grad():
+        #         tmp_s_fc = self.student.fc
+        #         logtis_students.append(tmp_s_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        #                                         .reshape(bs, -1)))
+        # logtis_students.append(logits_student)
+        # # teacher logits
+        # logtis_teachers = []
+        # for i in range(len(feature_teacher["feats"][1:-1])):
+        #     with torch.no_grad():
+        #         tmp_t_fc = self.student.fc
+        #         logtis_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        #                                         .reshape(bs, -1)))
+        # logtis_teachers.append(logits_teacher)
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # loss_kd = self.kd_loss_weight * kd_loss(
         #     logits_student, logits_teacher, self.temperature
         # )
-        loss_kd_layers = self.kd_loss_weight * layer_kd_loss(logtis_students, logtis_teachers, self.temperature)
+        loss_kd_layers = self.kd_loss_weight * layer_kd_loss(logits_students, logits_teachers, self.temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
