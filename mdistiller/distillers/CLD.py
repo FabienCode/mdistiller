@@ -32,6 +32,9 @@ class CLD(Distiller):
             nn.AvgPool2d(8)
         )
         self.logits_bn = nn.BatchNorm2d(256)
+        self.activation = nn.ReLU()
+        # self.activation = nn.ReLU6()
+
         
 
     def forward_train(self, image, target, **kwargs):
@@ -68,7 +71,7 @@ class CLD(Distiller):
             tmp_fc = self.student.fc
             logits_students = [tmp_fc(feat) for feat in pooled_student_features]
             logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
-            for i in range(len(logits_students)-1):
+            for i in range(len(logits_students)):
                 mask = torch.rand(bs, self.num_classes) > 0.5
                 logits_students[i][mask] = 0
                 logits_teachers[i][mask] = 0
