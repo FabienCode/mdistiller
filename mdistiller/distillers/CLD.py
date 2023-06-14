@@ -71,10 +71,10 @@ class CLD(Distiller):
             tmp_fc = self.student.fc
             logits_students = [tmp_fc(feat) for feat in pooled_student_features]
             logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
-            # for i in range(len(logits_students)):
-            #     mask = torch.rand(bs, self.num_classes) > 0.5
-            #     logits_students[i][mask] = 0
-            #     logits_teachers[i][mask] = 0
+            for i in range(len(logits_students)):
+                mask = torch.rand(bs, self.num_classes) > 0.5
+                logits_students[i][mask] = 0
+                logits_teachers[i][mask] = 0
         
         # logtis_students = []
         # for i in range(len(feature_student["feats"][1:-1])):
