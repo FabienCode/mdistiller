@@ -43,16 +43,33 @@ class CLD(Distiller):
         channels = [feat.shape[1] for feat in feature_student["feats"]]
 
         # add final avg pool feature
-        add_teacher_feature = [(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        # mask version
+        # pooled_teacher_features = [(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        #                                         .reshape(bs, -1)) for i in range(1,3)]
+        # pooled_teacher_features.append(feature_teacher["pooled_feat"])
+        # for i in range(len(pooled_teacher_features)):
+        #     pooled_teacher_features[i][torch.rand(8,100)>0.5] = 0
+        # pooled_student_features = [(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        #                                         .reshape(bs, -1)) for i in range(1,3)]
+        # pooled_student_features.append(feature_student["pooled_feat"])
+        # for i in range(len(pooled_student_features)):
+        #     pooled_student_features[i][torch.rand(8,100)>0.5] = 0
+        # direct add version
+        pooled_teacher_features = [(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1) + feature_teacher["pooled_feat"]) for i in range(1,3)]
-        add_teacher_feature.append(feature_teacher["pooled_feat"])
-        add_student_feature = [(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+        pooled_teacher_features.append(feature_teacher["pooled_feat"])
+        pooled_student_features = [(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
                                                 .reshape(bs, -1) + feature_student["pooled_feat"]) for i in range(1,3)]
-        add_student_feature.append(feature_student["pooled_feat"])
+        pooled_student_features.append(feature_student["pooled_feat"])
+
+
         with torch.no_grad():
             tmp_fc = self.student.fc
-            logits_students = [tmp_fc(feat) for feat in add_student_feature]
-            logits_teachers = [tmp_fc(feat) for feat in add_teacher_feature]
+            logits_students = [tmp_fc(feat) for feat in pooled_student_features]
+            logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
+            for i in range(len(logits_students)):
+                logits_students[i] = logits_students[i][torch.rand(8, 100) > 0.5]
+                logits_teachers[i] = logits_teachers[i][torch.rand(8, 100) > 0.5]
         # logtis_students = []
         # for i in range(len(feature_student["feats"][1:-1])):
         #     with torch.no_grad():
