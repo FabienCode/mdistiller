@@ -31,8 +31,8 @@ class CLD(Distiller):
             nn.AvgPool2d(16),
             nn.AvgPool2d(8)
         )
-        self.logits_bn = nn.BatchNorm2d(256)
-        self.activation = nn.ReLU()
+        # self.logits_bn = nn.BatchNorm2d(256)
+        # self.activation = nn.ReLU()
         # self.activation = nn.ReLU6()
 
         
@@ -59,38 +59,43 @@ class CLD(Distiller):
         # pooled_student_features.append(feature_student["pooled_feat"])
         # for i in range(len(pooled_student_features)):
         #     pooled_student_features[i][torch.rand(8,100)>0.5] = 0
-        # direct add and BN version
-        pooled_teacher_features = [self.logits_bn(self.logits_avg[i]((feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
-                                                 + feature_teacher["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
-        pooled_teacher_features.append(feature_teacher["pooled_feat"])
-        pooled_student_features = [self.logits_bn(self.logits_avg[i]((feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
-                                                    + feature_student["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
-        pooled_student_features.append(feature_student["pooled_feat"])
 
-        with torch.no_grad():
-            tmp_fc = self.student.fc
-            logits_students = [tmp_fc(feat) for feat in pooled_student_features]
-            logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
-            for i in range(len(logits_students)-1):
-                mask = torch.rand(bs, self.num_classes) > 0.5
-                logits_students[i][mask] = 0
-                logits_teachers[i][mask] = 0
+        # direct add and BN version
+        # pooled_teacher_features = [self.logits_bn(self.logits_avg[i]((feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
+        #                                          + feature_teacher["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
+        # pooled_teacher_features.append(feature_teacher["pooled_feat"])
+        # pooled_student_features = [self.logits_bn(self.logits_avg[i]((feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1))\
+        #                                             + feature_student["pooled_feat"].reshape(bs, -1, 1, 1)).reshape(bs, -1) for i in range(1,3)]
+        # pooled_student_features.append(feature_student["pooled_feat"])
+
+        # with torch.no_grad():
+        #     tmp_fc = self.student.fc
+        #     logits_students = [tmp_fc(feat) for feat in pooled_student_features]
+        #     logits_teachers = [tmp_fc(feat) for feat in pooled_teacher_features]
+        #     for i in range(len(logits_students)-1):
+        #         mask = torch.rand(bs, self.num_classes) > 0.5
+        #         logits_students[i][mask] = 0
+        #         logits_teachers[i][mask] = 0
         
-        # logtis_students = []
-        # for i in range(len(feature_student["feats"][1:-1])):
-        #     with torch.no_grad():
-        #         tmp_s_fc = self.student.fc
-        #         logtis_students.append(tmp_s_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-        #                                         .reshape(bs, -1)))
-        # logtis_students.append(logits_student)
-        # # teacher logits
-        # logtis_teachers = []
-        # for i in range(len(feature_teacher["feats"][1:-1])):
-        #     with torch.no_grad():
-        #         tmp_t_fc = self.student.fc
-        #         logtis_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
-        #                                         .reshape(bs, -1)))
-        # logtis_teachers.append(logits_teacher)
+        logits_students = []
+        for i in range(len(feature_student["feats"][1:-1])):
+            with torch.no_grad():
+                tmp_s_fc = self.student.fc
+                logits_students.append(tmp_s_fc(self.logits_avg[i](feature_student["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        logits_students.append(logits_student)
+        # teacher logits
+        logits_teachers = []
+        for i in range(len(feature_teacher["feats"][1:-1])):
+            with torch.no_grad():
+                tmp_t_fc = self.student.fc
+                logits_teachers.append(tmp_t_fc(self.logits_avg[i](feature_teacher["feats"][i+1]).repeat(1, int(channels[-1]/channels[i+1]), 1, 1)\
+                                                .reshape(bs, -1)))
+        logits_teachers.append(logits_teacher)
+        for i in range(len(logits_students)):
+            mask = torch.rand(bs, self.num_classes) > 0.5
+            logits_students[i][mask] = 0
+            logits_teachers[i][mask] = 0
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # loss_kd = self.kd_loss_weight * kd_loss(
