@@ -6,11 +6,11 @@ from ._base import Distiller
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
-    mask = (torch.rand(logits_student.shape[0], logits_student.shape[1]) > 0.5).cuda()
+    # mask = (torch.rand(logits_student.shape[0], logits_student.shape[1]) > 0.5).cuda()
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
-    # F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
-    loss_kd = torch.where(mask==1, F.kl_div(log_pred_student, pred_teacher, reduction="none"), torch.zeros_like(logits_student)).sum(1).mean()
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    # loss_kd = torch.where(mask==1, F.kl_div(log_pred_student, pred_teacher, reduction="none"), torch.zeros_like(logits_student)).sum(1).mean()
     loss_kd *= temperature**2
     return loss_kd
 
@@ -95,10 +95,10 @@ class CLD(Distiller):
                                                 .reshape(bs, -1)))
         logits_teachers.append(logits_teacher)
         # add mask test
-        # for i in range(len(logits_students)-1):
-        #     mask = torch.rand(bs, self.num_classes) > 0.5
-        #     logits_students[i][mask] = 0
-        #     logits_teachers[i][mask] = 0
+        for i in range(len(logits_students)-1):
+            mask = torch.rand(bs, self.num_classes) > 0.2
+            logits_students[i][mask] = 0
+            logits_teachers[i][mask] = 0
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # loss_kd = self.kd_loss_weight * kd_loss(
