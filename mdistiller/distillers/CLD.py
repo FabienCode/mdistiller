@@ -41,8 +41,8 @@ class CLD(Distiller):
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
-        with torch.no_grad():
-            logits_teacher, feature_teacher = self.teacher(image)
+        # with torch.no_grad():
+        logits_teacher, feature_teacher = self.teacher(image)
 
         # layers logits
         # student logtis
@@ -96,7 +96,7 @@ class CLD(Distiller):
         logits_teachers.append(logits_teacher)
         # add mask test
         for i in range(len(logits_students)-1):
-            mask = torch.rand(bs, self.num_classes) > 0.5
+            mask = torch.rand(bs, self.num_classes) > 0.2
             logits_students[i][mask] = 0
             logits_teachers[i][mask] = 0
         # losses
