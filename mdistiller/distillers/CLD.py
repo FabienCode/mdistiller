@@ -96,7 +96,7 @@ class CLD(Distiller):
         logits_teachers.append(logits_teacher)
         # add mask test
         for i in range(len(logits_students)-1):
-            mask = torch.rand(bs, self.num_classes) > 0.
+            mask = torch.rand(bs, self.num_classes) > 1.
             logits_students[i][mask] = 0
             logits_teachers[i][mask] = 0
         # losses
