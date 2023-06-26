@@ -95,10 +95,10 @@ class CLD(Distiller):
                                                 .reshape(bs, -1)))
         logits_teachers.append(logits_teacher)
         # add mask test
-        for i in range(len(logits_students)-1):
-            mask = torch.rand(bs, self.num_classes) > 0.2
-            logits_students[i][mask] = 0
-            logits_teachers[i][mask] = 0
+        # for i in range(len(logits_students)-1):
+        #     mask = torch.rand(bs, self.num_classes) > 0.2
+        #     logits_students[i][mask] = 0
+        #     logits_teachers[i][mask] = 0
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # loss_kd = self.kd_loss_weight * kd_loss(
