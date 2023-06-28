@@ -18,7 +18,7 @@
                 // "configs/cifar100/dkd/res32x4_res8x4.yaml",
                 // "configs/cifar100/rkd.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/cifar100/MLogits/res32_8.yaml",
-                "/home/fabien/Documents/project/2d/mdistiller/configs/cifar100/MLogits/CLD/CLD.yaml",
+                "/home/fabien/Documents/project/2d/mdistiller/configs/cifar100/MLogits/SRT/srt.yaml",
                 "--log_wandb",
                 "False",
                 "SOLVER.BATCH_SIZE",
