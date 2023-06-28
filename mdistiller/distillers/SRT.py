@@ -55,7 +55,7 @@ class SRT(Distiller):
         #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         # )
         loss_feat = self.feat_loss_weight * at_loss(
-            feature_student["feats"], feature_teacher["feats"], self.p
+            feature_student["feats"][:-1], feature_teacher["feats"][:-1], self.p
         )
         loss_vanilla_kd = self.kd_loss_weight * kd_loss(
             logits_student, logits_teacher, self.temperature
