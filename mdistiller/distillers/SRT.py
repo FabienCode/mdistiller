@@ -63,8 +63,8 @@ class SRT(Distiller):
         with torch.no_grad():
             text_features = self.clip_model.encode_text(prompts_text)
         logits_student, feature_student = self.student(image)
-        with torch.no_grad():
-            logits_teacher, feature_teacher = self.teacher(image)
+        # with torch.no_grad():
+        logits_teacher, feature_teacher = self.teacher(image)
 
         b, c, h, w = feature_teacher["feats"][-1].shape
         text_adaptives = [self.adaptive_layer(text_feature.float()) for text_feature in text_features]
@@ -75,7 +75,7 @@ class SRT(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        loss_feat = 0.1 * F.mse_loss(res_t_f, feature_student["feats"][-1])
+        loss_feat = F.mse_loss(res_t_f, feature_student["feats"][-1])
         # loss_feat = self.feat_loss_weight * at_loss(
         #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         # )
