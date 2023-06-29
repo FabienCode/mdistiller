@@ -10,7 +10,7 @@ from ._base import Distiller
 #     gradient, = torch.autograd.grad(feature.sum(), feature, create_graph=True)
 
 def labels_to_prompts(target):
-    prompts = ["This is a image of number " + str(int(label)) for label in target]
+    prompts = ["number " + str(int(label)) for label in target]
     return prompts
 
 def single_stage_at_loss(f_s, f_t, p):
