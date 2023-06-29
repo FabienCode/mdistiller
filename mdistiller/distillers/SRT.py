@@ -1,12 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import clip
 
 from ._base import Distiller
 
 
-def taylor_approximation(feature):
-    gradient, = torch.autograd.grad(feature.sum(), feature, create_graph=True)
+# def taylor_approximation(feature):
+#     gradient, = torch.autograd.grad(feature.sum(), feature, create_graph=True)
+
+def labels_to_prompts(target):
+    prompts = ["This is a image of number " + str(int(label)) for label in target]
+    return prompts
 
 def single_stage_at_loss(f_s, f_t, p):
     def _at(feat, p):
@@ -40,28 +45,48 @@ class SRT(Distiller):
         self.ce_loss_weight = cfg.AT.LOSS.CE_WEIGHT
         self.feat_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
 
+        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
+
         # vanilla kd setting
         self.temperature = cfg.KD.TEMPERATURE
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
+        
+        # add model
+        self.clip_model, self.preprocess = clip.load("ViT-B/32", jit=False)
+        self.transformer = nn.Transformer(d_model=256, batch_first=True)
+        self.adaptive_layer = nn.Linear(512, 256)
+
 
     def forward_train(self, image, target, **kwargs):
+        prompts = labels_to_prompts(target)
+        prompts_text = clip.tokenize(prompts).cuda()
+        with torch.no_grad():
+            text_features = self.clip_model.encode_text(prompts_text)
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
             logits_teacher, feature_teacher = self.teacher(image)
 
+        text_adaptives = [self.adaptive_layer(text_feature.float()) for text_feature in text_features]
+        text_adaptives = torch.stack(text_adaptives, dim=0)
+        res_t_f = self.transformer(text_adaptives.unsqueeze(-1).permute(0,2,1), feature_teacher["feats"][-1].\
+                                   view(8, 256, -1).permute(0,2,1)).permute(0,2,1).view(8, 256, 8, 8)
+
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        loss_feat = self.feat_loss_weight * F.mse_loss(res_t_f, feature_student["feats"][-1])
         # loss_feat = self.feat_loss_weight * at_loss(
         #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
         # )
-        loss_feat = self.feat_loss_weight * at_loss(
-            feature_student["feats"], feature_teacher["feats"], self.p
-        )
-        loss_vanilla_kd = self.kd_loss_weight * kd_loss(
-            logits_student, logits_teacher, self.temperature
-        )
+        # loss_feat = self.feat_loss_weight * at_loss(
+        #     feature_student["feats"], feature_teacher["feats"], self.p
+        # )
+        # loss_vanilla_kd = self.kd_loss_weight * kd_loss(
+        #     logits_student, logits_teacher, self.temperature
+        # )
+
+
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_feat + loss_vanilla_kd,
+            "loss_kd": loss_feat,
         }
         return logits_student, losses_dict
