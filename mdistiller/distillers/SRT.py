@@ -66,10 +66,11 @@ class SRT(Distiller):
         with torch.no_grad():
             logits_teacher, feature_teacher = self.teacher(image)
 
+        b, c, h, w = feature_teacher["feats"][-1].shape
         text_adaptives = [self.adaptive_layer(text_feature.float()) for text_feature in text_features]
         text_adaptives = torch.stack(text_adaptives, dim=0)
         res_t_f = self.transformer(text_adaptives.unsqueeze(-1).permute(0,2,1), feature_teacher["feats"][-1].\
-                                   view(8, 256, -1).permute(0,2,1)).permute(0,2,1).view(8, 256, 8, 8)
+                                   view(b, c, -1).permute(0,2,1)).permute(0,2,1).view(b, c, h, w)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
