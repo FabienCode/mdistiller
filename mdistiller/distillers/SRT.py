@@ -62,6 +62,8 @@ class SRT(Distiller):
         self.freeze(self.teacher)
         self.teacher_fc = self.teacher.fc
         self.kd_temperature = cfg.KD.TEMPERATURE
+
+        self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
         # add model
         # self.clip_model, self.preprocess = clip.load("ViT-B/32", jit=False)
         # self.transformer = nn.Transformer(d_model=256, batch_first=True)
@@ -109,14 +111,14 @@ class SRT(Distiller):
         # kd_student_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # loss_kd = kd_loss(kd_student_logits, logits_teacher, self.kd_temperature)
         # CrossKD--B
-        # kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        # loss_kd = kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
+        kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
+        loss_kd = 0.9 * kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
         # CrossKD--C
         # kd_student_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # loss_kd = kd_loss(kd_student_logits, logits_student, self.kd_temperature)
         # CrossKD--D
-        kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        loss_kd = kd_loss(kd_teacher_logits, logits_teacher, self.kd_temperature)
+        # kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
+        # loss_kd = kd_loss(kd_teacher_logits, logits_teacher, self.kd_temperature)
 
 
         losses_dict = {
