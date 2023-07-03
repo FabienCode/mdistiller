@@ -109,8 +109,11 @@ class SRT(Distiller):
         # kd_student_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # loss_kd = kd_loss(kd_student_logits, logits_teacher, self.kd_temperature)
         # CrossKD--B
-        kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        loss_kd = kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
+        # kd_teacher_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
+        # loss_kd = kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
+        # CrossKD--C
+        kd_student_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
+        loss_kd = kd_loss(kd_student_logits, logits_student, self.kd_temperature)
 
 
         losses_dict = {
