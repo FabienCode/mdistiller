@@ -157,10 +157,11 @@ class SRT(Distiller):
         # student_kd_feature = feature_student["feats"][-1]
 
         # CrossKD--A
-        kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1)).detach()
+        # kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1)).detach()
         # loss_kd = kd_loss(kd_student_logits, logits_teacher, self.kd_temperature)
         # CrossKD--B
-        # kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1)).detach()
+        # with torch.no_grad():
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1)).detach()
         # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
         # CrossKD--C
         # kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
