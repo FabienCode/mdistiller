@@ -104,9 +104,6 @@ class SRT(Distiller):
 
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
         # add model
-        # self.clip_model, self.preprocess = clip.load("ViT-B/32", jit=False)
-        # self.transformer = nn.Transformer(d_model=256, batch_first=True)
-        # self.adaptive_layer = nn.Linear(512, 256)
 
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
@@ -121,12 +118,8 @@ class SRT(Distiller):
             param.requires_grad = False
 
     def forward_train(self, image, target, **kwargs):
-        # prompts = labels_to_prompts(target)
-        # prompts_text = clip.tokenize(prompts).cuda()
-        # with torch.no_grad():
-        #     text_features = self.clip_model.encode_text(prompts_text)
         logits_student, feature_student = self.student(image)
-        # with torch.no_grad():
+        # teaacher have been freeze
         logits_teacher, feature_teacher = self.teacher(image)
 
         b, c, h, w = feature_teacher["feats"][-1].shape # 8 * 256 * 8 * 8
@@ -139,42 +132,11 @@ class SRT(Distiller):
         # losses
         ce_loss_weight = 0.1
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
-        # loss_feat = 0.1 * F.mse_loss(res_t_f, feature_student["feats"][-1])
-        # loss_feat = self.feat_loss_weight * at_loss(
-        #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
-        # )
-        # loss_feat = self.feat_loss_weight * at_loss(
-        #     feature_student["feats"], feature_teacher["feats"], self.p
-        # )
-        # loss_vanilla_kd = self.kd_loss_weight * kd_loss(
-        #     logits_student, logits_teacher, self.temperature
-        # )
-        # teacher_kd_feature = feature_teacher["feats"][-1]
-        # student_kd_feature = feature_student["feats"][-1]
 
-        # CrossKD--A
+        # CrossKD
         kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
-        # loss_kd = kd_loss(kd_student_logits, logits_teacher, self.kd_temperature)
-        # CrossKD--B
-        # with torch.no_grad():
-        # kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * kd_loss(kd_teacher_logits, logits_student, self.kd_temperature)
-        # CrossKD--C
-        # kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
-        # loss_kd = kd_loss(kd_student_logits, logits_student, self.kd_temperature)
-        # CrossKD--D
-        # kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
         kd_loss_weight = 0.9
         loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
-        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     kd_logits,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
-        # loss_kd = dkd_loss(kd_logits, logits_teacher, target, self.alpha, self.beta, self.temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
