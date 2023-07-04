@@ -134,7 +134,7 @@ class SRT(Distiller):
 
         # CrossKD
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
-        kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1)).detach()
         kd_loss_weight = 0.9
         # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
