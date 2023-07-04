@@ -99,7 +99,6 @@ class SRT(Distiller):
         self.temperature = cfg.KD.TEMPERATURE
         
         self.freeze(self.teacher)
-        self.teacher_fc = self.teacher.fc
         self.kd_temperature = cfg.KD.TEMPERATURE
 
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
@@ -134,9 +133,11 @@ class SRT(Distiller):
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # CrossKD
-        kd_logits = self.teacher_fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
+        # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
         kd_loss_weight = 0.9
-        loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
+        # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
+        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
