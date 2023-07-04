@@ -129,14 +129,14 @@ class SRT(Distiller):
         # res_t_f = self.transformer(feature_teacher["feats"][-1].view(b, c, -1).permute(0,2,1), text_adaptives.unsqueeze(-1).permute(0,2,1)).permute(0,2,1).view(b, c, h, w)
 
         # losses
-        ce_loss_weight = 0.1
+        ce_loss_weight = 1
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # CrossKD
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))\
-        with torch.no_grad():
-            kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        kd_loss_weight = 0.9
+        # with torch.no_grad():
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
+        kd_loss_weight = 100
         # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
 
