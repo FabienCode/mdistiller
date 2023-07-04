@@ -94,14 +94,9 @@ class SRT(Distiller):
     def __init__(self, student, teacher, cfg):
         super(SRT, self).__init__(student, teacher)
         self.p = cfg.AT.P
-        self.ce_loss_weight = cfg.AT.LOSS.CE_WEIGHT
-        self.feat_loss_weight = cfg.AT.LOSS.FEAT_WEIGHT
-
-        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
 
         # vanilla kd setting
         self.temperature = cfg.KD.TEMPERATURE
-        self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
         
         self.freeze(self.teacher)
         self.teacher_fc = self.teacher.fc
@@ -142,7 +137,8 @@ class SRT(Distiller):
         # res_t_f = self.transformer(feature_teacher["feats"][-1].view(b, c, -1).permute(0,2,1), text_adaptives.unsqueeze(-1).permute(0,2,1)).permute(0,2,1).view(b, c, h, w)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        ce_loss_weight = 0.1
+        loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
         # loss_feat = 0.1 * F.mse_loss(res_t_f, feature_student["feats"][-1])
         # loss_feat = self.feat_loss_weight * at_loss(
         #     feature_student["feats"][1:], feature_teacher["feats"][1:], self.p
@@ -168,7 +164,7 @@ class SRT(Distiller):
         # loss_kd = kd_loss(kd_student_logits, logits_student, self.kd_temperature)
         # CrossKD--D
         # kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        # loss_kd = 0.9 * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
+        loss_kd = 0.9 * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     kd_logits,
         #     logits_teacher,
@@ -177,7 +173,7 @@ class SRT(Distiller):
         #     self.beta,
         #     self.temperature,
         # )
-        loss_kd = dkd_loss(kd_logits, logits_teacher, target, self.alpha, self.beta, self.temperature)
+        # loss_kd = dkd_loss(kd_logits, logits_teacher, target, self.alpha, self.beta, self.temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
