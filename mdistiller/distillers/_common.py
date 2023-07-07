@@ -21,13 +21,31 @@ class ConvReg(nn.Module):
             raise NotImplemented("student size {}, teacher size {}".format(s_H, t_H))
         self.bn = nn.BatchNorm2d(t_C)
         self.relu = nn.ReLU(inplace=True)
+        self.conv_2 = nn.Conv2d(t_C, t_C, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(t_C)
+        self.conv_3 = nn.Conv2d(t_C, t_C, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(t_C)
 
     def forward(self, x):
         x = self.conv(x)
+        # if self.use_relu:
+        #     return self.relu(self.bn(x))
+        # else:
+        #     return self.bn(x)
         if self.use_relu:
-            return self.relu(self.bn(x))
+            x = self.relu(self.bn(x))
         else:
-            return self.bn(x)
+            x = self.bn(x)
+        x = self.conv_2(x)
+        if self.use_relu:
+            x = self.relu(self.bn2(x))
+        else:
+            x = self.bn2(x)
+        x = self.conv_3(x)
+        if self.use_relu:
+            return self.relu(self.bn3(x))
+        else:
+            return self.bn3(x)
 
 
 def get_feat_shapes(student, teacher, input_size):
