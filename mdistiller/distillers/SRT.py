@@ -71,7 +71,7 @@ class SRT(Distiller):
         #     kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
         kd_loss_weight = 1
         # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
-        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
+        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits.detach(), self.kd_temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
