@@ -67,24 +67,26 @@ class SRT(Distiller):
         # CrossKD
         # s_feat = self.align_scale(feature_student["feats"][-1], feature_teacher["feats"][-1])
         # s_feat = self.conv_reg(s_feat)
-        s_feat = self.conv_reg(feature_student["feats"][-1])
-        # s_feat = self.align_scale(s_feat, feature_teacher["feats"][-1])
-        kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
+        # s_feat = self.conv_reg(feature_student["feats"][-1])
+        # # s_feat = self.align_scale(s_feat, feature_teacher["feats"][-1])
+        # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
+
+        t_feat = self.conv_reg(feature_teacher["feats"][-1])
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(t_feat).reshape(b, -1))
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # with torch.no_grad():
         #     kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
         kd_loss_weight = 1
-        # # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
-        # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
+        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
         # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * self.qkl_loss(logits_student, kd_logits)
-        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            kd_logits,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     kd_logits,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
