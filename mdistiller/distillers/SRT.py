@@ -6,7 +6,7 @@ import clip
 
 from ._base import Distiller
 from ..engine.kd_loss import KDQualityFocalLoss, kd_loss
-
+from ._common import ConvReg, get_feat_shapes
 
 
 
@@ -32,6 +32,14 @@ class SRT(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
+        self.hint_layer = 3
+        feat_s_shapes, feat_t_shapes = get_feat_shapes(
+            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+        )
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
+
     @staticmethod
     def freeze(model: nn.Module):
         """Freeze the model."""
@@ -55,7 +63,8 @@ class SRT(Distiller):
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # CrossKD
-        s_feat = self.align_scale(feature_student["feats"][-1], feature_teacher["feats"][-1])
+        # s_feat = self.align_scale(feature_student["feats"][-1], feature_teacher["feats"][-1])
+        s_feat = self.conv_reg(feature_student["feats"][-1])
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # with torch.no_grad():
@@ -70,7 +79,7 @@ class SRT(Distiller):
         }
         return logits_student, losses_dict
     
-    def align_scale(self, s_feat, t_feat):
+    def align_scale(self, s_feat, t_feat): 
         N, C, H, W = s_feat.size()
         # normalize source feature
         s_feat = s_feat.permute(1, 0, 2, 3).reshape(C, -1)
