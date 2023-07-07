@@ -40,6 +40,8 @@ class SRT(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
+        self.qkl_loss = KDQualityFocalLoss()
+
     @staticmethod
     def freeze(model: nn.Module):
         """Freeze the model."""
@@ -69,9 +71,10 @@ class SRT(Distiller):
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # with torch.no_grad():
         #     kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
-        kd_loss_weight = 1
-        # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
+        kd_loss_weight = 10
+        # # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits.detach(), self.kd_temperature)
+        # loss_kd = self.qkl_loss(logits_student, kd_logits)
 
         losses_dict = {
             "loss_ce": loss_ce,
