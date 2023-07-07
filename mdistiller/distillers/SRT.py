@@ -5,7 +5,7 @@ import clip
 
 
 from ._base import Distiller
-from ..engine.kd_loss import KDQualityFocalLoss, kd_loss
+from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 from ._common import ConvReg, get_feat_shapes
 
 
@@ -76,7 +76,7 @@ class SRT(Distiller):
         kd_loss_weight = 1
         # # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
-        loss_kd = self.qkl_loss(logits_student, kd_logits)
+        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * self.qkl_loss(logits_student, kd_logits)
 
         losses_dict = {
             "loss_ce": loss_ce,
