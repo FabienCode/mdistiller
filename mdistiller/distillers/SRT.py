@@ -72,7 +72,7 @@ class SRT(Distiller):
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
 
         t_feat = self.conv_reg(feature_teacher["feats"][-1])
-        kd_logits = self.student.fc(nn.AvgPool2d(h)(t_feat).reshape(b, -1))
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(t_feat).reshape(b, -1)).detach()
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # with torch.no_grad():
         #     kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
