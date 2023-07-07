@@ -76,8 +76,15 @@ class SRT(Distiller):
         kd_loss_weight = 1
         # # loss_kd = kd_loss_weight * kd_loss(kd_logits, logits_teacher, self.kd_temperature)
         # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
-        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * self.qkl_loss(logits_student, kd_logits)
-
+        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * self.qkl_loss(logits_student, kd_logits)
+        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            kd_logits,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
