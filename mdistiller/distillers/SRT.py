@@ -55,9 +55,9 @@ class SRT(Distiller):
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # CrossKD
-        # s_feat = self.align_scale(feature_student["feats"][-1], feature_teacher["feats"][-1])
-        # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
-        kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
+        s_feat = self.align_scale(feature_student["feats"][-1], feature_teacher["feats"][-1])
+        kd_logits = self.teacher.fc(nn.AvgPool2d(h)(s_feat).reshape(b, -1))
+        # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][-1]).reshape(b, -1))
         # with torch.no_grad():
         #     kd_logits = self.student.fc(nn.AvgPool2d(h)(feature_teacher["feats"][-1]).reshape(b, -1))
         kd_loss_weight = 1
