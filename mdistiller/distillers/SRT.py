@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# import clip
 
 
 from ._base import Distiller
@@ -9,7 +8,6 @@ from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.models.transformer.model.decoder import Decoder
 
-from torch.nn import TransformerDecoder
 
 class SRT(Distiller):
     """soft relaxation taylor approximation
@@ -58,11 +56,6 @@ class SRT(Distiller):
         # teaacher have been freeze
         logits_teacher, feature_teacher = self.teacher(image)
         b, c, h, w = feature_teacher["feats"][-1].shape # 8 * 256 * 8 * 8
-        # text_adaptives = [self.adaptive_layer(text_feature.float()) for text_feature in text_features]
-        # text_adaptives = torch.stack(text_adaptives, dim=0)
-        # res_t_f = self.transformer(text_adaptives.unsqueeze(-1).permute(0,2,1), feature_teacher["feats"][-1].\
-        #                            view(b, c, -1).permute(0,2,1)).permute(0,2,1).view(b, c, h, w)
-        # res_t_f = self.transformer(feature_teacher["feats"][-1].view(b, c, -1).permute(0,2,1), text_adaptives.unsqueeze(-1).permute(0,2,1)).permute(0,2,1).view(b, c, h, w)
 
         # losses
         ce_loss_weight = 1
@@ -70,9 +63,10 @@ class SRT(Distiller):
 
         # CrossKD
         s_feat = self.conv_reg(feature_student["feats"][-1])
-        kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
+        kd_feat = self.cross_module(feature_teacher["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
                                     s_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
-        # # s_feat = self.align_scale(s_feat, feature_teacher["feats"][-1])
+        # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
+        #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
         kd_loss_weight = 1
