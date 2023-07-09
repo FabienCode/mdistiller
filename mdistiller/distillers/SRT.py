@@ -39,10 +39,12 @@ class SRT(Distiller):
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
         self.channel_fusion = CBAM(512)
-        self.conv_reg = ConvRegE(512, 256)
+        self.conv_reg = ConvRegE(512, 512)
 
-        self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
-        self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
+        # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
+        # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
+
+        self.adaptive_pool = nn.AdaptiveMaxPool2d((256, 8, 8))
 
         # self.qkl_loss = KDQualityFocalLoss()
 
@@ -67,13 +69,14 @@ class SRT(Distiller):
         s_feat = torch.concat((feature_student["feats"][-1], feature_teacher["feats"][-1]), dim=1)
         s_feat = self.channel_fusion(s_feat)
         kd_feat = self.conv_reg(s_feat)
+        kd_feat = self.custom_adaptive_pooling(kd_feat, 256)
         # kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
         #                             kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
-        kd_loss_weight = 10
+        kd_loss_weight = 1
         loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
 
         losses_dict = {
@@ -96,6 +99,17 @@ class SRT(Distiller):
         t_std = t_feat.std(dim=-1, keepdim=True)
         s_feat = s_feat * t_std + t_mean
         return s_feat.reshape(C, N, H, W).permute(1, 0, 2, 3)
+    
+    def custom_adaptive_pooling(self, input_tensor, output_channels):
+        batch_size, input_channels, height, width = input_tensor.size()
+
+        # 计算每个通道的最大池化输出
+        pooled_tensor, _ = torch.max(input_tensor, dim=1, keepdim=True)
+
+        # 扩展输出通道数
+        pooled_tensor = pooled_tensor.expand(batch_size, output_channels, height, width)
+
+        return pooled_tensor
 
 
 # class CatReg(nn.Module):
