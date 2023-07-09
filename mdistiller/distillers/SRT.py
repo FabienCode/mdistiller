@@ -39,8 +39,8 @@ class SRT(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
-        self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
-        self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
+        self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=4)
+        self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=3)
 
         # self.qkl_loss = KDQualityFocalLoss()
 
