@@ -7,7 +7,7 @@ from ._base import Distiller
 from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 from ._common import ConvReg, ConvRegE, get_feat_shapes
 # from mdistiller.models.transformer.model.decoder import Decoder
-
+from mdistiller.engine.mdis_utils import CBAM
 
 class SRT(Distiller):
     """soft relaxation taylor approximation
@@ -38,6 +38,7 @@ class SRT(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
+        self.channel_fusion = CBAM(512)
         self.conv_reg = ConvRegE(512, 256)
 
         self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
@@ -64,9 +65,10 @@ class SRT(Distiller):
 
         # CrossKD
         s_feat = torch.concat((feature_student["feats"][-1], feature_teacher["feats"][-1]), dim=1)
+        s_feat = self.channel_fusion(s_feat)
         kd_feat = self.conv_reg(s_feat)
-        kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
-                                    kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
+        # kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
+        #                             kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
@@ -94,3 +96,71 @@ class SRT(Distiller):
         t_std = t_feat.std(dim=-1, keepdim=True)
         s_feat = s_feat * t_std + t_mean
         return s_feat.reshape(C, N, H, W).permute(1, 0, 2, 3)
+
+
+# class CatReg(nn.Module):
+#     def __init__(self, in_channel, out_channel, reduction_ratio=0.5, name=""):
+#         super(CatReg, self).__init__()
+#         self.name = name
+#         self.reduction_ratio = reduction_ratio
+
+#         hidden_num = in_channel
+
+#         self.mlp_1_max = nn.Linear(hidden_num, int(hidden_num * reduction_ratio))
+#         self.mlp_2_max = nn.Linear(int(hidden_num * reduction_ratio), hidden_num)
+#         self.mlp_1_avg = nn.Linear(hidden_num, int(hidden_num * reduction_ratio))
+#         self.mlp_2_avg = nn.Linear(int(hidden_num * reduction_ratio), hidden_num)
+#         self.conv_layer = nn.Conv2d(2, 1, kernel_size=(7, 7), padding=(3, 3))
+#         self.conv = nn.Conv2d(in_channel, out_channel, kernel_size=3, stride=1, padding=1)
+#         self.bn = nn.BatchNorm2d(out_channel)
+#         self.relu = nn.ReLU(inplace=True)
+#         self.conv_2 = nn.Conv2d(out_channel, out_channel, kernel_size=3, stride=1, padding=1)
+#         self.bn2 = nn.BatchNorm2d(out_channel)
+#         self.conv_3 = nn.Conv2d(out_channel, out_channel, kernel_size=3, stride=1, padding=1)
+#         self.bn3 = nn.BatchNorm2d(out_channel)
+        
+
+#     def forward(self, inputs):
+#         self.use_relu = True
+#         batch_size, hidden_num = inputs.size(0), inputs.size(1)
+
+#         maxpool_channel = torch.max(torch.max(inputs, dim=2, keepdim=True)[0], dim=3, keepdim=True)[0]
+#         avgpool_channel = torch.mean(torch.mean(inputs, dim=2, keepdim=True), dim=3, keepdim=True)
+
+#         maxpool_channel = maxpool_channel.view(batch_size, -1)
+#         avgpool_channel = avgpool_channel.view(batch_size, -1)
+
+#         mlp_1_max = F.relu(self.mlp_1_max(maxpool_channel))
+#         mlp_2_max = self.mlp_2_max(mlp_1_max).view(batch_size, 1, 1, hidden_num)
+
+#         mlp_1_avg = F.relu(self.mlp_1_avg(avgpool_channel))
+#         mlp_2_avg = self.mlp_2_avg(mlp_1_avg).view(batch_size, 1, 1, hidden_num)
+
+#         channel_attention = torch.sigmoid(mlp_2_max + mlp_2_avg)
+#         channel_refined_feature = inputs * channel_attention
+
+#         maxpool_spatial = torch.max(inputs, dim=1, keepdim=True)[0]
+#         avgpool_spatial = torch.mean(inputs, dim=1, keepdim=True)
+
+#         max_avg_pool_spatial = torch.cat([maxpool_spatial, avgpool_spatial], dim=1)
+#         spatial_attention = torch.sigmoid(self.conv_layer(max_avg_pool_spatial))
+
+#         refined_feature = channel_refined_feature * spatial_attention
+
+#         # conv reg
+#         x = self.conv(refined_feature)
+#         if self.use_relu:
+#             x = self.relu(self.bn(x))
+#         else:
+#             x = self.bn(x)
+#         x = self.conv_2(x)
+#         if self.use_relu:
+#             x = self.relu(self.bn2(x))
+#         else:
+#             x = self.bn2(x)
+#         x = self.conv_3(x)
+#         if self.use_relu:
+#             return self.relu(self.bn3(x))
+#         else:
+#             return self.bn3(x)
+#         # return refined_feature
