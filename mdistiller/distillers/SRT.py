@@ -73,7 +73,7 @@ class SRT(Distiller):
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
-        kd_loss_weight = 1
+        kd_loss_weight = 10
         loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
 
         losses_dict = {
