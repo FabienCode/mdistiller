@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 from ._common import ConvReg, get_feat_shapes
-from mdistiller.models.transformer.model.decoder import Decoder
+# from mdistiller.models.transformer.model.decoder import Decoder
 
 
 class SRT(Distiller):
