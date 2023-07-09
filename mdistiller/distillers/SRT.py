@@ -39,8 +39,8 @@ class SRT(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
-        self.channel_fusion = CBAM(512)
-        self.conv_reg = ConvRegE(512, 256)
+        # self.channel_fusion = CBAM(512)
+        # self.conv_reg = ConvRegE(512, 256)
 
         # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
         # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
