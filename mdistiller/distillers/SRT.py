@@ -65,7 +65,7 @@ class SRT(Distiller):
         # CrossKD
         s_feat = torch.concat((feature_student["feats"][-1], feature_teacher["feats"][-1]), dim=1)
         kd_feat = self.conv_reg(s_feat)
-        kd_feat = self.cross_module(feature_teacher["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
+        kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
                                     kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
