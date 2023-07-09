@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
-from ._common import ConvReg, get_feat_shapes
+from ._common import ConvReg, ConvRegE, get_feat_shapes
 # from mdistiller.models.transformer.model.decoder import Decoder
 
 
@@ -35,12 +35,13 @@ class SRT(Distiller):
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
-        self.conv_reg = ConvReg(
-            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        )
+        # self.conv_reg = ConvReg(
+        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        # )
+        self.conv_reg = ConvRegE(512, 256)
 
-        self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=4)
-        self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=3)
+        # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=4)
+        # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=3)
 
         # self.qkl_loss = KDQualityFocalLoss()
 
@@ -62,9 +63,10 @@ class SRT(Distiller):
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # CrossKD
-        s_feat = self.conv_reg(feature_student["feats"][-1])
-        kd_feat = self.cross_module(feature_teacher["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
-                                    s_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
+        s_feat = torch.concat((feature_student["feats"][-1], feature_teacher["feats"][-1]), dim=1)
+        kd_feat = self.conv_reg(s_feat)
+        # kd_feat = self.cross_module(feature_teacher["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
+        #                             s_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
