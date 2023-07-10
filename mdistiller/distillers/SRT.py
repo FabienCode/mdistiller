@@ -60,13 +60,13 @@ class SRT(Distiller):
         logits_student, feature_student = self.student(image)
         # teaacher have been freeze
         logits_teacher, feature_teacher = self.teacher(image)
-        b, c, h, w = feature_teacher["feats"][-1].shape # 8 * 256 * 8 * 8
+        b, c, h, w = feature_teacher["feats"][2].shape # 8 * 256 * 8 * 8
 
         # losses
         ce_loss_weight = 1
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
 
-        s_feat, t_feat = feature_student["feats"][-1], feature_teacher["feats"][-1]
+        s_feat, t_feat = feature_student["feats"][2], feature_teacher["feats"][2]
 
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
@@ -82,7 +82,7 @@ class SRT(Distiller):
         other_mask = ~mask
         kd_loss_target = F.mse_loss(s_feat * mask.unsqueeze(-1).unsqueeze(-1), t_feat * mask.unsqueeze(-1).unsqueeze(-1))
         kd_loss_other = F.mse_loss(s_feat * other_mask.unsqueeze(-1).unsqueeze(-1), t_feat * other_mask.unsqueeze(-1).unsqueeze(-1))
-        loss_kd = kd_loss_target + 8 * kd_loss_other
+        loss_kd = 7 * kd_loss_target + kd_loss_other
 
         # CrossKD
         # concat_feat = torch.concat((s_feat, t_feat), dim=1)
