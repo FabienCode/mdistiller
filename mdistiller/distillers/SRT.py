@@ -29,7 +29,6 @@ class SRT(Distiller):
 
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
-        self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
         self.hint_layer = 3
@@ -84,7 +83,16 @@ class SRT(Distiller):
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
         kd_loss_weight = 1
-        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature)
+        # min(kwargs["epoch"] / self.warmup, 1.0)
+        # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
+        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            kd_logits,
+            target,
+            10,
+            100,
+            self.temperature,
+        )
 
         losses_dict = {
             "loss_ce": loss_ce,
