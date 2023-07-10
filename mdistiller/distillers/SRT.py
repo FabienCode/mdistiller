@@ -41,7 +41,7 @@ class SRT(Distiller):
 
         # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
         # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
-        # self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
+        self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
 
 
         # self.qkl_loss = KDQualityFocalLoss()
@@ -68,14 +68,15 @@ class SRT(Distiller):
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
         # weight = F.normalize(s_feat.pow(2).mean(1).reshape(s_feat.size(0), -1))
-        sorted_indices = torch.argsort(logits_teacher, dim=1)
-        top_length = int(logits_teacher.size(1) * 0.8)
-        top_indices = sorted_indices[:, :top_length]
-        mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
+        # sorted_indices = torch.argsort(logits_teacher, dim=1)
+        # top_length = int(logits_teacher.size(1) * 0.8)
+        # top_indices = sorted_indices[:, :top_length]
+        # mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
 
         # CrossKD
         # concat_feat = torch.concat((s_feat, t_feat), dim=1)
-        # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        loss_kd = F.mse_loss(s_feat, kd_feat)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
 
         # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
@@ -88,18 +89,18 @@ class SRT(Distiller):
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
-        kd_loss_weight = 1
-        # min(kwargs["epoch"] / self.warmup, 1.0)
-        # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
-        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-            mask
-        )
+        # kd_loss_weight = 1
+        # # min(kwargs["epoch"] / self.warmup, 1.0)
+        # # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
+        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        #     mask
+        # )
 
         losses_dict = {
             "loss_ce": loss_ce,
