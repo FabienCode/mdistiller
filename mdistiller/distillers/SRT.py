@@ -21,7 +21,7 @@ class SRT(Distiller):
         # vanilla kd setting
         self.temperature = cfg.KD.TEMPERATURE
         
-        self.freeze(self.teacher)
+        # self.freeze(self.teacher)
 
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
         # add model
@@ -29,6 +29,8 @@ class SRT(Distiller):
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
         self.warmup = cfg.DKD.WARMUP
+
+        # self.feature_mask = ChannelMaskModule(256, 100)
 
         # self.cam = GradCAM(model=self.teacher, target_layers=self.teacher.layer3[-1], use_cuda=True)
 
@@ -39,8 +41,8 @@ class SRT(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
-        # self.channel_fusion = CBAM(512)
-        # self.conv_reg = ConvRegE(512, 256)
+        self.channel_fusion = CBAM(512)
+        self.conv_reg = ConvRegE(512, 256)
 
         # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
         # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
@@ -60,49 +62,53 @@ class SRT(Distiller):
         logits_student, feature_student = self.student(image)
         # teaacher have been freeze
         logits_teacher, feature_teacher = self.teacher(image)
-        b, c, h, w = feature_teacher["feats"][2].shape # 8 * 256 * 8 * 8
+        b, c, h, w = feature_teacher["feats"][-1].shape # 8 * 256 * 8 * 8
 
         # losses
         ce_loss_weight = 1
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
+        with torch.no_grad():
+            t_loss_ce = ce_loss_weight * F.cross_entropy(logits_teacher, target)
 
-        s_feat, t_feat = feature_student["feats"][2], feature_teacher["feats"][2]
+        s_feat, t_feat = feature_student["feats"][-1], feature_teacher["feats"][-1]
+        # mask = self.feature_mask(feature_student["feats"][-1], 0.5)
 
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
-        weight = F.normalize(t_feat.reshape(b, c, -1).pow(2).mean(-1))
-        # sorted_indices = torch.argsort(logits_teacher, dim=1)
-        # top_length = int(logits_teacher.size(1) * 0.8)
+        # weight = F.normalize(t_feat.reshape(b, c, -1).pow(2).mean(-1))
+        # # sorted_indices = torch.argsort(logits_teacher, dim=1)
+        # # top_length = int(logits_teacher.size(1) * 0.8)
+        # # top_indices = sorted_indices[:, :top_length]
+        # # mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
+        # sorted_indices = torch.argsort(weight, dim=1)
+        # top_length = int(weight.size(1) * 0.8)
         # top_indices = sorted_indices[:, :top_length]
-        # mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
-        sorted_indices = torch.argsort(weight, dim=1)
-        top_length = int(weight.size(1) * 0.8)
-        top_indices = sorted_indices[:, :top_length]
-        mask = torch.ones_like(weight).scatter_(1, top_indices, 0).bool()
-        other_mask = ~mask
-        kd_loss_target = F.mse_loss(s_feat * mask.unsqueeze(-1).unsqueeze(-1), t_feat * mask.unsqueeze(-1).unsqueeze(-1))
-        kd_loss_other = F.mse_loss(s_feat * other_mask.unsqueeze(-1).unsqueeze(-1), t_feat * other_mask.unsqueeze(-1).unsqueeze(-1))
-        loss_kd = 7 * kd_loss_target + kd_loss_other
+        # mask = torch.ones_like(weight).scatter_(1, top_indices, 0).bool()
+        # other_mask = ~mask
+        # kd_loss_target = F.mse_loss(s_feat * mask.unsqueeze(-1).unsqueeze(-1), t_feat * mask.unsqueeze(-1).unsqueeze(-1))
+        # kd_loss_other = F.mse_loss(s_feat * other_mask.unsqueeze(-1).unsqueeze(-1), t_feat * other_mask.unsqueeze(-1).unsqueeze(-1))
+        # loss_kd = 7 * kd_loss_target + kd_loss_other
 
         # CrossKD
-        # concat_feat = torch.concat((s_feat, t_feat), dim=1)
+        concat_feat = torch.concat((s_feat, t_feat), dim=1)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
         # loss_kd = F.mse_loss(s_feat, kd_feat)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
 
         # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
-        # s_feat = self.channel_fusion(s_feat)
-        # kd_feat = self.conv_reg(concat_feat)
+        s_feat = self.channel_fusion(concat_feat)
+        kd_feat = self.conv_reg(s_feat)
+        # loss_kd = F.mse_loss(feature_student["feats"][-1], kd_feat)
         # kd_feat = self.custom_adaptive_pooling(kd_feat, 256)
         # kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
         #                             kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
-        # kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
+        kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
 
-        # kd_loss_weight = 1
-        # # min(kwargs["epoch"] / self.warmup, 1.0)
-        # # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
+        kd_loss_weight = 1
+        # # # min(kwargs["epoch"] / self.warmup, 1.0)
+        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.temperature) 
         # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
         #     logits_teacher,
@@ -115,6 +121,7 @@ class SRT(Distiller):
 
         losses_dict = {
             "loss_ce": loss_ce,
+            "loss_ce_t": t_loss_ce,
             "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
@@ -144,6 +151,47 @@ class SRT(Distiller):
         pooled_tensor = pooled_tensor.expand(batch_size, output_channels, height, width)
 
         return pooled_tensor
+    
+    def get_learnable_parameters(self):
+
+        # return [v for k, v in self.student.named_parameters()] + list(self.feature_mask.parameters())
+
+        # return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return [v for k, v in self.student.named_parameters()] + [v for k, v in self.teacher.named_parameters()] + \
+            list(self.conv_reg.parameters()) + list(self.channel_fusion.parameters())
+    # def get_extra_parameters(self):
+    #     num_p = 0
+    #     for p in self.conv_reg.parameters():
+    #         num_p += p.numel()
+    #     return num_p
+
+
+class ChannelMaskModule(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(ChannelMaskModule, self).__init__()
+        self.conv_1 = nn.Conv2d(in_channels, in_channels, kernel_size=1)
+        self.bn_1 = nn.BatchNorm2d(in_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv_2 = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        self.bn_2 = nn.BatchNorm2d(out_channels)
+        self.conv_3 = nn.Conv2d(out_channels, out_channels, kernel_size=1)
+        self.bn_3 = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x, p):
+        b, c, h, w = x.shape
+        # x：[batch_size, in_channels, height, width]
+        x = self.relu(self.bn_1(self.conv_1(x)))
+        x = self.relu(self.bn_2(self.conv_2(x)))
+        x = self.bn_3(self.conv_3(x))
+        b, c, h, w = x.shape
+
+        # channel L1 norm
+        channel_norm = torch.norm((x.reshape(b, c, -1)), p=1, dim=-1)
+        sorted_indices = torch.argsort(channel_norm, dim=1)
+        top_length = int(channel_norm.shape[1] * p)
+        top_indices = sorted_indices[:, :top_length]
+        mask = torch.ones_like(channel_norm).scatter_(1, top_indices, 0).bool()
+        return mask
 
 
 # class CatReg(nn.Module):
