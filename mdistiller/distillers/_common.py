@@ -64,15 +64,18 @@ class ConvRegE(nn.Module):
         # else:
         #     raise NotImplemented("student size {}, teacher size {}".format(s_H, t_H))
         self.conv_1 = nn.Conv2d(in_channel, out_channel, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channel)
         self.conv_2 = nn.Conv2d(out_channel, out_channel, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_channel)
         self.conv_3 = nn.Conv2d(out_channel, out_channel, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.layernorm = nn.GroupNorm(num_groups=1, num_channels=out_channel, affine=False)
+        # self.layernorm = nn.GroupNorm(num_groups=1, num_channels=out_channel, affine=False)
+        self.bn3 = nn.BatchNorm2d(out_channel)
 
     def forward(self, x):
-        x = self.relu(self.conv_1(x))
-        x = self.relu(self.conv_2(x))
-        x = self.layernorm(self.conv_3(x))
+        x = self.relu(self.bn1(self.conv_1(x)))
+        x = self.relu(self.bn2(self.conv_2(x)))
+        x = self.relu(self.bn3(self.conv_3(x)))
         return x
 
 

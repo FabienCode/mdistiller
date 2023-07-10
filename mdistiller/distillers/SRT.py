@@ -69,11 +69,13 @@ class SRT(Distiller):
         s_feat, t_feat = feature_student["feats"][-1], feature_teacher["feats"][-1]
 
         # CrossKD
-        concat_feat = torch.concat((s_feat, t_feat), dim=1)
-        # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), s_feat.reshape(b, c, -1)).reshape(b, c, h, w)
-        kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        # concat_feat = torch.concat((s_feat, t_feat), dim=1)
+        kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        # kd_feat = self.cross_attention(t_feat.reshape(b, c, -1), s_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+
+        # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
         # s_feat = self.channel_fusion(s_feat)
-        # kd_feat = self.conv_reg(s_feat)
+        # kd_feat = self.conv_reg(concat_feat)
         # kd_feat = self.custom_adaptive_pooling(kd_feat, 256)
         # kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
         #                             kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
