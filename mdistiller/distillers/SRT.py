@@ -81,18 +81,26 @@ class SRT(Distiller):
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
+        # 定义高斯噪声的标准差（即噪声的强度）
+        stddev = 0.1
+
+        # 生成相同大小的随机高斯噪声张量
+        noise = torch.randn_like(kd_logits) * stddev
+
+        # 将噪声添加到logits中
+        noisy_kd_logits = kd_logits + noise
 
         kd_loss_weight = 1
         # min(kwargs["epoch"] / self.warmup, 1.0)
-        # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
-        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            kd_logits,
-            target,
-            10,
-            100,
-            self.temperature,
-        )
+        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.kd_temperature) 
+        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     kd_logits,
+        #     target,
+        #     10,
+        #     100,
+        #     self.temperature,
+        # )
 
         losses_dict = {
             "loss_ce": loss_ce,
