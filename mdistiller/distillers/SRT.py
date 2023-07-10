@@ -69,7 +69,7 @@ class SRT(Distiller):
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
         # weight = F.normalize(s_feat.pow(2).mean(1).reshape(s_feat.size(0), -1))
         sorted_indices = torch.argsort(logits_teacher, dim=1)
-        top_length = int(logits_teacher.size(1) * 0.2)
+        top_length = int(logits_teacher.size(1) * 0.1)
         top_indices = sorted_indices[:, :top_length]
         mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
 
