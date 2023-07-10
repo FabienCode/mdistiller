@@ -9,6 +9,7 @@ from ._common import ConvReg, ConvRegE, get_feat_shapes
 # from mdistiller.models.transformer.model.decoder import Decoder
 from mdistiller.engine.mdis_utils import CBAM
 from torch.nn import Transformer
+from mdistiller.engine.grad_cam_utils import GradCAM
 
 class SRT(Distiller):
     """soft relaxation taylor approximation
@@ -29,6 +30,8 @@ class SRT(Distiller):
         self.beta = cfg.DKD.BETA
         self.warmup = cfg.DKD.WARMUP
 
+        # self.cam = GradCAM(model=self.teacher, target_layers=self.teacher.layer3[-1], use_cuda=True)
+
         # self.hint_layer = 3
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
         #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
@@ -41,7 +44,7 @@ class SRT(Distiller):
 
         # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
         # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
-        self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
+        # self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
 
 
         # self.qkl_loss = KDQualityFocalLoss()
@@ -67,16 +70,24 @@ class SRT(Distiller):
 
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
-        # weight = F.normalize(s_feat.pow(2).mean(1).reshape(s_feat.size(0), -1))
+        weight = F.normalize(s_feat.reshape(b, c, -1).pow(2).mean(-1))
         # sorted_indices = torch.argsort(logits_teacher, dim=1)
         # top_length = int(logits_teacher.size(1) * 0.8)
         # top_indices = sorted_indices[:, :top_length]
         # mask = torch.ones_like(logits_teacher).scatter_(1, top_indices, 0).bool()
+        sorted_indices = torch.argsort(weight, dim=1)
+        top_length = int(weight.size(1) * 0.8)
+        top_indices = sorted_indices[:, :top_length]
+        mask = torch.ones_like(weight).scatter_(1, top_indices, 0).bool()
+        other_mask = ~mask
+        kd_loss_target = F.mse_loss(s_feat * mask.unsqueeze(-1).unsqueeze(-1), t_feat * mask.unsqueeze(-1).unsqueeze(-1))
+        kd_loss_other = F.mse_loss(s_feat * other_mask.unsqueeze(-1).unsqueeze(-1), t_feat * other_mask.unsqueeze(-1).unsqueeze(-1))
+        loss_kd = kd_loss_target + 8 * kd_loss_other
 
         # CrossKD
         # concat_feat = torch.concat((s_feat, t_feat), dim=1)
-        kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
-        loss_kd = F.mse_loss(s_feat, kd_feat)
+        # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        # loss_kd = F.mse_loss(s_feat, kd_feat)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
 
         # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
