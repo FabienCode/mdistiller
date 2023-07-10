@@ -82,7 +82,7 @@ class SRT(Distiller):
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
         # 定义高斯噪声的标准差（即噪声的强度）
-        stddev = 0.1
+        stddev = 0.5
 
         # 生成相同大小的随机高斯噪声张量
         noise = torch.randn_like(kd_logits) * stddev
