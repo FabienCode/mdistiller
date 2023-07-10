@@ -70,7 +70,7 @@ class SRT(Distiller):
 
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
-        weight = F.normalize(t_feat.reshape(b, c, -1).pow(2).mean(-1))
+        weight = F.normalize(s_feat.reshape(b, c, -1).pow(2).mean(-1))
         # sorted_indices = torch.argsort(logits_teacher, dim=1)
         # top_length = int(logits_teacher.size(1) * 0.8)
         # top_indices = sorted_indices[:, :top_length]
