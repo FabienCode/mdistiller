@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.8, v1, srt,res32x4,res8x4"
-  PROJECT: "cifar100_cross_v1"
+  TAG: "7.10,v1,weight,dkd"
+  PROJECT: "cifar100_cross_v2"
 DISTILLER:
   TYPE: "SRT"
   TEACHER: "resnet32x4"
