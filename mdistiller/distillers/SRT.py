@@ -70,8 +70,8 @@ class SRT(Distiller):
 
         # CrossKD
         # concat_feat = torch.concat((s_feat, t_feat), dim=1)
-        kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
-        # kd_feat = self.cross_attention(t_feat.reshape(b, c, -1), s_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
+        kd_feat = self.cross_attention(t_feat.reshape(b, c, -1), s_feat.reshape(b, c, -1)).reshape(b, c, h, w)
 
         # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
         # s_feat = self.channel_fusion(s_feat)
