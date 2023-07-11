@@ -23,7 +23,7 @@ class MV1(Distiller):
         self.warmup = cfg.DKD.WARMUP
 
         self.hint_layer = -1
-        self.mask_per = 0.8
+        self.mask_per = 0.5
 
         self.conv_reg = MultiHeadAttention(256, 4)
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
