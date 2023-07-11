@@ -16,8 +16,8 @@ class MV1(Distiller):
     def __init__(self, student, teacher, cfg):
         super(MV1, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
-        self.alpha = cfg.DKD.ALPHA
-        self.beta = cfg.DKD.BETA
+        self.alpha = 8
+        self.beta = 1
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
