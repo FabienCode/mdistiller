@@ -4,10 +4,16 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 
+from mdistiller.engine.transformer_utils import MultiHeadAttention
 
-def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
-    gt_mask = _get_gt_mask(logits_student, target)
-    other_mask = _get_other_mask(logits_student, target)
+
+def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
+    if mask is None:
+        gt_mask = _get_gt_mask(logits_student, target)
+        other_mask = _get_other_mask(logits_student, target)
+    else:
+        gt_mask = mask
+        other_mask = ~mask
     pred_student = F.softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     pred_student = cat_mask(pred_student, gt_mask, other_mask)
@@ -50,17 +56,20 @@ def cat_mask(t, mask1, mask2):
     return rt
 
 
-class DKD(Distiller):
+class MV1(Distiller):
     """Decoupled Knowledge Distillation(CVPR 2022)"""
 
     def __init__(self, student, teacher, cfg):
-        super(DKD, self).__init__(student, teacher)
+        super(MV1, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
-        
+
+        # attention
+        self.mask_attention = MultiHeadAttention(256, 4)
+
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -69,17 +78,41 @@ class DKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        
+        ###### Add module
+        b, c, h, w = feature_teacher["feats"][-1].size()
+        s_feat_trans = feature_student["feats"][-1].reshape(b, c, -1).transpose(2, 1).contiguous()
+
+        attention_feat, attention_map = self.mask_attention(s_feat_trans, s_feat_trans, s_feat_trans)
+
+        # kd_logits = self.student.fc(nn.AvgPool1d(h*w)(attention_feat).reshape(b, -1))
+        # kd_weight = self.student.fc(nn.AvgPool1d(h*w)(attention_map).reshape(b, -1))
+        # sorted_indices = torch.argsort(kd_weight, dim=1)
+        # top_length = int(kd_weight.shape[-1] * 0.5)
+        # top_indices = sorted_indices[:, : top_length]
+        # kd_mask = torch.ones_like(kd_weight).scatter_(1, top_indices, 0).bool()
+        loss_kd = F.mse_loss(attention_feat.reshape(b,c,h,w), feature_teacher["feats"][-1])
+        ###### END Add
         # KD loss
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     kd_logits,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        #     kd_mask
+        # )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_dkd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
+
+    def get_learnable_parameters(self):
+
+        return [v for k, v in self.student.named_parameters()] + \
+            list(self.mask_attention.parameters())
+
+def print_grad(grad):
+    print(grad)

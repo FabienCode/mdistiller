@@ -16,6 +16,7 @@ from .MDis import MDis
 from .MLogits import MLogits
 from .CLD import CLD
 from .SRT import SRT
+from .MV1 import MV1
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -35,5 +36,6 @@ distiller_dict = {
     "MDis": MDis,
     "MLogits": MLogits,
     "CLD": CLD,
-    "SRT": SRT
+    "SRT": SRT,
+    "MV1": MV1
 }

@@ -10,6 +10,7 @@ from ._common import ConvReg, ConvRegE, get_feat_shapes
 from mdistiller.engine.mdis_utils import CBAM
 from torch.nn import Transformer
 from mdistiller.engine.grad_cam_utils import GradCAM
+from mdistiller.engine.transformer_utils import MultiHeadAttention
 
 class SRT(Distiller):
     """soft relaxation taylor approximation
@@ -41,12 +42,14 @@ class SRT(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
-        self.channel_fusion = CBAM(512)
-        self.conv_reg = ConvRegE(512, 256)
+        # self.channel_fusion = CBAM(512)
+        # self.conv_reg = ConvRegE(512, 256)
 
         # self.cross_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8)
         # self.cross_module = nn.TransformerDecoder(self.cross_layer, num_layers=6)
         # self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
+        self.mask_attention = MultiHeadAttention(256, 4)
+
 
 
         # self.qkl_loss = KDQualityFocalLoss()
@@ -54,7 +57,7 @@ class SRT(Distiller):
     @staticmethod
     def freeze(model: nn.Module):
         """Freeze the model."""
-        model.eval()
+        # model.eval()
         for param in model.parameters():
             param.requires_grad = False
 
@@ -67,12 +70,18 @@ class SRT(Distiller):
         # losses
         ce_loss_weight = 1
         loss_ce = ce_loss_weight * F.cross_entropy(logits_student, target)
-        with torch.no_grad():
-            t_loss_ce = ce_loss_weight * F.cross_entropy(logits_teacher, target)
+        # with torch.no_grad():
+        # t_loss_ce = ce_loss_weight * F.cross_entropy(logits_teacher, target)
 
         s_feat, t_feat = feature_student["feats"][-1], feature_teacher["feats"][-1]
         # mask = self.feature_mask(feature_student["feats"][-1], 0.5)
 
+        s_feat_trans = s_feat.reshape(b, c, -1).transpose(2, 1).contiguous()
+        attention_feat, attention_map = self.mask_attention(s_feat_trans, s_feat_trans, s_feat_trans)
+        attention_feat = attention_feat.transpose(2, 1).reshape(b, c, h, w)
+        for name, param in self.mask_attention.named_parameters():
+            if param.requires_grad:
+                param.register_hook(lambda grad: print(name, grad))
 
         # weight = F.normalize(logits_teacher.pow(2).mean(0))
         # weight = F.normalize(t_feat.reshape(b, c, -1).pow(2).mean(-1))
@@ -90,21 +99,21 @@ class SRT(Distiller):
         # loss_kd = 7 * kd_loss_target + kd_loss_other
 
         # CrossKD
-        concat_feat = torch.concat((s_feat, t_feat), dim=1)
+        # concat_feat = torch.concat((s_feat, t_feat), dim=1)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
         # loss_kd = F.mse_loss(s_feat, kd_feat)
         # kd_feat = self.cross_attention(s_feat.reshape(b, c, -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
 
         # kd_feat = self.cross_attention(concat_feat.reshape(b, concat_feat.shape[1], -1), t_feat.reshape(b, c, -1)).reshape(b, c, h, w)
-        s_feat = self.channel_fusion(concat_feat)
-        kd_feat = self.conv_reg(s_feat)
+        # s_feat = self.channel_fusion(concat_feat)
+        # kd_feat = self.conv_reg(s_feat)
         # loss_kd = F.mse_loss(feature_student["feats"][-1], kd_feat)
         # kd_feat = self.custom_adaptive_pooling(kd_feat, 256)
         # kd_feat = self.cross_module(feature_student["feats"][-1].reshape(b, c, -1).permute(2,0,1), \
         #                             kd_feat.reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
         # kd_feat = self.cross_module(s_feat.reshape(b, c, -1).permute(2,0,1), feature_teacher["feats"][-1]\
         #                             .reshape(b, c, -1).permute(2,0,1)).permute(1,2,0).contiguous().reshape(b,c,h,w)
-        kd_logits = self.teacher.fc(nn.AvgPool2d(h)(kd_feat).reshape(b, -1))
+        kd_logits = self.student.fc(nn.AvgPool2d(h)(attention_feat).reshape(b, -1))
 
         kd_loss_weight = 1
         # # # min(kwargs["epoch"] / self.warmup, 1.0)
@@ -121,7 +130,7 @@ class SRT(Distiller):
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_ce_t": t_loss_ce,
+            # "loss_ce_t": t_loss_ce,
             "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
@@ -157,8 +166,8 @@ class SRT(Distiller):
         # return [v for k, v in self.student.named_parameters()] + list(self.feature_mask.parameters())
 
         # return super().get_learnable_parameters() + list(self.conv_reg.parameters())
-        return [v for k, v in self.student.named_parameters()] + [v for k, v in self.teacher.named_parameters()] + \
-            list(self.conv_reg.parameters()) + list(self.channel_fusion.parameters())
+        return [v for k, v in self.student.named_parameters()] + \
+            list(self.mask_attention.parameters())
     # def get_extra_parameters(self):
     #     num_p = 0
     #     for p in self.conv_reg.parameters():
