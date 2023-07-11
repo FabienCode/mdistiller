@@ -61,6 +61,7 @@ class MV1(Distiller):
         sorted_length = int(weight_map.shape[1] * self.mask_per)
         top_indices = sorted_indices[:, : sorted_length]
         mask = torch.zeros_like(weight_map).scatter_(1, top_indices, 1).bool()
+        # CrossKD
         kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_s).reshape(b, -1))
         loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             kd_logits_s,
