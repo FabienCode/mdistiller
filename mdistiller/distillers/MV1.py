@@ -55,12 +55,12 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
         f_s, f_s_w = self.conv_reg(f_s, f_s, f_s)
         f_s = f_s.transpose(2,1).reshape(b,c,h,w).contiguous()
-        weight_map = self.student.fc(nn.AvgPool2d(h)(f_s_w).reshape(b, -1))
+        weight_map = self.teacher.fc(nn.AvgPool2d(h)(f_s_w).reshape(b, -1))
         sorted_indices = torch.argsort(weight_map, dim=1)
         sorted_length = int(weight_map.shape[1] * self.mask_per)
         top_indices = sorted_indices[:, : sorted_length]
         mask = torch.zeros_like(weight_map).scatter_(1, top_indices, 1).bool()
-        kd_logits_s = self.student.fc(nn.AvgPool2d(h)(f_s).reshape(b, -1))
+        kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_s).reshape(b, -1))
         loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             kd_logits_s,
             logits_teacher,
