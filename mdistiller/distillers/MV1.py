@@ -27,7 +27,7 @@ class MV1(Distiller):
         self.mask_per = 0.2
 
         # self.conv_reg = MultiHeadAttention(256, 4)
-        self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
+        self.conv_reg = Transformer(d_model=256, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048)
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
         #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         # )
@@ -58,6 +58,7 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
         f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
         f_cross = self.conv_reg(f_s, f_t)
+        # feature_teacher["feats"][self.hint_layer].register_hook()
 
         f_cross = f_cross.transpose(2,1).reshape(b,c,h,w).contiguous()
 
