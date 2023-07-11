@@ -70,6 +70,7 @@ class MV1(Distiller):
             self.temperature,
             mask
         )
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
