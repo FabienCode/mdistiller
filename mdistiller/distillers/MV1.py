@@ -18,7 +18,6 @@ class MV1(Distiller):
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
         self.alpha = 8
         self.beta = 1
-
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
