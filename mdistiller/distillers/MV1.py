@@ -77,7 +77,7 @@ class MV1(Distiller):
         # mask = torch.zeros_like(weight_map).scatter_(1, top_indices, 1).bool()
 
         # CrossKD
-        # with torch.no_grad():
+        # with torch.no_grad():~
         f_cross = self.conv_reg(feature_student["feats"][self.hint_layer])
         kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         # min(kwargs["epoch"] / self.warmup, 1.0) * 
@@ -89,8 +89,13 @@ class MV1(Distiller):
             self.beta,
             self.temperature
         )
+        feat_loss_weight = 1
+        loss_feat = F.mse_loss(
+            f_cross, feature_teacher["feats"][self.hint_layer]
+        )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_total": loss_kd,
+            "loss_feat": loss_feat
         }
         return logits_student, losses_dict
