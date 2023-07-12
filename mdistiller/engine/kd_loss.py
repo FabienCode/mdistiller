@@ -166,8 +166,8 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature, m
         * (temperature**2)
         / target.shape[0]
     )
-    # return alpha * tckd_loss + beta * nckd_loss
-    return tckd_loss, nckd_loss
+    return alpha * tckd_loss + beta * nckd_loss
+    # return tckd_loss, nckd_loss
 
 
 def _get_gt_mask(logits, target):

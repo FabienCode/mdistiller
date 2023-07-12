@@ -27,13 +27,16 @@ class MV1(Distiller):
         self.mask_per = 0.2
 
         # self.conv_reg = MultiHeadAttention(256, 4)
-        self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
-        # feat_s_shapes, feat_t_shapes = get_feat_shapes(
-        #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
-        # )
+        # self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
+        feat_s_shapes, feat_t_shapes = get_feat_shapes(
+            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+        )
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -75,10 +78,10 @@ class MV1(Distiller):
 
         # CrossKD
         # with torch.no_grad():
-        f_cross = feature_student["feats"][self.hint_layer]
+        f_cross = self.conv_reg(feature_student["feats"][self.hint_layer])
         kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         # min(kwargs["epoch"] / self.warmup, 1.0) * 
-        tckd, nckd =  dkd_loss(
+        loss_kd =  min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             kd_logits_s,
             logits_teacher,
             target,
@@ -86,11 +89,8 @@ class MV1(Distiller):
             self.beta,
             self.temperature
         )
-        tckd = tckd / (tckd + nckd) * nckd
-        nckd = nckd / (tckd + nckd) * nckd
-        loss_total = tckd + nckd
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_total": loss_total,
+            "loss_total": loss_kd,
         }
         return logits_student, losses_dict
