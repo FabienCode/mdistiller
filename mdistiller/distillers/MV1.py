@@ -55,9 +55,9 @@ class MV1(Distiller):
 
         # 2. KD loss
         b, c, h, w = feature_student["feats"][self.hint_layer].shape
-        f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
-        f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
-        f_cross = self.conv_reg(f_s, f_t)
+        # f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
+        # f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
+        # f_cross = self.conv_reg(f_s, f_t)
         # f_cross, weight_map = self.conv_reg(f_s, f_s, f_s)
         # with torch.no_grad():
         #     _, weight_map = self.conv_reg(f_t, f_t, f_t)
@@ -75,10 +75,10 @@ class MV1(Distiller):
 
         # CrossKD
         # with torch.no_grad():
-        # f_cross = feature_student["feats"][self.hint_layer]
+        f_cross = feature_student["feats"][self.hint_layer]
         kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         # min(kwargs["epoch"] / self.warmup, 1.0) * 
-        tckd_loss, nckd_loss = dkd_loss(
+        tckd, nckd =  dkd_loss(
             kd_logits_s,
             logits_teacher,
             target,
@@ -86,12 +86,11 @@ class MV1(Distiller):
             self.beta,
             self.temperature
         )
-        t1 = loss_ce
-        t2 = tckd_loss
-        t3 = nckd_loss
-        t_total = t1 + t2 + t3
-        loss_total = t1 / t_total * loss_ce + t2 / t_total * tckd_loss + t3 / t_total * nckd_loss
+        tckd = tckd / (tckd + nckd) * nckd
+        nckd = nckd / (tckd + nckd) * nckd
+        loss_total = tckd + nckd
         losses_dict = {
+            "loss_ce": loss_ce,
             "loss_total": loss_total,
         }
         return logits_student, losses_dict
