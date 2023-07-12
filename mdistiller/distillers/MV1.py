@@ -27,7 +27,7 @@ class MV1(Distiller):
         self.mask_per = 0.2
 
         # self.conv_reg = MultiHeadAttention(256, 4)
-        self.conv_reg = Transformer(d_model=256, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048)
+        self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=256)
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
         #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         # )
