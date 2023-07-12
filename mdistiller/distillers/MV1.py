@@ -27,7 +27,7 @@ class MV1(Distiller):
         self.mask_per = 0.2
 
         # self.conv_reg = MultiHeadAttention(256, 4)
-        # self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
+        self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
         #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         # )
@@ -35,14 +35,14 @@ class MV1(Distiller):
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
 
-    # def get_learnable_parameters(self):
-    #     return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+    def get_learnable_parameters(self):
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
 
-    # def get_extra_parameters(self):
-    #     num_p = 0
-    #     for p in self.conv_reg.parameters():
-    #         num_p += p.numel()
-    #     return num_p
+    def get_extra_parameters(self):
+        num_p = 0
+        for p in self.conv_reg.parameters():
+            num_p += p.numel()
+        return num_p
 
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -55,9 +55,9 @@ class MV1(Distiller):
 
         # 2. KD loss
         b, c, h, w = feature_student["feats"][self.hint_layer].shape
-        # f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
-        # f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
-        # f_cross = self.conv_reg(f_s, f_t)
+        f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
+        f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
+        f_cross = self.conv_reg(f_s, f_t)
         # f_cross, weight_map = self.conv_reg(f_s, f_s, f_s)
         # with torch.no_grad():
         #     _, weight_map = self.conv_reg(f_t, f_t, f_t)
@@ -75,7 +75,7 @@ class MV1(Distiller):
 
         # CrossKD
         # with torch.no_grad():
-        f_cross = feature_student["feats"][self.hint_layer]
+        # f_cross = feature_student["feats"][self.hint_layer]
         kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         # min(kwargs["epoch"] / self.warmup, 1.0) * 
         tckd_loss, nckd_loss = dkd_loss(
