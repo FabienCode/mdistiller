@@ -69,7 +69,7 @@ class MV1(Distiller):
         # mask = torch.zeros_like(weight_map).scatter_(1, top_indices, 1).bool()
 
         # CrossKD
-        kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
+        kd_logits_s = self.student.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
             kd_logits_s,
             logits_teacher,
