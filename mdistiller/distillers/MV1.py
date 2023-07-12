@@ -8,7 +8,7 @@ from mdistiller.engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 
 
 from mdistiller.engine.transformer_utils import MultiHeadAttention
-# from torch.nn import Transformer
+from torch.nn import Transformer
 
 
 class MV1(Distiller):
@@ -27,7 +27,7 @@ class MV1(Distiller):
         self.mask_per = 0.2
 
         # self.conv_reg = MultiHeadAttention(256, 4)
-        # self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=256)
+        # self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
         # feat_s_shapes, feat_t_shapes = get_feat_shapes(
         #     self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         # )
@@ -75,8 +75,10 @@ class MV1(Distiller):
 
         # CrossKD
         # with torch.no_grad():
-        kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(feature_student["feats"][self.hint_layer]).reshape(b, -1))
-        loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        f_cross = feature_student["feats"][self.hint_layer]
+        kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
+        # min(kwargs["epoch"] / self.warmup, 1.0) * 
+        tckd_loss, nckd_loss = dkd_loss(
             kd_logits_s,
             logits_teacher,
             target,
@@ -84,9 +86,12 @@ class MV1(Distiller):
             self.beta,
             self.temperature
         )
-
+        t1 = loss_ce
+        t2 = tckd_loss
+        t3 = nckd_loss
+        t_total = t1 + t2 + t3
+        loss_total = t1 / t_total * loss_ce + t2 / t_total * tckd_loss + t3 / t_total * nckd_loss
         losses_dict = {
-            "loss_ce": loss_ce,
-            "loss_kd": loss_kd,
+            "loss_total": loss_total,
         }
         return logits_student, losses_dict
