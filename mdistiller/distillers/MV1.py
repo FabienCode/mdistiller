@@ -57,7 +57,7 @@ class MV1(Distiller):
         b, c, h, w = feature_student["feats"][self.hint_layer].shape
         f_s = feature_student["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
         f_t = feature_teacher["feats"][self.hint_layer].reshape(b, c, -1).transpose(2, 1).contiguous()
-        f_cross = self.conv_reg(f_s, f_t)
+        f_cross = self.conv_reg(f_t, f_s)
         # feature_teacher["feats"][self.hint_layer].register_hook()
 
         f_cross = f_cross.transpose(2,1).reshape(b,c,h,w).contiguous()
