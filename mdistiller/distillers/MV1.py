@@ -75,6 +75,7 @@ class MV1(Distiller):
         }
         return logits_student, losses_dict
 
+# test
 def aaloss(feature_student,
            feature_teacher,
            center_heat_map,
