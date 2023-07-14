@@ -9,16 +9,15 @@ from mdistiller.engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 
 from mdistiller.engine.transformer_utils import MultiHeadAttention
 from torch.nn import Transformer
-from mdistiller.engine.area_utils import AreaDetection, extract_area
+from mdistiller.engine.area_utils import AreaDetection, extract_regions
 
 
 # class AutoAreaDetection(nn.Module):
 #     def __init__(slef, d_model):
     
 
-
 class MV1(Distiller):
-    """Decoupled Knowledge Distillation(CVPR 2022)"""
+    """Automaticv importance area detection for Knowledge distillation"""
 
     def __init__(self, student, teacher, cfg):
         super(MV1, self).__init__(student, teacher)
@@ -64,10 +63,11 @@ class MV1(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
         # 2. KD loss
-        b, c, h, w = feature_student["feats"][self.hint_layer].shape
+        f_s = feature_student["feats"][self.hint_layer]
+        f_t = feature_teacher["feats"][self.hint_layer]
+        b, c, h, w = f_s.shape
         heat_map, wh, offset = self.conv_reg(feature_student["feats"][self.hint_layer])
-
-
+        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset)
         losses_dict = {
             "loss_ce": loss_ce,
             # "loss_kd": loss_kd,
@@ -75,11 +75,16 @@ class MV1(Distiller):
         }
         return logits_student, losses_dict
     
-# def AALoss(feature_student,
-#            feature_teacher,
-#            center_heat_map,
-#            wh_pred,
-#            offset_pred,
-#            score_threshold=0.5,
-#            resize_to_original=False):
+def aaloss(feature_student,
+           feature_teacher,
+           center_heat_map,
+           wh_pred,
+           offset_pred,
+           score_threshold=0.5,
+           resize_to_original=False):
+    loss = 0
+    masks = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, score_threshold, resize_to_original)
+    for mask in masks:
+        loss += F.mse_loss(feature_student * mask, feature_teacher * mask)
+    return loss
     

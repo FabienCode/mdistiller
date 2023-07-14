@@ -23,7 +23,8 @@ class AreaDetection(nn.Module):
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
 
-    def _build_head(self, in_channels, feat_channels, out_channels):
+    @staticmethod
+    def _build_head(in_channels, feat_channels, out_channels):
         layer = nn.Sequential(
             nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
@@ -76,22 +77,22 @@ def extract_area(heatmap, offset_pred, wh_pred, score_threshold=0.5):
 
     return areas
 
-def extract_regions(input_feature, heatmap, wh_pred, offset_pred, resize_to_original=False):
+def extract_regions(features, heatmap, wh_pred, offset_pred, score_threshold=0.5, resize_to_original=False):
     # Assume input tensor are of shape [batch, channel, height, width]
 
     # Get the areas from the heatmap and predictions
-    areas = extract_area(heatmap, offset_pred, wh_pred)
+    areas = extract_area(heatmap, offset_pred, wh_pred, score_threshold)
 
     # Initialize a list to hold the masks
     masks = []
 
     # Iterate over the images and areas
-    for i in range(input_feature.shape[0]):
+    for i in range(features.shape[0]):
         # Get the current input feature
-        input = input_feature[i]
+        feature = features[i]
 
         # Initialize a mask for this feature map
-        mask = torch.zeros_like(input)
+        mask = torch.zeros_like(feature)
 
         # Get the area for this input
         input_areas = areas[i]
@@ -106,7 +107,7 @@ def extract_regions(input_feature, heatmap, wh_pred, offset_pred, resize_to_orig
 
     if resize_to_original:
         # Resize the masks to the original size
-        masks = F.interpolate(masks, size=(input_feature.shape[2], input_feature.shape[3]))
+        masks = F.interpolate(masks, size=(features.shape[2], features.shape[3]))
     
     return masks
         
