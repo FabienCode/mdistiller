@@ -9,7 +9,7 @@ from mdistiller.engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 
 from mdistiller.engine.transformer_utils import MultiHeadAttention
 from torch.nn import Transformer
-
+from mdistiller.engine.area_utils import AreaDetection, extract_area
 
 
 # class AutoAreaDetection(nn.Module):
@@ -40,9 +40,10 @@ class MV1(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
-        self.conv_reg = ConvReg(
-            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        )
+        # self.conv_reg = ConvReg(
+        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        # )
+        self.conv_reg = AreaDetection()
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -84,17 +85,17 @@ class MV1(Distiller):
 
         # CrossKD
         # with torch.no_grad():
-        f_cross = self.conv_reg(feature_student["feats"][self.hint_layer])
-        kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
+        # f_cross = self.conv_reg(feature_student["feats"][self.hint_layer])
+        # kd_logits_s = self.teacher.fc(nn.AvgPool2d(h)(f_cross).reshape(b, -1))
         # min(kwargs["epoch"] / self.warmup, 1.0) * 
-        loss_kd = dkd_loss(
-            kd_logits_s,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature
-        )
+        # loss_kd = dkd_loss(
+        #     kd_logits_s,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature
+        # )
         # feat_loss_weight = 1
         # loss_feat = F.mse_loss(
         #     f_cross, feature_teacher["feats"][self.hint_layer]

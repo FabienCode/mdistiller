@@ -57,7 +57,7 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer]
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
-        heat_map, wh, offset = self.conv_reg(feature_student["feats"][self.hint_layer])
+        heat_map, wh, offset = self.conv_reg(f_t)
         # loss_kd = F.mse_loss(f_s, f_t)
         loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=3, kernel=3)
         losses_dict = {
@@ -66,7 +66,7 @@ class MV1(Distiller):
         }
         return logits_student, losses_dict
 
-# test pycharm
+# test vscode
 def aaloss(feature_student,
            feature_teacher,
            center_heat_map,
@@ -94,7 +94,7 @@ def aaloss(feature_student,
     # masked_feature_teacher = feature_teacher * new_masks.unsqueeze(2)
     #
     # # compute MSE loss
-    # loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
+    # new_loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
 
     return loss
     

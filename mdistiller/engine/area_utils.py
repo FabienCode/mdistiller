@@ -80,9 +80,11 @@ def get_local_maximum(heat, kernel=3):
 def get_topk_from_heatmap(scores, k=20):
     batch, _, height, width = scores.size()
     topk_scores, topk_inds = torch.topk(scores.view(batch, -1), k)
-    topk_clses = topk_inds // (height * width)
+    # topk_clses = topk_inds // (height * width)
+    topk_clses = torch.div(topk_inds, height * width, rounding_mode='floor')
     topk_inds = topk_inds % (height * width)
-    topk_ys = topk_inds // width
+    # topk_ys = topk_inds // width
+    topk_ys = torch.div(topk_inds, width, rounding_mode='floor')
     topk_xs = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 def gather_feat(feat, ind, mask=None):
