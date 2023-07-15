@@ -57,9 +57,9 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer]
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
-        heat_map, wh, offset = self.conv_reg(f_t)
+        heat_map, wh, offset = self.conv_reg(f_s)
         # loss_kd = F.mse_loss(f_s, f_t)
-        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=3, kernel=3)
+        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
