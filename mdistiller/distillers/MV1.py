@@ -4,18 +4,8 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
-from mdistiller.engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
+from mdistiller.engine.area_utils import AreaDetection, extract_regions
 
-
-from mdistiller.engine.transformer_utils import MultiHeadAttention
-from torch.nn import Transformer
-# from mdistiller.engine.area_utils_bu import AreaDetection, extract_regions
-from mdistiller.engine.area_utils import AreaDetection, get_import_region, extract_regions
-
-
-# class AutoAreaDetection(nn.Module):
-#     def __init__(slef, d_model):
-    
 
 class MV1(Distiller):
     """Automaticv importance area detection for Knowledge distillation"""
@@ -68,7 +58,8 @@ class MV1(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
         heat_map, wh, offset = self.conv_reg(feature_student["feats"][self.hint_layer])
-        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=20, kernel=3)
+        # loss_kd = F.mse_loss(f_s, f_t)
+        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=3, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
@@ -103,7 +94,7 @@ def aaloss(feature_student,
     # masked_feature_teacher = feature_teacher * new_masks.unsqueeze(2)
     #
     # # compute MSE loss
-    # new_loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
+    # loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
 
     return loss
     
