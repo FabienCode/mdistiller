@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.11,vx,weight,dkd"
-  PROJECT: "cifar100_mv1"
+  TAG: "7.15,vx,weight,dkd"
+  PROJECT: "cifar100_mv3"
 DISTILLER:
   TYPE: "MV1"
   TEACHER: "resnet32x4"
