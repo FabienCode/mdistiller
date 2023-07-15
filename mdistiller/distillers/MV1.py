@@ -9,7 +9,8 @@ from mdistiller.engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 
 from mdistiller.engine.transformer_utils import MultiHeadAttention
 from torch.nn import Transformer
-from mdistiller.engine.area_utils import AreaDetection, extract_regions
+# from mdistiller.engine.area_utils_bu import AreaDetection, extract_regions
+from mdistiller.engine.area_utils import AreaDetection, get_import_region, extract_regions
 
 
 # class AutoAreaDetection(nn.Module):
@@ -67,11 +68,10 @@ class MV1(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
         heat_map, wh, offset = self.conv_reg(feature_student["feats"][self.hint_layer])
-        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset)
+        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=20, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
-            # "loss_kd": loss_kd,
-            # "loss_feat": loss_feat
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
@@ -81,11 +81,29 @@ def aaloss(feature_student,
            center_heat_map,
            wh_pred,
            offset_pred,
-           score_threshold=0.5,
-           resize_to_original=False):
+           k=20,
+           kernel=3):
     loss = 0
-    masks = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, score_threshold, resize_to_original)
-    for mask in masks:
-        loss += F.mse_loss(feature_student * mask, feature_teacher * mask)
+    masks = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
+    #
+    for i in range(len(masks)):
+        for j in range(masks[i].shape[0]):
+            loss += F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
+    # new_masks = torch.stack(masks)
+    # batch_size, num_masks = new_masks.shape[0], new_masks.shape[1]
+    # b, c, h, w = feature_student.size()
+    # # masks = torch.stack(masks, dim=1)  # new masks shape: [batch_size, num_masks, height, width]
+    #
+    # # expand features to match masks shape
+    # feature_student = feature_student.unsqueeze(1).expand(-1, new_masks.shape[1], -1, -1, -1)
+    # feature_teacher = feature_teacher.unsqueeze(1).expand(-1, new_masks.shape[1], -1, -1, -1)
+    #
+    # # apply masks
+    # masked_feature_student = feature_student * new_masks.unsqueeze(2)
+    # masked_feature_teacher = feature_teacher * new_masks.unsqueeze(2)
+    #
+    # # compute MSE loss
+    # new_loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
+
     return loss
     
