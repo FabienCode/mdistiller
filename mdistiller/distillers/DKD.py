@@ -61,7 +61,6 @@ class DKD(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
         
-
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():

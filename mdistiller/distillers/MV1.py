@@ -24,7 +24,6 @@ class MV1(Distiller):
         self.mask_per = 0.2
         self.conv_reg = AreaDetection()
 
-
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
 

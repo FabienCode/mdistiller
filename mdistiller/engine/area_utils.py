@@ -26,6 +26,8 @@ class AreaDetection(nn.Module):
             nn.Conv2d(feat_channels, out_channels, kernel_size=1),
             nn.ReLU(inplace=True)
         )
+        # nn.init.kaiming_uniform_(layer[0].weight, a=1)  # pyre-ignore
+        # nn.init.kaiming_uniform_(layer[2].weight, a=1)  # pyre-ignore
         return layer
 
     def forward(self, x):
