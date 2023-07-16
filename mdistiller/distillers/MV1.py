@@ -22,19 +22,8 @@ class MV1(Distiller):
 
         self.hint_layer = -1
         self.mask_per = 0.2
-
-        # self.conv_reg = MultiHeadAttention(256, 4)
-        # self.conv_reg = Transformer(d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024)
-        feat_s_shapes, feat_t_shapes = get_feat_shapes(
-            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
-        )
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        # )
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        # )
         self.conv_reg = AreaDetection()
+
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -58,9 +47,9 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer]
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
-        heat_map, wh, offset = self.conv_reg(f_t)
-        # loss_kd = F.mse_loss(f_s, f_t)
-        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
+        heat_map, wh, offset = self.conv_reg(f_s)
+        aaloss_weight = 1
+        loss_kd = aaloss_weight * min(kwargs["epoch"] / self.warmup, 1.0) * aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
@@ -80,24 +69,6 @@ def aaloss(feature_student,
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
-    # new_masks = torch.stack(masks)
-    # batch_size, num_masks = new_masks.shape[0], new_masks.shape[1]
-    # b, c, h, w = feature_student.size()
-    # # masks = torch.stack(masks, dim=1)  # new masks shape: [batch_size, num_masks, height, width]
-    #
-    # # expand features to match masks shape
-    # feature_student = feature_student.unsqueeze(1).expand(-1, new_masks.shape[1], -1, -1, -1)
-    # feature_teacher = feature_teacher.unsqueeze(1).expand(-1, new_masks.shape[1], -1, -1, -1)
-    #
-    # # apply masks
-    # masked_feature_student = feature_student * new_masks.unsqueeze(2)
-    # masked_feature_teacher = feature_teacher * new_masks.unsqueeze(2)
-    #
-    # # compute MSE loss
-    # loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
-    # torch.cuda.synchronize()
-    # s4_2_e = time.time()
-    # print("compute loss exactly time: ", s4_2_e - s4_2_t)
 
     return loss
     
