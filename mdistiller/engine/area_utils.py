@@ -69,7 +69,8 @@ def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
             tmp_mask.append(mask)
         masks.append(torch.stack(tmp_mask))
     # masks = torch.stack(masks)
-    return masks
+    return masks, areas[:, :, -1]
+
 
 def get_local_maximum(heat, kernel=3):
     pad = (kernel - 1) // 2

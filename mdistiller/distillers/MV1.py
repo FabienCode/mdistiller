@@ -6,6 +6,7 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.area_utils import AreaDetection, extract_regions
 
+import time
 
 class MV1(Distiller):
     """Automaticv importance area detection for Knowledge distillation"""
@@ -57,9 +58,9 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer]
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
-        heat_map, wh, offset = self.conv_reg(f_t)
+        heat_map, wh, offset = self.conv_reg(f_s)
         # loss_kd = F.mse_loss(f_s, f_t)
-        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=16, kernel=3)
+        loss_kd = aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
@@ -75,11 +76,10 @@ def aaloss(feature_student,
            k=20,
            kernel=3):
     loss = 0
-    masks = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
-    #
+    masks, scores = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
-            loss += F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
+            loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
     # new_masks = torch.stack(masks)
     # batch_size, num_masks = new_masks.shape[0], new_masks.shape[1]
     # b, c, h, w = feature_student.size()
@@ -94,7 +94,10 @@ def aaloss(feature_student,
     # masked_feature_teacher = feature_teacher * new_masks.unsqueeze(2)
     #
     # # compute MSE loss
-    # new_loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
+    # loss = F.mse_loss(masked_feature_student, masked_feature_teacher)
+    # torch.cuda.synchronize()
+    # s4_2_e = time.time()
+    # print("compute loss exactly time: ", s4_2_e - s4_2_t)
 
     return loss
     
