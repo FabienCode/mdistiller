@@ -22,7 +22,7 @@ class MV1(Distiller):
 
         self.hint_layer = -1
         self.mask_per = 0.2
-        self.conv_reg = AreaDetection()
+        self.conv_reg = AreaDetection(256, 256, 2)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -46,8 +46,8 @@ class MV1(Distiller):
         f_s = feature_student["feats"][self.hint_layer]
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
-        heat_map, wh, offset = self.conv_reg(f_s)
-        aaloss_weight = 5
+        heat_map, wh, offset = self.conv_reg(f_t)
+        aaloss_weight = 1
         loss_kd = aaloss_weight * aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
         losses_dict = {
             "loss_ce": loss_ce,
@@ -61,13 +61,13 @@ def aaloss(feature_student,
            center_heat_map,
            wh_pred,
            offset_pred,
-           k=20,
+           k=8,
            kernel=3):
     loss = 0
     masks, scores = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
-            loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
+            loss += F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
 
     return loss
     
