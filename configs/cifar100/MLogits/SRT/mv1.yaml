@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.15,vx,weight,dkd"
+  TAG: "7.17,v2,f_s,weight3"
   PROJECT: "cifar100_mv3"
 DISTILLER:
   TYPE: "MV1"
