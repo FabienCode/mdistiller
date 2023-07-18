@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
+import time
 
 class AreaDetection(nn.Module):
     def __init__(self,
@@ -90,6 +91,7 @@ def get_topk_from_heatmap(scores, k=20):
     topk_ys = torch.div(topk_inds, width, rounding_mode='floor')
     topk_xs = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
+
 def gather_feat(feat, ind, mask=None):
     dim = feat.size(2)
     ind = ind.unsqueeze(2).repeat(1, 1, dim)
@@ -99,6 +101,7 @@ def gather_feat(feat, ind, mask=None):
         feat = feat[mask]
         feat = feat.view(-1, dim)
     return feat
+
 def transpose_and_gather_feat(feat, ind):
     feat = feat.permute(0, 2, 3, 1).contiguous()
     feat = feat.view(feat.size(0), -1, feat.size(3))
