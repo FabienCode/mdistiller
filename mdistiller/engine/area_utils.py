@@ -72,7 +72,6 @@ def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
     # masks = torch.stack(masks)
     return masks, areas[:, :, -1]
 
-
 def get_local_maximum(heat, kernel=3):
     pad = (kernel - 1) // 2
     hmax = F.max_pool2d(heat, kernel, stride=1, padding=pad)

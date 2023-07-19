@@ -20,9 +20,9 @@ class MV1(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
-        self.hint_layer = 2
+        self.hint_layer = -1
         self.mask_per = 0.2
-        self.conv_reg = AreaDetection(128, 128, 2)
+        self.conv_reg = AreaDetection(256, 256, 2)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -49,7 +49,7 @@ class MV1(Distiller):
         heat_map, wh, offset = self.conv_reg(f_s)
         aaloss_weight = 1
         # * min(kwargs["epoch"] / self.warmup, 1.0)
-        loss_kd = aaloss_weight  * aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
+        loss_kd = aaloss_weight  * min(kwargs["epoch"] / self.warmup, 1.0) * aaloss(f_s, f_t, heat_map, wh, offset, k=4, kernel=3)
         loss_kd = F.mse_loss(f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
