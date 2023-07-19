@@ -49,7 +49,7 @@ class MV1(Distiller):
         heat_map, wh, offset = self.conv_reg(f_s)
         aaloss_weight = 1
         # * min(kwargs["epoch"] / self.warmup, 1.0)
-        loss_kd = aaloss_weight  * aaloss(f_s, f_t, heat_map, wh, offset, k=4, kernel=3)
+        loss_kd = aaloss_weight  * aaloss(f_s, f_t, heat_map, wh, offset, k=8, kernel=3)
         loss_kd = F.mse_loss(f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
