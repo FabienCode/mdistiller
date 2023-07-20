@@ -16,8 +16,8 @@ class AreaDetection(nn.Module):
         self.feat_channels = feat_channels
 
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
-        # self.offset_head = self._build_head(in_channels, feat_channels, 2)
-        # self.wh_head = self._build_head(in_channels, feat_channels, 2)
+        self.offset_head = self._build_head(in_channels, feat_channels, 2)
+        self.wh_head = self._build_head(in_channels, feat_channels, 2)
 
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
@@ -30,10 +30,9 @@ class AreaDetection(nn.Module):
         return layer
 
     def forward(self, x):
-        x = self.heatmap_head(x)
-        center_heatmap_pred = x[:, 0:2, :, :].sigmoid()
-        wh_pred = x[:, 2:4, :, :]
-        offset_pred = x[:, 4:6, :, :]
+        center_heatmap_pred = self.heatmap_head(x).sigmoid()
+        wh_pred = self.wh_head(x)
+        offset_pred = self.offset_head(x)
         return center_heatmap_pred, wh_pred, offset_pred
 
 def get_import_region(feature_map, center_heatmap_pred, wh_pred, offset_pred, k, kernel):
