@@ -1,14 +1,14 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.17,v2,f_s,weight3"
-  PROJECT: "cifar100_mv3"
+  TAG: "7.20,vx,f_s,weight3"
+  PROJECT: "cifar100_regkd_v1"
 DISTILLER:
   TYPE: "MV1"
   TEACHER: "resnet32x4"
   STUDENT: "resnet8x4"
 SOLVER:
   BATCH_SIZE: 64
-  EPOCHS: 2400
+  EPOCHS: 240
   LR_DECAY_STAGES: [150, 180, 210]
   LR: 0.05
   # EPOCHS: 480
