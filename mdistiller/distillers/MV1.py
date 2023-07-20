@@ -27,7 +27,7 @@ class MV1(Distiller):
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
 
-# tese gitte key2
+# tese gitte key3
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
