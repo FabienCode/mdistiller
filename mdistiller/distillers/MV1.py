@@ -67,9 +67,10 @@ def aaloss(feature_student,
            kernel=3):
     loss = 0
     masks, scores = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
+    scores = scores.sigmoid()
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
-            loss += F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
+            loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
 
     return loss
     
