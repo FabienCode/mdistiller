@@ -67,8 +67,11 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(256, 256, 2)
 
+        self.score_norm = nn.BatchNorm1d(self.area_num)
+        self.score_relu = nn.ReLU()
+
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.area_det.parameters())
+        return super().get_learnable_parameters() + list(self.area_det.parameters()) + list(self.score_norm.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -98,6 +101,8 @@ class RegKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        # scores = norm_tensor(scores)
+        scores = self.score_norm(scores)
 
         regloss_weight = 3
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
@@ -113,7 +118,6 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
-    scores = F.normalize(scores, p=2, dim=-1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
