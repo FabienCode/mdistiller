@@ -23,6 +23,7 @@ class MV1(Distiller):
         self.hint_layer = -1
         self.mask_per = 0.2
         self.conv_reg = AreaDetection(256, 256, 2)
+        self.area_num = 8
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -48,9 +49,11 @@ class MV1(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_s.shape
         heat_map, wh, offset = self.conv_reg(f_s)
+        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        scores = norm(scores)
         aaloss_weight = 3
         # * min(kwargs["epoch"] / self.warmup, 1.0)
-        loss_kd = aaloss_weight * aaloss(f_s, f_t, heat_map, wh, offset, k=16, kernel=3)
+        loss_kd = aaloss_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
@@ -60,17 +63,16 @@ class MV1(Distiller):
 # test vscode
 def aaloss(feature_student,
            feature_teacher,
-           center_heat_map,
-           wh_pred,
-           offset_pred,
-           k=8,
-           kernel=3):
+           masks,
+           scores):
     loss = 0
-    masks, scores = extract_regions(feature_student, center_heat_map, wh_pred, offset_pred, k, kernel)
     scores = F.normalize(scores, p=2, dim=-1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
 
     return loss
+
+def norm(x):
+    return (x - x.min()) / (x.max() - x.min() + 1e-5)
     
