@@ -17,6 +17,7 @@ from .MLogits import MLogits
 from .CLD import CLD
 from .SRT import SRT
 from .MV1 import MV1
+from .RegKD import RegKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -37,5 +38,6 @@ distiller_dict = {
     "MLogits": MLogits,
     "CLD": CLD,
     "SRT": SRT,
-    "MV1": MV1
+    "MV1": MV1,
+    "RegKD": RegKD
 }
