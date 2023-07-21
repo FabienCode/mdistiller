@@ -25,7 +25,7 @@ class MV1(Distiller):
         self.conv_reg = AreaDetection(256, 256, 2)
         self.area_num = 8
         self.score_norm = nn.BatchNorm1d(self.area_num)
-        # self.score_relu = nn.ReLU()
+        self.score_relu = nn.ReLU()
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -53,7 +53,7 @@ class MV1(Distiller):
         heat_map, wh, offset = self.conv_reg(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         # scores = norm_tensor(scores)
-        scores = self.score_norm(scores)
+        scores = self.score_relu(self.score_norm(scores))
 
         aaloss_weight = 3
         # * min(kwargs["epoch"] / self.warmup, 1.0)
