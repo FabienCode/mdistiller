@@ -34,7 +34,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(int(feat_s_shapes[-1][1]), int(feat_s_shapes[-1][1]), 2)
 
-        self.channel_mask = 0.9
+        self.channel_mask = 0.5
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
