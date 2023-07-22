@@ -25,7 +25,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(256, 256, 2)
 
-        self.channel_mask = 0.95
+        self.channel_mask = 0.9
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
@@ -63,8 +63,8 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
-        regloss_weight = 3
-        loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
+        # regloss_weight = 3
+        loss_regkd = min(kwargs["epoch"] / self.warmup, 1.0) * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
