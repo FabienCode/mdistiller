@@ -21,7 +21,7 @@ class RegKD(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
-        self.area_num = 8
+        self.area_num = 4
         self.hint_layer = -1
 
         self.hint_layer = -1
@@ -34,7 +34,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(int(feat_s_shapes[-1][1]), int(feat_s_shapes[-1][1]), 2)
 
-        self.channel_mask = 0.8
+        self.channel_mask = 0.9
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
