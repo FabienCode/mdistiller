@@ -77,7 +77,7 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
-    scores = F.normalize(scores, p=1, dim=1)
+    scores = F.normalize(scores, p=2, dim=1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
