@@ -25,7 +25,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(256, 256, 2)
 
-        self.channel_mask = 0.5
+        self.channel_mask = 0.95
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
