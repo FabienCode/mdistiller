@@ -102,7 +102,7 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         # scores = norm_tensor(scores)
-        scores = self.score_norm(scores)
+        scores = self.relu(self.score_norm(scores))
 
         regloss_weight = 3
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
