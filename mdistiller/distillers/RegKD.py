@@ -23,21 +23,21 @@ class RegKD(Distiller):
         self.area_num = 8
         self.hint_layer = -1
 
-        # self.area_det = AreaDetection(256, 256, 2)
-        #
-        # self.score_norm = nn.BatchNorm1d(self.area_num)
-        # self.score_relu = nn.ReLU()
+        self.area_det = AreaDetection(256, 256, 2)
+
+        self.score_norm = nn.BatchNorm1d(self.area_num)
+        self.score_relu = nn.ReLU()
 
         self.channel_mask = 0.9
 
-    # def get_learnable_parameters(self):
-    #     return super().get_learnable_parameters() + list(self.area_det.parameters()) + list(self.score_norm.parameters())
-    #
-    # def get_extra_parameters(self):
-    #     num_p = 0
-    #     for p in self.area_det.parameters():
-    #         num_p += p.numel()
-    #     return num_p
+    def get_learnable_parameters(self):
+        return super().get_learnable_parameters() + list(self.area_det.parameters()) + list(self.score_norm.parameters())
+
+    def get_extra_parameters(self):
+        num_p = 0
+        for p in self.area_det.parameters():
+            num_p += p.numel()
+        return num_p
         
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
@@ -59,20 +59,20 @@ class RegKD(Distiller):
             fc_mask,
         )
         # 2. RegKD loss
-        # f_s = feature_student["feats"][self.hint_layer]
-        # f_t = feature_teacher["feats"][self.hint_layer]
-        # block_importance, channel_masks = calculate_block_importance_and_mask(self.student)
-        # heat_map, wh, offset = self.area_det(f_s)
-        # masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        # scores = norm_tensor(scores)
+        f_s = feature_student["feats"][self.hint_layer]
+        f_t = feature_teacher["feats"][self.hint_layer]
+        block_importance, channel_masks = calculate_block_importance_and_mask(self.student)
+        heat_map, wh, offset = self.area_det(f_s)
+        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        scores = norm_tensor(scores)
         # # scores = self.relu(self.score_norm(scores))
         #
-        # regloss_weight = 3
-        # loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
+        regloss_weight = 3
+        loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
-            # "losses_dict": loss_regkd
+            "losses_reg": loss_regkd
         }
         return logits_student, losses_dict
 
