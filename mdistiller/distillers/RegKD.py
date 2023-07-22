@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ._base import Distiller
+from ._common import ConvReg, get_feat_shapes
 
 from mdistiller.engine.area_utils import AreaDetection, extract_regions
 from mdistiller.engine.kd_loss import mask_logits_loss
@@ -23,13 +24,21 @@ class RegKD(Distiller):
         self.area_num = 8
         self.hint_layer = -1
 
-        self.area_det = AreaDetection(256, 256, 2)
+        self.hint_layer = -1
+        feat_s_shapes, feat_t_shapes = get_feat_shapes(
+            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+        )
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
+
+        self.area_det = AreaDetection(int(feat_s_shapes[-1][1]), int(feat_s_shapes[-1][1]), 2)
 
         self.channel_mask = 0.9
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.area_det.parameters())
+        return super().get_learnable_parameters() + list(self.area_det.parameters()) + list(self.conv_reg.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -58,12 +67,12 @@ class RegKD(Distiller):
             fc_mask,
         )
         # 2. RegKD loss
-        f_s = feature_student["feats"][self.hint_layer]
+        f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
-        regloss_weight = 10
+        regloss_weight = 3
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
@@ -77,7 +86,7 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
-    scores = F.normalize(scores, p=2, dim=1)
+    scores = F.normalize(scores, p=1, dim=1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))

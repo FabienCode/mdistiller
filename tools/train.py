@@ -61,7 +61,7 @@ def main(cfg, resume, opts):
             model_teacher = net(num_classes=num_classes)
             model_teacher.load_state_dict(load_checkpoint(pretrain_model_path)["model"])
             model_student = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
-                num_classes=num_classes, kd_para=True
+                num_classes=num_classes
             )
         if cfg.DISTILLER.TYPE == "CRD":
             distiller = distiller_dict[cfg.DISTILLER.TYPE](
