@@ -101,8 +101,8 @@ class RegKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        # scores = norm_tensor(scores)
-        scores = self.relu(self.score_norm(scores))
+        scores = norm_tensor(scores)
+        # scores = self.relu(self.score_norm(scores))
 
         regloss_weight = 3
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
@@ -118,6 +118,7 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
+    # scores = F.normalize(scores, p=1, dim=1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
