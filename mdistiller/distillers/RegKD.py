@@ -25,7 +25,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(256, 256, 2)
 
-        self.channel_mask = 0.9
+        self.channel_mask = 0.5
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
@@ -48,7 +48,7 @@ class RegKD(Distiller):
         # 1. DKD loss
         fc_mask = prune_fc_layer(self.student.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / self.warmup, 1.0) *
-        loss_dkd = 3 * mask_logits_loss(
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
             logits_student,
             logits_teacher,
             target,
