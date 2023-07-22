@@ -138,7 +138,7 @@ def kd_loss(logits_student, logits_teacher, temperature):
     return loss_kd
 
 # Decoupled Knowledge Distillation(CVPR 2022)
-def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
+def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
     if mask is None:
         gt_mask = _get_gt_mask(logits_student, target)
         other_mask = _get_other_mask(logits_student, target)

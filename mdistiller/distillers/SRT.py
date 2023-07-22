@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 
 from ._base import Distiller
-from ..engine.kd_loss import KDQualityFocalLoss, kd_loss, dkd_loss
 from ._common import ConvReg, ConvRegE, get_feat_shapes
 # from mdistiller.models.transformer.model.decoder import Decoder
 from mdistiller.engine.mdis_utils import CBAM
@@ -50,9 +49,6 @@ class SRT(Distiller):
         # self.cross_attention = nn.Transformer(d_model=64, nhead=4, num_encoder_layers=3, batch_first=True)
         self.mask_attention = MultiHeadAttention(256, 4)
 
-
-
-        # self.qkl_loss = KDQualityFocalLoss()
 
     @staticmethod
     def freeze(model: nn.Module):
@@ -117,7 +113,7 @@ class SRT(Distiller):
 
         kd_loss_weight = 1
         # # # min(kwargs["epoch"] / self.warmup, 1.0)
-        loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.temperature) 
+        # loss_kd = kd_loss_weight * kd_loss(logits_student, kd_logits, self.temperature)
         # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
         #     logits_teacher,
@@ -131,7 +127,7 @@ class SRT(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             # "loss_ce_t": t_loss_ce,
-            "loss_kd": loss_kd,
+            # "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
     
