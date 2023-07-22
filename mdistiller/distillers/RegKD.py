@@ -25,13 +25,14 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(256, 256, 2)
 
-        self.score_norm = nn.BatchNorm1d(self.area_num)
-        self.score_relu = nn.ReLU()
+        # self.score_norm = nn.BatchNorm1d(self.area_num)
+        # self.score_relu = nn.ReLU()
 
         self.channel_mask = 0.9
 
+    # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.area_det.parameters()) + list(self.score_norm.parameters())
+        return super().get_learnable_parameters() + list(self.area_det.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -64,9 +65,9 @@ class RegKD(Distiller):
         block_importance, channel_masks = calculate_block_importance_and_mask(self.student)
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        scores = norm_tensor(scores)
+        # scores = norm_tensor(scores)
         # # scores = self.relu(self.score_norm(scores))
-        #
+
         regloss_weight = 3
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
@@ -81,7 +82,7 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
-    # scores = F.normalize(scores, p=1, dim=1)
+    scores = F.normalize(scores, p=2, dim=1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
