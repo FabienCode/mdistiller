@@ -15,6 +15,7 @@ class RegKD(Distiller):
 
     def __init__(self, student, teacher, cfg):
         super(RegKD, self).__init__(student, teacher)
+        self.cfg = cfg
         self.ce_loss_weight = cfg.DKD.CE_WEIGHT
         self.alpha = cfg.DKD.ALPHA
         self.beta = cfg.DKD.BETA
@@ -32,9 +33,9 @@ class RegKD(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
-        self.area_det = AreaDetection(int(feat_s_shapes[-1][1]), int(feat_s_shapes[-1][1]), 2)
+        self.area_det = AreaDetection(int(feat_t_shapes[-1][1]), int(feat_t_shapes[-1][1]), 2)
 
-        self.channel_mask = 0.2
+        self.channel_mask = 0.95
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
@@ -55,8 +56,11 @@ class RegKD(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # KD loss
         # 1. DKD loss
-        fc_mask = prune_fc_layer(self.student.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
-        #  min(kwargs["epoch"] / self.warmup, 1.0) *
+        if 'vgg' not in self.cfg.DISTILLER.STUDENT:
+            fc_mask = prune_fc_layer(self.student.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+        else:
+            fc_mask = prune_fc_layer(self.student.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+        #  min(kwargs["epoch"] / sel.warmup, 1.0) *
         loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
             logits_student,
             logits_teacher,
@@ -72,7 +76,7 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
-        regloss_weight = 3
+        regloss_weight = 1
         loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
