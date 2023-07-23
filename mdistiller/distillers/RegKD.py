@@ -7,7 +7,7 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 
 from mdistiller.engine.area_utils import AreaDetection, extract_regions
-from mdistiller.engine.kd_loss import mask_logits_loss
+from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
 from mdistiller.models.cifar.resnet import BasicBlock, Bottleneck
 
 class RegKD(Distiller):
@@ -21,6 +21,9 @@ class RegKD(Distiller):
         self.beta = cfg.RegKD.BETA
         self.temperature = cfg.RegKD.T
         self.warmup = cfg.RegKD.WARMUP
+
+        self.channel_weight = cfg.RegKD.CHANNEL_KD_WEIGHT
+        self.area_weight = cfg.RegKD.AREA_KD_WEIGHT
 
         self.area_num = cfg.RegKD.AREA_NUM
         self.hint_layer = cfg.RegKD.HINT_LAYER
@@ -59,7 +62,7 @@ class RegKD(Distiller):
         else:
             fc_mask = prune_fc_layer(self.student.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / sel.warmup, 1.0) *
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
+        loss_dkd = self.channel_weight * mask_logits_loss(
             logits_student,
             logits_teacher,
             target,
@@ -74,8 +77,7 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
-        regloss_weight = 1
-        loss_regkd = regloss_weight * aaloss(f_s, f_t, masks, scores)
+        loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
@@ -87,14 +89,13 @@ def aaloss(feature_student,
            feature_teacher,
            masks,
            scores):
-    # loss = 0
-    scores = F.normalize(scores, p=2, dim=1)
+    loss1 = 0
+    # scores = F.normalize(scores, p=2, dim=1)
     s_masks = torch.stack(masks).sum(-1)
-    loss = scores.unsqueeze(-1).unsqueeze(-1) * F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1)).mean(-1).sum()
+    loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
     # for i in range(len(masks)):
     #     for j in range(masks[i].shape[0]):
-    #         loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
-
+    #         loss1 += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
     return loss
 
 def norm_tensor(x):

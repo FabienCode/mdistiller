@@ -137,14 +137,9 @@ def kd_loss(logits_student, logits_teacher, temperature):
     loss_kd *= temperature ** 2
     return loss_kd
 
-# Decoupled Knowledge Distillation(CVPR 2022)
-def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
-    if mask is None:
-        gt_mask = _get_gt_mask(logits_student, target)
-        other_mask = _get_other_mask(logits_student, target)
-    else:
-        gt_mask = mask
-        other_mask = ~mask
+def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
+    gt_mask = _get_gt_mask(logits_student, target)
+    other_mask = _get_other_mask(logits_student, target)
     pred_student = F.softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     pred_student = cat_mask(pred_student, gt_mask, other_mask)
@@ -167,6 +162,41 @@ def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temper
         / target.shape[0]
     )
     return alpha * tckd_loss + beta * nckd_loss
+
+# Decoupled Knowledge Distillation(CVPR 2022)
+def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
+    if mask is None:
+        gt_mask = _get_gt_mask(logits_student, target)
+        other_mask = _get_other_mask(logits_student, target)
+    else:
+        gt_mask = mask
+        other_mask = ~mask
+    # gt_mask = _get_gt_mask(logits_student, target)
+    # other_mask = _get_other_mask(logits_student, target)
+    # other_mask = ~gt_mask
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    pred_student = cat_mask(pred_student, gt_mask, other_mask)
+    pred_teacher = cat_mask(pred_teacher, gt_mask, other_mask)
+    log_pred_student = torch.log(pred_student)
+    tckd_loss = (
+        F.kl_div(log_pred_student, pred_teacher, size_average=False)
+        * (temperature**2)
+        / target.shape[0]
+    )
+    # pred_teacher_part2 = F.softmax(
+    #     logits_teacher / temperature - 1000.0 * gt_mask, dim=1
+    # )
+    # log_pred_student_part2 = F.log_softmax(
+    #     logits_student / temperature - 1000.0 * gt_mask, dim=1
+    # )
+    # nckd_loss = (
+    #     F.kl_div(log_pred_student_part2, pred_teacher_part2, size_average=False)
+    #     * (temperature**2)
+    #     / target.shape[0]
+    # )
+    # return alpha * tckd_loss + beta * nckd_loss
+    return alpha * tckd_loss
     # return tckd_loss, nckd_loss
 
 
