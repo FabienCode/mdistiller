@@ -22,10 +22,8 @@ class RegKD(Distiller):
         self.temperature = cfg.DKD.T
         self.warmup = cfg.DKD.WARMUP
 
-        self.area_num = 8
-        self.hint_layer = -1
-
-        self.hint_layer = -1
+        self.area_num = cfg.RegKD.AREA_NUM
+        self.hint_layer = cfg.RegKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
@@ -35,7 +33,7 @@ class RegKD(Distiller):
 
         self.area_det = AreaDetection(int(feat_t_shapes[-1][1]), int(feat_t_shapes[-1][1]), 2)
 
-        self.channel_mask = 0.95
+        self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
     # list(self.score_norm.parameters())
     def get_learnable_parameters(self):
@@ -90,7 +88,7 @@ def aaloss(feature_student,
            masks,
            scores):
     loss = 0
-    scores = F.normalize(scores, p=1, dim=1)
+    scores = F.normalize(scores, p=2, dim=1)
     for i in range(len(masks)):
         for j in range(masks[i].shape[0]):
             loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
