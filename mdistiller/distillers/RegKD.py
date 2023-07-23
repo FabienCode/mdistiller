@@ -58,9 +58,9 @@ class RegKD(Distiller):
         # KD loss
         # 1. DKD loss
         if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-            fc_mask = prune_fc_layer(self.student.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         else:
-            fc_mask = prune_fc_layer(self.student.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / sel.warmup, 1.0) *
         loss_dkd = self.channel_weight * mask_logits_loss(
             logits_student,
@@ -74,8 +74,8 @@ class RegKD(Distiller):
         # 2. RegKD loss
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        heat_map, wh, offset = self.area_det(f_s)
-        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        heat_map, wh, offset = self.area_det(f_t)
+        masks, scores = extract_regions(f_t, heat_map, wh, offset, self.area_num, 3)
 
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
