@@ -16,11 +16,11 @@ class RegKD(Distiller):
     def __init__(self, student, teacher, cfg):
         super(RegKD, self).__init__(student, teacher)
         self.cfg = cfg
-        self.ce_loss_weight = cfg.DKD.CE_WEIGHT
-        self.alpha = cfg.DKD.ALPHA
-        self.beta = cfg.DKD.BETA
-        self.temperature = cfg.DKD.T
-        self.warmup = cfg.DKD.WARMUP
+        self.ce_loss_weight = cfg.RegKD.CE_WEIGHT
+        self.alpha = cfg.RegKD.ALPHA
+        self.beta = cfg.RegKD.BETA
+        self.temperature = cfg.RegKD.T
+        self.warmup = cfg.RegKD.WARMUP
 
         self.area_num = cfg.RegKD.AREA_NUM
         self.hint_layer = cfg.RegKD.HINT_LAYER
@@ -88,7 +88,7 @@ def aaloss(feature_student,
            masks,
            scores):
     # loss = 0
-    # scores = F.normalize(scores, p=2, dim=1)
+    scores = F.normalize(scores, p=2, dim=1)
     s_masks = torch.stack(masks).sum(-1)
     loss = scores.unsqueeze(-1).unsqueeze(-1) * F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1)).mean(-1).sum()
     # for i in range(len(masks)):
