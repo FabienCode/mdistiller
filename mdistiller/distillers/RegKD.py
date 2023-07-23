@@ -87,11 +87,13 @@ def aaloss(feature_student,
            feature_teacher,
            masks,
            scores):
-    loss = 0
-    scores = F.normalize(scores, p=2, dim=1)
-    for i in range(len(masks)):
-        for j in range(masks[i].shape[0]):
-            loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
+    # loss = 0
+    # scores = F.normalize(scores, p=2, dim=1)
+    s_masks = torch.stack(masks).sum(-1)
+    loss = scores.unsqueeze(-1).unsqueeze(-1) * F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1)).mean(-1).sum()
+    # for i in range(len(masks)):
+    #     for j in range(masks[i].shape[0]):
+    #         loss += scores[i][j] * F.mse_loss(feature_student*(masks[i][j].unsqueeze(0).unsqueeze(0)), feature_teacher*(masks[i][j].unsqueeze(0).unsqueeze(0)))
 
     return loss
 
