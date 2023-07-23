@@ -182,7 +182,7 @@ def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temper
     tckd_loss = (
         F.kl_div(log_pred_student, pred_teacher, size_average=False)
         * (temperature**2)
-        / target.shape[0]
+        # / target.shape[0]
     )
     # pred_teacher_part2 = F.softmax(
     #     logits_teacher / temperature - 1000.0 * gt_mask, dim=1
