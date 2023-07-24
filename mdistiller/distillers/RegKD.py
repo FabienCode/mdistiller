@@ -46,6 +46,8 @@ class RegKD(Distiller):
         num_p = 0
         for p in self.area_det.parameters():
             num_p += p.numel()
+        for p in self.conv_reg.parameters():
+            num_p += p.numel()
         return num_p
         
     def forward_train(self, image, target, **kwargs):
@@ -77,7 +79,7 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_t)
         masks, scores = extract_regions(f_t, heat_map, wh, offset, self.area_num, 3)
 
-        loss_regkd = self.area_weight * min(kwargs["epoch"] / self.warmup, 1.0) * aaloss(f_s, f_t, masks, scores)
+        loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
@@ -90,9 +92,9 @@ def aaloss(feature_student,
            masks,
            scores):
     masks_stack = torch.stack(masks)
-    scores_expand = scores.unsqueeze(-1).unsqueeze(-1).expand_as(masks_stack)
-    weight_masks = masks_stack * scores_expand
-    s_masks = weight_masks.sum(-1)
+    # scores_expand = scores.unsqueeze(-1).unsqueeze(-1).expand_as(masks_stack)
+    # weight_masks = masks_stack * scores_expand
+    s_masks = masks_stack.sum(-1)
     loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
     return loss
 
