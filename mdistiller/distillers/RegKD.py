@@ -95,7 +95,7 @@ def aaloss(feature_student,
     masks_stack = torch.stack(masks)
     # scores_expand = scores.unsqueeze(-1).unsqueeze(-1).expand_as(masks_stack)
     # weight_masks = masks_stack * scores_expand
-    s_masks = masks_stack.sum(-1)
+    s_masks = masks_stack.sum(1)
     loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
     return loss
 
