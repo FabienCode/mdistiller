@@ -190,8 +190,6 @@ def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temper
         / target.shape[0]
     )
     return alpha * tckd_loss + beta * nckd_loss
-    # return alpha * tckd_loss
-    # return tckd_loss, nckd_loss
 
 
 def _get_gt_mask(logits, target):
