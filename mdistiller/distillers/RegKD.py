@@ -60,9 +60,9 @@ class RegKD(Distiller):
         # KD loss
         # 1. DKD loss
         if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-            fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.student.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         else:
-            fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.student.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / sel.warmup, 1.0) *
         loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
             logits_student,
