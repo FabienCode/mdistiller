@@ -76,7 +76,7 @@ class RegKD(Distiller):
         # 2. RegKD loss
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        heat_map, wh, offset = self.area_det(f_t)
+        heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_t, heat_map, wh, offset, self.area_num, 3)
 
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
