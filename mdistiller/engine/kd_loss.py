@@ -165,12 +165,9 @@ def dkd_loss(logits_student, logits_teacher, target, alpha, beta, temperature):
 
 # Decoupled Knowledge Distillation(CVPR 2022)
 def mask_logits_loss(logits_student, logits_teacher, target, alpha, beta, temperature, mask=None):
-    if mask is None:
-        gt_mask = _get_gt_mask(logits_student, target)
-        other_mask = _get_other_mask(logits_student, target)
-    else:
-        gt_mask = mask
-        other_mask = ~mask
+    target_mask = _get_gt_mask(logits_student, target)
+    gt_mask = mask + target_mask
+    other_mask = ~gt_mask
     pred_student = F.softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     pred_student = cat_mask(pred_student, gt_mask, other_mask)
