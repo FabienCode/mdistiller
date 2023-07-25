@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.23,vx,res56,res20"
-  PROJECT: "cifar100_RegKD_V3"
+  TAG: "7.2x,vx"
+  PROJECT: "cifar100_RegKD_wrn40-2_wrn40-1_V1"
 DISTILLER:
   TYPE: "RegKD"
   TEACHER: "wrn_40_2"
@@ -15,5 +15,14 @@ SOLVER:
   WEIGHT_DECAY: 0.0005
   MOMENTUM: 0.9
   TYPE: "SGD"
-DKD:
-  BETA: 2.0
+RegKD:
+  AREA_NUM: 8
+  HINT_LAYER: -1
+  CHANNEL_MASK: 0.90
+  CE_WEIGHT: 1.0
+  ALPHA: 1.0
+  BETA: 6.0
+  T: 4.0
+  WARMUP: 20
+  CHANNEL_KD_WEIGHT: 1.0
+  AREA_KD_WEIGHT: 5.0

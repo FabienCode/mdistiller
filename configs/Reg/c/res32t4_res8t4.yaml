@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.2x,vx,res32x4,res8x4,xx"
-  PROJECT: "cifar100_RegKD_v3"
+  TAG: "7.2x,vx"
+  PROJECT: "cifar100_RegKD_res32x4,res8x4_v1"
 DISTILLER:
   TYPE: "RegKD"
   TEACHER: "resnet32x4"
@@ -24,6 +24,6 @@ RegKD:
   BETA: 8.0
   T: 4.0
   WARMUP: 20
-  CHANNEL_KD_WEIGHT: 10.0
-  AREA_KD_WEIGHT: 1.0
+  CHANNEL_KD_WEIGHT: 1.0
+  AREA_KD_WEIGHT: 5.0
 
