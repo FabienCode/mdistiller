@@ -80,7 +80,7 @@ class RegKD(Distiller):
         heat_map, wh, offset = self.area_det(f_s)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
-        loss_regkd = self.area_weight * min(kwargs["epoch"] / self.warmup, 1.0) * aaloss(f_s, f_t, masks, scores)
+        loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
