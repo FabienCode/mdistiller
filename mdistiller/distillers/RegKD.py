@@ -28,7 +28,7 @@ class RegKD(Distiller):
         self.area_num = cfg.RegKD.AREA_NUM
         self.hint_layer = cfg.RegKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
-            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+            self.student, self.teacher, cfg.RegKD.INPUT_SIZE
         )
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]

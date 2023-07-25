@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.24,vx,[1,2,1,1,0.95]]"
-  PROJECT: "cifar100_RegKD_Res56_Res20_v1"
+  TAG: "vx, [0.95, 8, 1, 8, 1, 3]"
+  PROJECT: "cifar100_RegKD_Res56_Res20_v2"
 DISTILLER:
   TYPE: "RegKD"
   TEACHER: "resnet56"

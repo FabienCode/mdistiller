@@ -17,7 +17,7 @@
                 // "configs/cifar100/mdis.yaml",
                 // "configs/cifar100/dkd/res32x4_res8x4.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/imagenet/r34_r18/dkd.yaml",
-                "/home/fabien/Documents/project/2d/mdistiller/configs/imagenet/r34_r18/dkd.yaml",
+                "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/image/r34_r18.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/MLogits/SRT/mv1.yaml",
                 "--log_wandb",
                 "False",
