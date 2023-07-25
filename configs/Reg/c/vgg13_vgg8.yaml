@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.23,vx,res56,res20"
-  PROJECT: "cifar100_RegKD_V3"
+  TAG: "7.23,vx"
+  PROJECT: "cifar100_RegKD_vgg13_vgg8_V1"
 DISTILLER:
   TYPE: "RegKD"
   TEACHER: "vgg13"
