@@ -23,8 +23,8 @@ from mdistiller.engine.area_utils import AreaDetection, extract_regions
 from .teacher import build_teacher
 from .reviewkd import build_kd_trans, hcl
 
-
 __all__ = ["RCNNKD", "ProposalNetwork"]
+
 
 def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature):
     stu_logits, stu_bbox_offsets = stu_predictions
@@ -34,6 +34,7 @@ def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, tem
     return {
         'loss_dkd': loss_dkd,
     }
+
 
 def aaloss(feature_student,
            feature_teacher,
@@ -45,6 +46,7 @@ def aaloss(feature_student,
     s_masks = masks_stack.sum(1)
     loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
     return loss
+
 
 def reg_logits_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature, mask=None):
     stu_logits, stu_bbox_offsets = stu_predictions
@@ -67,20 +69,20 @@ class RCNNKD(nn.Module):
 
     @configurable
     def __init__(
-        self,
-        *,
-        backbone: Backbone,
-        proposal_generator: nn.Module,
-        roi_heads: nn.Module,
-        pixel_mean: Tuple[float],
-        pixel_std: Tuple[float],
-        teacher_pixel_mean: Tuple[float],
-        teacher_pixel_std: Tuple[float],
-        teacher: nn.Module,
-        kd_args,
-        input_format: Optional[str] = None,
-        teacher_input_format: Optional[str] = None,
-        vis_period: int = 0,
+            self,
+            *,
+            backbone: Backbone,
+            proposal_generator: nn.Module,
+            roi_heads: nn.Module,
+            pixel_mean: Tuple[float],
+            pixel_std: Tuple[float],
+            teacher_pixel_mean: Tuple[float],
+            teacher_pixel_std: Tuple[float],
+            teacher: nn.Module,
+            kd_args,
+            input_format: Optional[str] = None,
+            teacher_input_format: Optional[str] = None,
+            vis_period: int = 0,
     ):
         """
         Args:
@@ -102,6 +104,7 @@ class RCNNKD(nn.Module):
         #     self.kd_trans = build_kd_trans(self.kd_args)
         self.area_det = AreaDetection(256, 256, 2)
         self.channel_mask = 0.95
+        self.conv_reg = ConvReg(256, 256)
 
         self.input_format = input_format
         self.teacher_input_format = teacher_input_format
@@ -114,7 +117,7 @@ class RCNNKD(nn.Module):
         self.register_buffer("teacher_pixel_mean", torch.tensor(teacher_pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("teacher_pixel_std", torch.tensor(teacher_pixel_std).view(-1, 1, 1), False)
         assert (
-            self.pixel_mean.shape == self.pixel_std.shape
+                self.pixel_mean.shape == self.pixel_std.shape
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
 
     @classmethod
@@ -133,7 +136,7 @@ class RCNNKD(nn.Module):
             "teacher_input_format": cfg.TEACHER.INPUT.FORMAT,
             "teacher_pixel_mean": cfg.TEACHER.MODEL.PIXEL_MEAN,
             "teacher_pixel_std": cfg.TEACHER.MODEL.PIXEL_STD,
-            
+
         }
 
     @property
@@ -231,7 +234,7 @@ class RCNNKD(nn.Module):
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
-                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals], 
+                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
         elif self.kd_args.TYPE == "ReviewKD":
             teacher_images = self.teacher_preprocess_image(batched_inputs)
@@ -247,7 +250,7 @@ class RCNNKD(nn.Module):
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
-                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals], 
+                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
             # reviewkd loss
             t_features = [t_features[f] for f in t_features]
@@ -260,17 +263,25 @@ class RCNNKD(nn.Module):
             # logits loss
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
-            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(0).expand(stu_predictions[0].shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(
+                0).expand(stu_predictions[0].shape[0], -1).cuda()
             detector_losses.update(reg_logits_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
-            # region loss
+            # Region Loss
             t_features = [t_features[f] for f in t_features]
             s_features = [features[f] for f in features]
+            s_f = self.conv_reg(s_features[-1])
             # s_features = self.kd_trans(s_features)
-            heat_map, wh, offset = self.area_det(s_features[-1])
-            mask, scores = extract_regions(s_features[-1], heat_map, wh, offset, 8, 3)
-            loss_regkd = aaloss(s_features[-1], t_features[-1], mask, scores)
+            heat_map, wh, offset = self.area_det(s_f)
+            heat_map_s, wh_s, offset_s = self.area_det(t_features[-1])
+            losses['loss_heat'] = F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1),
+                                           reduction='batchmean')
+            t_area_reg = torch.cat((wh, offset), dim=1)
+            s_area_reg = torch.cat((wh_s, offset_s), dim=1)
+            losses['loss_area_reg'] = F.mse_loss(s_area_reg, t_area_reg)
+            mask, scores = extract_regions(s_f, heat_map, wh, offset, 8, 3)
+            loss_regkd = aaloss(s_f, t_features[-1], mask, scores)
             losses['loss_regkd'] = loss_regkd
         else:
             raise NotImplementedError(self.kd_args.TYPE)
@@ -284,10 +295,10 @@ class RCNNKD(nn.Module):
         return losses
 
     def inference(
-        self,
-        batched_inputs: Tuple[Dict[str, torch.Tensor]],
-        detected_instances: Optional[List[Instances]] = None,
-        do_postprocess: bool = True,
+            self,
+            batched_inputs: Tuple[Dict[str, torch.Tensor]],
+            detected_instances: Optional[List[Instances]] = None,
+            do_postprocess: bool = True,
     ):
         """
         Run inference on the given inputs.
@@ -345,7 +356,7 @@ class RCNNKD(nn.Module):
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.teacher_pixel_mean) / self.teacher_pixel_std for x in images]
         if self.input_format != self.teacher_input_format:
-            images = [x.index_select(0,torch.LongTensor([2,1,0]).to(self.device)) for x in images]
+            images = [x.index_select(0, torch.LongTensor([2, 1, 0]).to(self.device)) for x in images]
         images = ImageList.from_tensors(images, self.backbone.size_divisibility)
         return images
 
@@ -357,7 +368,7 @@ class RCNNKD(nn.Module):
         # note: private function; subject to changes
         processed_results = []
         for results_per_image, input_per_image, image_size in zip(
-            instances, batched_inputs, image_sizes
+                instances, batched_inputs, image_sizes
         ):
             height = input_per_image.get("height", image_size[0])
             width = input_per_image.get("width", image_size[1])
@@ -365,9 +376,11 @@ class RCNNKD(nn.Module):
             processed_results.append({"instances": r})
         return processed_results
 
+
 def compute_fc_importance(fc_layer):
     importance = torch.norm(fc_layer.weight.data, p=1, dim=1)
     return importance
+
 
 def prune_fc_layer(fc_layer, percentage):
     fc_importance = compute_fc_importance(fc_layer)
@@ -377,3 +390,49 @@ def prune_fc_layer(fc_layer, percentage):
     mask = torch.ones(len(sorted_index), dtype=torch.bool)
     mask[prune_index] = 0
     return mask
+
+
+class ConvReg(nn.Module):
+    """Convolutional regression"""
+
+    def __init__(self, s_channel, t_channel, use_relu=True):
+        super(ConvReg, self).__init__()
+        self.use_relu = use_relu
+        # s_N, s_C, s_H, s_W = s_shape
+        # t_N, t_C, t_H, t_W = t_shape
+        # if s_H == 2 * t_H:
+        #     self.conv = nn.Conv2d(s_C, t_C, kernel_size=3, stride=2, padding=1)
+        # elif s_H * 2 == t_H:
+        #     self.conv = nn.ConvTranspose2d(s_C, t_C, kernel_size=4, stride=2, padding=1)
+        # elif s_H >= t_H:
+        #     self.conv = nn.Conv2d(s_C, t_C, kernel_size=(1 + s_H - t_H, 1 + s_W - t_W))
+        # else:
+        #     raise NotImplemented("student size {}, teacher size {}".format(s_H, t_H))
+        self.conv = nn.Conv2d(s_channel, t_channel, kernel_size=3, stride=1, padding=1)
+        self.bn = nn.BatchNorm2d(t_channel)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv_2 = nn.Conv2d(t_channel, t_channel, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(t_channel)
+        self.conv_3 = nn.Conv2d(t_channel, t_channel, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(t_channel)
+
+    def forward(self, x):
+        x = self.conv(x)
+        # if self.use_relu:
+        #     return self.relu(self.bn(x))
+        # else:
+        #     return self.bn(x)
+        if self.use_relu:
+            x = self.relu(self.bn(x))
+        else:
+            x = self.bn(x)
+        x = self.conv_2(x)
+        if self.use_relu:
+            x = self.relu(self.bn2(x))
+        else:
+            x = self.bn2(x)
+        x = self.conv_3(x)
+        if self.use_relu:
+            return self.relu(self.bn3(x))
+        else:
+            return self.bn3(x)
