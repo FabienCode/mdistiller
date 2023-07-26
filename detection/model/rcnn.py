@@ -4,6 +4,7 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 from detectron2.config import configurable
 from detectron2.data.detection_utils import convert_image_to_rgb
@@ -33,6 +34,17 @@ def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, tem
     return {
         'loss_dkd': loss_dkd,
     }
+
+def aaloss(feature_student,
+           feature_teacher,
+           masks,
+           scores):
+    masks_stack = torch.stack(masks)
+    # scores_expand = scores.unsqueeze(-1).unsqueeze(-1).expand_as(masks_stack)
+    # weight_masks = masks_stack * scores_expand
+    s_masks = masks_stack.sum(1)
+    loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
+    return loss
 
 def reg_logits_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature, mask=None):
     stu_logits, stu_bbox_offsets = stu_predictions
@@ -245,21 +257,21 @@ class RCNNKD(nn.Module):
         elif self.kd_args.TYPE == "RegKD":
             teacher_images = self.teacher_preprocess_image(batched_inputs)
             t_features = self.teacher.backbone(teacher_images.tensor)
-            # dkd loss
+            # logits loss
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
-            detector_losses.update(rcnn_dkd_loss(
-                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
-                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
-            # reviewkd loss
-            t_features = [t_features[f] for f in t_features]
-            s_features = [features[f] for f in features]
-            s_features = self.kd_trans(s_features)
-            losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
             fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(0).expand(teacher_images.tensor.shape[0], -1).cuda()
             detector_losses.update(reg_logits_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
+            # region loss
+            t_features = [t_features[f] for f in t_features]
+            s_features = [features[f] for f in features]
+            s_features = self.kd_trans(s_features)
+            heat_map, wh, offset = self.area_det(s_features[-1])
+            mask, scores = extract_regions(s_features[-1], heat_map, wh, offset, 8, 3)
+            loss_regkd = aaloss(s_features[-1], t_features[-1], mask, scores)
+            losses['loss_regkd'] = loss_regkd
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
