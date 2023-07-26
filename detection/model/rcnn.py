@@ -100,7 +100,7 @@ class RCNNKD(nn.Module):
         self.kd_args = kd_args
         # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
         #     self.kd_trans = build_kd_trans(self.kd_args)
-        # self.area_det = AreaDetection(256, 256, 2)
+        self.area_det = AreaDetection(256, 256, 2)
         self.channel_mask = 0.95
 
         self.input_format = input_format
@@ -265,13 +265,13 @@ class RCNNKD(nn.Module):
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
             # region loss
-            # t_features = [t_features[f] for f in t_features]
-            # s_features = [features[f] for f in features]
+            t_features = [t_features[f] for f in t_features]
+            s_features = [features[f] for f in features]
             # s_features = self.kd_trans(s_features)
-            # heat_map, wh, offset = self.area_det(s_features[-1])
-            # mask, scores = extract_regions(s_features[-1], heat_map, wh, offset, 8, 3)
-            # loss_regkd = aaloss(s_features[-1], t_features[-1], mask, scores)
-            # losses['loss_regkd'] = loss_regkd
+            heat_map, wh, offset = self.area_det(s_features[-1])
+            mask, scores = extract_regions(s_features[-1], heat_map, wh, offset, 8, 3)
+            loss_regkd = aaloss(s_features[-1], t_features[-1], mask, scores)
+            losses['loss_regkd'] = loss_regkd
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
