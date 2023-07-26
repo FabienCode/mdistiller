@@ -260,7 +260,7 @@ class RCNNKD(nn.Module):
             # logits loss
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
-            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(0).expand(teacher_images.tensor.shape[0], -1).cuda()
+            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(0).expand(stu_predictions[0].shape[0], -1).cuda()
             detector_losses.update(reg_logits_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
