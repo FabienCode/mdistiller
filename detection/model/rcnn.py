@@ -98,8 +98,8 @@ class RCNNKD(nn.Module):
         self.roi_heads = roi_heads
         self.teacher = teacher
         self.kd_args = kd_args
-        if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
-            self.kd_trans = build_kd_trans(self.kd_args)
+        # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
+        #     self.kd_trans = build_kd_trans(self.kd_args)
         # self.area_det = AreaDetection(256, 256, 2)
         self.channel_mask = 0.95
 
