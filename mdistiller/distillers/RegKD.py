@@ -34,7 +34,7 @@ class RegKD(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
-        self.area_det = AreaDetection(int(feat_t_shapes[-1][1]), int(feat_t_shapes[-1][1]), 2)
+        self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
     #
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 

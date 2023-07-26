@@ -16,6 +16,8 @@ from detectron2.modeling.proposal_generator import build_proposal_generator
 from detectron2.modeling.roi_heads import build_roi_heads
 from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from mdistiller.distillers.DKD import dkd_loss
+from mdistiller.engine.kd_loss import mask_logits_loss
+from mdistiller.engine.area_utils import AreaDetection, extract_regions
 
 from .teacher import build_teacher
 from .reviewkd import build_kd_trans, hcl
@@ -31,6 +33,16 @@ def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, tem
     return {
         'loss_dkd': loss_dkd,
     }
+
+def reg_logits_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature, mask=None):
+    stu_logits, stu_bbox_offsets = stu_predictions
+    tea_logits, tea_bbox_offsets = tea_predictions
+    gt_classes = torch.cat(tuple(gt_classes), 0).reshape(-1)
+    loss_dkd = mask_logits_loss(stu_logits, tea_logits, gt_classes, alpha, beta, temperature, mask=mask)
+    return {
+        'loss_dkd': loss_dkd,
+    }
+
 
 @META_ARCH_REGISTRY.register()
 class RCNNKD(nn.Module):
@@ -74,8 +86,10 @@ class RCNNKD(nn.Module):
         self.roi_heads = roi_heads
         self.teacher = teacher
         self.kd_args = kd_args
-        if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD"):
+        if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
             self.kd_trans = build_kd_trans(self.kd_args)
+        self.area_det = AreaDetection(256, 256, 2)
+        self.channel_mask = 0.95
 
         self.input_format = input_format
         self.teacher_input_format = teacher_input_format
@@ -228,6 +242,24 @@ class RCNNKD(nn.Module):
             s_features = [features[f] for f in features]
             s_features = self.kd_trans(s_features)
             losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
+        elif self.kd_args.TYPE == "RegKD":
+            teacher_images = self.teacher_preprocess_image(batched_inputs)
+            t_features = self.teacher.backbone(teacher_images.tensor)
+            # dkd loss
+            stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
+            tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
+            detector_losses.update(rcnn_dkd_loss(
+                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
+                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
+            # reviewkd loss
+            t_features = [t_features[f] for f in t_features]
+            s_features = [features[f] for f in features]
+            s_features = self.kd_trans(s_features)
+            losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
+            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(0).expand(teacher_images.tensor.shape[0], -1).cuda()
+            detector_losses.update(reg_logits_loss(
+                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
+                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
@@ -320,3 +352,16 @@ class RCNNKD(nn.Module):
             r = detector_postprocess(results_per_image, height, width)
             processed_results.append({"instances": r})
         return processed_results
+
+def compute_fc_importance(fc_layer):
+    importance = torch.norm(fc_layer.weight.data, p=1, dim=1)
+    return importance
+
+def prune_fc_layer(fc_layer, percentage):
+    fc_importance = compute_fc_importance(fc_layer)
+    _, sorted_index = torch.sort(fc_importance)
+    num_prune = int(len(sorted_index) * percentage)
+    prune_index = sorted_index[:num_prune]
+    mask = torch.ones(len(sorted_index), dtype=torch.bool)
+    mask[prune_index] = 0
+    return mask
