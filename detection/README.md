@@ -12,6 +12,7 @@ PS: based on the [ReviewKD's codebase](https://github.com/dvlab-research/ReviewK
 ## Installation
 
 Our code is based on Detectron2, please install Detectron2 refer to https://github.com/facebookresearch/detectron2.
+# 221448e4dcfbebf215b8d21ae7e4b1dfbf422d29
 
 Please put the [COCO](https://cocodataset.org/#download) dataset in datasets/.
 

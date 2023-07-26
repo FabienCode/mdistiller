@@ -1,6 +1,10 @@
 .idea/
 data
 data/
+datasets
+datasets/
+pretrained/
+pretrained/*
 output
 output*/
 detection/datasets
@@ -10,7 +14,7 @@ ckpts/
 *.pth
 *.t7
 tmp*.py
-
+detectrons2/
 *.pdf
 
 mdistiller/models/transformer

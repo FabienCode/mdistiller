@@ -266,7 +266,7 @@ def add_teacher_cfg(cfg):
     # RoI minibatch size *per image* (number of regions of interest [ROIs])
     # Total number of RoIs per training minibatch =
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
-    # E.g., a common configuration is: 512 * 16 = 8192
+    # E.g., a common configuration is: 512 * 16 = 8192USE_FED_LOSS: false
     cfg.TEACHER.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
     # Target fraction of RoI minibatch that is labeled foreground (i.e. class > 0)
     cfg.TEACHER.MODEL.ROI_HEADS.POSITIVE_FRACTION = 0.25

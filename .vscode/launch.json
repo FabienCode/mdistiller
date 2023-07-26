@@ -9,20 +9,22 @@
             "type": "python",
             "request": "launch",
             // "program": "${file}",
-            "program": "/home/fabien/Documents/project/2d/mdistiller/tools/train.py",
+            // "program": "/home/fabien/Documents/project/2d/mdistiller/tools/train.py",
+            "program": "/home/fabien/Documents/project/2d/mdistiller/detection/train_net.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--cfg",
-                // "configs/cifar100/mdis.yaml",
-                // "configs/cifar100/dkd/res32x4_res8x4.yaml",
-                // "/home/fabien/Documents/project/2d/mdistiller/configs/imagenet/r34_r18/dkd.yaml",
-                "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/image/r34_r18.yaml",
+                // "--cfg",
+                "--config-file",
+                "/home/fabien/Documents/project/2d/mdistiller/detection/configs/DKD/DKD-R18-R101.yaml",
+                // "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/image/r34_r18.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/MLogits/SRT/mv1.yaml",
-                "--log_wandb",
-                "False",
-                "SOLVER.BATCH_SIZE",
-                "8"
+                // "--log_wandb",
+                // "False",
+                // "SOLVER.BATCH_SIZE",
+                // "8"
+                "--num-gpus",
+                "1"
             ]
         }
     ]
