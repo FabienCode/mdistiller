@@ -82,7 +82,8 @@ class RegKD(Distiller):
         loss_heat = F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1), reduction='batchmean')
         t_area_reg = torch.cat((wh, offset), dim=1)
         s_area_reg = torch.cat((wh_s, offset_s), dim=1)
-        loss_area_reg = F.mse_loss(s_area_reg, t_area_reg)
+        loss_area = F.mse_loss(s_area_reg, t_area_reg)
+        # loss_area = F.mse_loss(torch.cat((wh, offset, offset), dim=1), torch.cat((wh_s, offset_s, offset_s), dim=1))
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
 
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
@@ -91,7 +92,7 @@ class RegKD(Distiller):
             "loss_kd": loss_dkd,
             "losses_reg": loss_regkd,
             "losses_heat": loss_heat,
-            "losses_area": loss_area_reg
+            "losses_area": loss_area
         }
         return logits_student, losses_dict
 
