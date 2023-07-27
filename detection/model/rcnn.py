@@ -275,11 +275,12 @@ class RCNNKD(nn.Module):
             # s_features = self.kd_trans(s_features)
             heat_map, wh, offset = self.area_det(s_f)
             heat_map_s, wh_s, offset_s = self.area_det(t_features[-1])
-            losses['loss_heat'] = F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1),
-                                           reduction='batchmean')
-            t_area_reg = torch.cat((wh, offset), dim=1)
-            s_area_reg = torch.cat((wh_s, offset_s), dim=1)
-            losses['loss_area_reg'] = F.mse_loss(s_area_reg, t_area_reg)
+            losses['loss_area'] = self.heat_weight * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1), torch.cat((heat_map_s, wh_s, offset_s), dim=1).detach())
+            # losses['loss_heat'] = F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1),
+            #                                reduction='batchmean')
+            # t_area_reg = torch.cat((wh, offset), dim=1)
+            # s_area_reg = torch.cat((wh_s, offset_s), dim=1)
+            # losses['loss_area_reg'] = F.mse_loss(s_area_reg, t_area_reg)
             mask, scores = extract_regions(s_f, heat_map, wh, offset, 8, 3)
             loss_regkd = aaloss(s_f, t_features[-1], mask, scores)
             losses['loss_regkd'] = loss_regkd
