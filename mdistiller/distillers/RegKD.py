@@ -87,9 +87,7 @@ class RegKD(Distiller):
         # loss_size = self.area_reg_weight * F.mse_loss(s_area_reg, t_area_reg)
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((heat_map_s, wh_s, offset_s), dim=1)
-        regularization_term = s_area.pow(2).mean() + t_area.pow(2).mean()
-        # + self.reg_weight * regularization_term
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + self.reg_weight * regularization_term
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         losses_dict = {
