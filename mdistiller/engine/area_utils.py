@@ -18,17 +18,20 @@ class AreaDetection(nn.Module):
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
+        self.heatmap_head.apply(init_weights)
+        self.offset_head.apply(init_weights)
+        self.wh_head.apply(init_weights)
 
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
         layer = nn.Sequential(
             nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
             # nn.BatchNorm2d(feat_channels),
-            # nn.InstanceNorm2d(feat_channels),
+            nn.InstanceNorm2d(feat_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(feat_channels, out_channels, kernel_size=1),
             # nn.BatchNorm2d(out_channels),
-            # nn.InstanceNorm2d(feat_channels),
+            nn.InstanceNorm2d(feat_channels),
             nn.ReLU(inplace=True)
         )
         return layer
@@ -107,3 +110,11 @@ def transpose_and_gather_feat(feat, ind):
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = gather_feat(feat, ind)
     return feat
+
+def init_weights(m):
+    if type(m) == nn.Conv2d:
+        nn.init.kaiming_uniform_(m.weight, a=1)
+        m.bias.data.fill_(0.01)
+    if type(m) == nn.Linear:
+        nn.init.kaiming_uniform_(m.weight, a=1)
+        m.bias.data.fill_(0.01)
