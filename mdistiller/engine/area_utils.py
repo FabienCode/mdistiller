@@ -15,7 +15,7 @@ class AreaDetection(nn.Module):
         self.in_channels = in_channels
         self.feat_channels = feat_channels
 
-        # AD module
+        # AD
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
