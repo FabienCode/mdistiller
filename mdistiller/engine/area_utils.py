@@ -20,7 +20,6 @@ class AreaDetection(nn.Module):
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
 
-
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
         layer = nn.Sequential(
