@@ -19,9 +19,6 @@ class AreaDetection(nn.Module):
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
-        # self.heatmap_head.apply(init_weights)
-        # self.offset_head.apply(init_weights)
-        # self.wh_head.apply(init_weights)
 
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
