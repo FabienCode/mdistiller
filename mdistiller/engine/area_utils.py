@@ -168,4 +168,4 @@ class RegKD_pred(nn.Module):
         mask = logits - thresh
         mask[mask > 0] = 1
         mask[mask <= 0] = 0
-        return center_heatmap_pred, wh_pred, offset_pred, thresh_logits, mask.bool()
+        return center_heatmap_pred, wh_pred, offset_pred, thresh_logits, mask
