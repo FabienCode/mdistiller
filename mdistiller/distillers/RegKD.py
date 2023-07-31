@@ -73,16 +73,16 @@ class RegKD(Distiller):
         # else:
         #     fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / sel.warmup, 1.0) *
-        loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-            s_fc_mask,
-        )
-        # loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, s_fc_mask)
+        # loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        #     s_fc_mask,
+        # )
+        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, s_fc_mask)
         # 2. RegKD loss
         # heat_map, wh, offset = self.area_det(f_s)
         # heat_map_s, wh_s, offset_s = self.area_det(f_t)
