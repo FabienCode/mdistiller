@@ -68,9 +68,9 @@ class RegKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, logits_student)
         t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
-        tmp_mask = s_fc_mask - t_fc_mask
-        fc_mask = torch.zeros_like(tmp_mask)
-        fc_mask[tmp_mask == 0] = 1
+        # tmp_mask = s_fc_mask - t_fc_mask
+        # fc_mask = torch.zeros_like(tmp_mask)
+        # fc_mask[tmp_mask == 0] = 1
         # 1. DKD loss
         # if 'vgg' not in self.cfg.DISTILLER.STUDENT:
         #     fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
@@ -86,7 +86,7 @@ class RegKD(Distiller):
         #     self.temperature,
         #     s_fc_mask,
         # )
-        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
+        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, t_fc_mask.bool())
         # 2. RegKD loss
         # heat_map, wh, offset = self.area_det(f_s)
         # heat_map_s, wh_s, offset_s = self.area_det(f_t)
