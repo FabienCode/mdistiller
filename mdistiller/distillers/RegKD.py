@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 
-from mdistiller.engine.area_utils import AreaDetection, extract_regions
+from mdistiller.engine.area_utils import AreaDetection, extract_regions, RegKD_pred
 from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
 from mdistiller.models.cifar.resnet import BasicBlock, Bottleneck
 
@@ -37,7 +37,8 @@ class RegKD(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
-        self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
+        # self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
+        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, self.student.fc.out_features)
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
     #
@@ -61,11 +62,16 @@ class RegKD(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         # KD loss
+        ############## !@ Reg Pred ################
+        f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
+        f_t = feature_teacher["feats"][self.hint_layer]
+        heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, logits_student)
+        t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
         # 1. DKD loss
-        if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-            fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
-        else:
-            fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+        # if 'vgg' not in self.cfg.DISTILLER.STUDENT:
+        #     fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
+        # else:
+        #     fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
         #  min(kwargs["epoch"] / sel.warmup, 1.0) *
         loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
             logits_student,
@@ -74,19 +80,17 @@ class RegKD(Distiller):
             self.alpha,
             self.beta,
             self.temperature,
-            fc_mask,
+            s_fc_mask,
         )
         # 2. RegKD loss
-        f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
-        f_t = feature_teacher["feats"][self.hint_layer]
-        heat_map, wh, offset = self.area_det(f_s)
-        heat_map_s, wh_s, offset_s = self.area_det(f_t)
+        # heat_map, wh, offset = self.area_det(f_s)
+        # heat_map_s, wh_s, offset_s = self.area_det(f_t)
         # loss_heat = self.heat_weight * F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1), reduction='batchmean')
         # t_area_reg = torch.cat((wh, offset), dim=1)
         # s_area_reg = torch.cat((wh_s, offset_s), dim=1)
         # loss_size = self.area_reg_weight * F.mse_loss(s_area_reg, t_area_reg)
         t_area = torch.cat((heat_map, wh, offset), dim=1)
-        s_area = torch.cat((heat_map_s, wh_s, offset_s), dim=1)
+        s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
         loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)

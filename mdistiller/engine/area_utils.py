@@ -19,6 +19,8 @@ class AreaDetection(nn.Module):
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
         self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
+
+        self.softmax = nn.Softmax(dim=1)
     
     # test
     @staticmethod
@@ -34,9 +36,11 @@ class AreaDetection(nn.Module):
         return layer
 
     def forward(self, x):
-        center_heatmap_pred = self.heatmap_head(x).sigmoid()
+        heatmap_pred = self.heatmap_head(x)
+        center_heatmap_pred = heatmap_pred.sigmoid()
         wh_pred = self.wh_head(x)
         offset_pred = self.offset_head(x)
+        sxp = self.softmax(heatmap_pred)
         return center_heatmap_pred, wh_pred, offset_pred
 
 def get_import_region(feature_map, center_heatmap_pred, wh_pred, offset_pred, k, kernel):
@@ -115,3 +119,53 @@ def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.kaiming_uniform_(m.weight, a=1)
         m.bias.data.fill_(0.01)
+
+class RegKD_pred(nn.Module):
+    def __init__(self,
+                 in_channels=256,
+                 feat_channels=256,
+                 num_cls=2,
+                 cls=100):
+        super().__init__()
+        self.num_cls = num_cls
+        self.in_channels = in_channels
+        self.feat_channels = feat_channels
+
+        # AD
+        self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
+        self.offset_head = self._build_head(in_channels, feat_channels, 2)
+        self.wh_head = self._build_head(in_channels, feat_channels, 2)
+
+        self.softmax = nn.Softmax(dim=1)
+        self.thresh_pred = nn.Linear(cls, 1)
+        self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
+        self.sig = nn.Sigmoid()
+    
+    # test
+    @staticmethod
+    def _build_head(in_channels, feat_channels, out_channels):
+        layer = nn.Sequential(
+            nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
+            # nn.BatchNorm2d(feat_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(feat_channels, out_channels, kernel_size=1),
+            # nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+        return layer
+
+    def forward(self, x, logits):
+        heatmap_pred = self.heatmap_head(x)
+        center_heatmap_pred = heatmap_pred.sigmoid()
+        wh_pred = self.wh_head(x)
+        offset_pred = self.offset_head(x)
+        sxp = self.softmax(logits) 
+        sxp_max = torch.max(sxp, dim=-1)[0]
+        sxp_min = torch.min(sxp, dim=-1)[0]
+        thresh_logits = self.thresh_pred(logits)
+        thresh = self.sig(thresh_logits) * self.sig(self.gate)
+        thresh = sxp_min[..., None]+ (sxp_max - sxp_min)[..., None] * thresh
+        mask = logits - thresh
+        mask[mask > 0] = 1
+        mask[mask <= 0] = 0
+        return center_heatmap_pred, wh_pred, offset_pred, thresh_logits, mask.bool()
