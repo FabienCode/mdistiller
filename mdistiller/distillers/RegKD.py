@@ -82,6 +82,7 @@ class RegKD(Distiller):
             self.temperature,
             s_fc_mask,
         )
+        # loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, s_fc_mask)
         # 2. RegKD loss
         # heat_map, wh, offset = self.area_det(f_s)
         # heat_map_s, wh_s, offset_s = self.area_det(f_t)
@@ -162,5 +163,14 @@ def prune_fc_layer(fc_layer, percentage):
     mask[prune_index] = 0
     return mask
 
+def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
+    if mask is not None:
+        logits_student = logits_student * mask
+        logits_teacher = logits_teacher * mask
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
 
 
