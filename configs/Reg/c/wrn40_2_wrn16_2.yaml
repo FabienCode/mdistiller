@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "7.2x,vx"
-  PROJECT: "cifar100_RegKD_wrn40-2_wrn16-2_V1"
+  TAG: "vx-x,[8,1,2,1]"
+  PROJECT: "cifar100_RegKD_wrn40-2_wrn16-2_Final_v1"
 DISTILLER:
   TYPE: "RegKD"
   TEACHER: "wrn_40_2"
