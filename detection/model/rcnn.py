@@ -263,27 +263,22 @@ class RCNNKD(nn.Module):
             # logits loss
             stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
             tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
-            fc_mask = prune_fc_layer(self.teacher.roi_heads.box_predictor.cls_score, self.channel_mask).unsqueeze(
-                0).expand(stu_predictions[0].shape[0], -1).cuda()
-            detector_losses.update(reg_logits_loss(
-                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
-                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, mask=fc_mask))
-            # Region Loss
             t_features = [t_features[f] for f in t_features]
             s_features = [features[f] for f in features]
-            s_f = self.conv_reg(s_features[-1])
-            # s_features = self.kd_trans(s_features)
-            heat_map, wh, offset = self.area_det(s_f)
-            heat_map_s, wh_s, offset_s = self.area_det(t_features[-1])
-            losses['loss_area'] = 1 * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1), torch.cat((heat_map_s, wh_s, offset_s), dim=1))
-            # losses['loss_heat'] = F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1),
-            #                                reduction='batchmean')
-            # t_area_reg = torch.cat((wh, offset), dim=1)
-            # s_area_reg = torch.cat((wh_s, offset_s), dim=1)
-            # losses['loss_area_reg'] = F.mse_loss(s_area_reg, t_area_reg)
-            mask, scores = extract_regions(s_f, heat_map, wh, offset, 8, 3)
-            loss_regkd = aaloss(s_f, t_features[-1], mask, scores)
+            f_s = self.conv_reg(s_features[-1])
+            f_t = t_features[-1]
+            heat_map, wh, offset, s_fc_mask = self.area_det(f_s, stu_predictions)
+            t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, tea_predictions)
+            tmp_mask = s_fc_mask - t_fc_mask
+            fc_mask = torch.zeros_like(tmp_mask)
+            fc_mask[tmp_mask == 0] = 1
+            detector_losses.update(1 * mask_kd_loss(stu_predictions, tea_predictions, 4, fc_mask.bool()))
+            # Region Loss
+            mask, scores = extract_regions(f_s, heat_map, wh, offset, 8, 3)
+            loss_regkd = 2 * aaloss(f_s, t_features[-1], mask, scores)
             losses['loss_regkd'] = loss_regkd
+            losses['loss_area'] = 1 * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1),
+                                                 torch.cat((t_heat_map, t_wh, t_offset), dim=1))
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
