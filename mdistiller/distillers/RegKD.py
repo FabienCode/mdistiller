@@ -71,35 +71,16 @@ class RegKD(Distiller):
         tmp_mask = s_fc_mask - t_fc_mask
         fc_mask = torch.zeros_like(tmp_mask)
         fc_mask[tmp_mask == 0] = 1
-        # 1. DKD loss
-        # if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-        #     fc_mask = prune_fc_layer(self.teacher.fc, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
-        # else:
-        #     fc_mask = prune_fc_layer(self.teacher.classifier, self.channel_mask).unsqueeze(0).expand(logits_student.shape[0], -1).cuda()
-        #  min(kwargs["epoch"] / sel.warmup, 1.0) *
-        # loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        #     s_fc_mask,
-        # )
-        loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
-        # 2. RegKD loss
-        # heat_map, wh, offset = self.area_det(f_s)
-        # heat_map_s, wh_s, offset_s = self.area_det(f_t)
-        # loss_heat = self.heat_weight * F.kl_div(heat_map_s.log_softmax(dim=1), heat_map.softmax(dim=1), reduction='batchmean')
-        # t_area_reg = torch.cat((wh, offset), dim=1)
-        # s_area_reg = torch.cat((wh_s, offset_s), dim=1)
-        # loss_size = self.area_reg_weight * F.mse_loss(s_area_reg, t_area_reg)
+        # dis-cls loss
+        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
         b,c,h,w = heat_map.shape
         t_area = torch.cat((heat_map, wh, offset, s_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset, t_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        # dis-feature loss
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
+        # area loss
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
