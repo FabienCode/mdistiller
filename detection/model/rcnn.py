@@ -34,6 +34,14 @@ def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, tem
     return {
         'loss_dkd': loss_dkd,
     }
+def dlm_rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature):
+    stu_logits, stu_bbox_offsets = stu_predictions
+    tea_logits, tea_bbox_offsets = tea_predictions
+    gt_classes = torch.cat(tuple(gt_classes), 0).reshape(-1)
+    loss_dkd = dkd_loss(stu_logits, tea_logits, gt_classes, alpha, beta, temperature)
+    return {
+        'loss_dkd': loss_dkd,
+    }
 
 
 def aaloss(feature_student,
@@ -48,11 +56,10 @@ def aaloss(feature_student,
     return loss
 
 
-def reg_logits_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature, mask=None):
+def reg_logits_loss(stu_predictions, tea_predictions,temperature, mask=None):
     stu_logits, stu_bbox_offsets = stu_predictions
     tea_logits, tea_bbox_offsets = tea_predictions
-    gt_classes = torch.cat(tuple(gt_classes), 0).reshape(-1)
-    loss_dkd = mask_logits_loss(stu_logits, tea_logits, gt_classes, alpha, beta, temperature, mask=mask)
+    loss_dkd = mask_kd_loss(stu_logits, tea_logits,  temperature, mask=mask)
     return {
         'loss_dkd': loss_dkd,
     }
@@ -102,7 +109,7 @@ class RCNNKD(nn.Module):
         self.kd_args = kd_args
         # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
         #     self.kd_trans = build_kd_trans(self.kd_args)
-        self.area_det = RegKD_pred(256, 256, 2)
+        self.area_det = RegKD_pred(256, 256, 2, 81)
         self.channel_mask = 0.95
         self.conv_reg = ConvReg(256, 256)
 
@@ -267,12 +274,12 @@ class RCNNKD(nn.Module):
             s_features = [features[f] for f in features]
             f_s = self.conv_reg(s_features[-1])
             f_t = t_features[-1]
-            heat_map, wh, offset, s_fc_mask = self.area_det(f_s, stu_predictions)
-            t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, tea_predictions)
+            heat_map, wh, offset, s_fc_mask = self.area_det(f_s, stu_predictions[0])
+            t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, tea_predictions[0])
             tmp_mask = s_fc_mask - t_fc_mask
             fc_mask = torch.zeros_like(tmp_mask)
             fc_mask[tmp_mask == 0] = 1
-            detector_losses.update(1 * mask_kd_loss(stu_predictions, tea_predictions, 4, fc_mask.bool()))
+            detector_losses.update(reg_logits_loss(stu_predictions, tea_predictions, 4, fc_mask.bool()))
             # Region Loss
             mask, scores = extract_regions(f_s, heat_map, wh, offset, 8, 3)
             loss_regkd = 2 * aaloss(f_s, t_features[-1], mask, scores)
