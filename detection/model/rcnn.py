@@ -18,7 +18,7 @@ from detectron2.modeling.roi_heads import build_roi_heads
 from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from mdistiller.distillers.DKD import dkd_loss
 from mdistiller.engine.kd_loss import mask_logits_loss
-from mdistiller.engine.area_utils import AreaDetection, extract_regions
+from mdistiller.engine.area_utils import AreaDetection, extract_regions, RegKD_pred
 
 from .teacher import build_teacher
 from .reviewkd import build_kd_trans, hcl
@@ -102,7 +102,7 @@ class RCNNKD(nn.Module):
         self.kd_args = kd_args
         # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
         #     self.kd_trans = build_kd_trans(self.kd_args)
-        self.area_det = AreaDetection(256, 256, 2)
+        self.area_det = RegKD_pred(256, 256, 2)
         self.channel_mask = 0.95
         self.conv_reg = ConvReg(256, 256)
 
@@ -437,3 +437,13 @@ class ConvReg(nn.Module):
             return self.relu(self.bn3(x))
         else:
             return self.bn3(x)
+
+def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
+    if mask is not None:
+        logits_student = logits_student * mask
+        logits_teacher = logits_teacher * mask
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
