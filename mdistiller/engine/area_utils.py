@@ -155,18 +155,18 @@ class RegKD_pred(nn.Module):
         return layer
 
     def forward(self, x, logits):
-        b, _, h, w = x.shape
         heatmap_pred = self.heatmap_head(x)
         center_heatmap_pred = heatmap_pred.sigmoid()
         wh_pred = self.wh_head(x)
+        b, _, h, w = wh_pred.shape
         offset_pred = self.offset_head(x)
         sxp = self.softmax(logits) 
         sxp_max = torch.max(sxp, dim=-1)[0]
         sxp_min = torch.min(sxp, dim=-1)[0]
-        tmp_logits = self.thresh_pred(logits)
-        thresh = self.sig(tmp_logits) * self.sig(self.gate)
+        thresh = self.thresh_pred(logits)
+        thresh = self.sig(thresh) * self.sig(self.gate)
         thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
         mask = logits - thresh
         mask[mask > 0] = 1
         mask[mask <= 0] = 0
-        return center_heatmap_pred, wh_pred, offset_pred, tmp_logits.view(b, 1, 1, 1).expand(-1, -1, h, w), mask
+        return center_heatmap_pred, wh_pred, offset_pred, thresh, mask
