@@ -19,7 +19,7 @@ TEACHER:
     RESNETS:
       DEPTH: 101
 KD:
-  TYPE: "DKD"
+  TYPE: "RegKD"
 
 SOLVER:
   IMS_PER_BATCH: 8
