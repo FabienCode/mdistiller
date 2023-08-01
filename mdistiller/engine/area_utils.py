@@ -155,6 +155,7 @@ class RegKD_pred(nn.Module):
         return layer
 
     def forward(self, x, logits):
+        b, _, h, w = x.shape
         heatmap_pred = self.heatmap_head(x)
         center_heatmap_pred = heatmap_pred.sigmoid()
         wh_pred = self.wh_head(x)
@@ -168,4 +169,4 @@ class RegKD_pred(nn.Module):
         mask = logits - thresh
         mask[mask > 0] = 1
         mask[mask <= 0] = 0
-        return center_heatmap_pred, wh_pred, offset_pred, mask
+        return center_heatmap_pred, wh_pred, offset_pred, thresh.view(b, 1, 1, 1).expand(-1, -1, h, w), mask

@@ -66,8 +66,8 @@ class RegKD(Distiller):
         ############## !@ Reg Pred ################
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        heat_map, wh, offset, s_fc_mask = self.area_det(f_s, logits_student)
-        t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, logits_teacher)
+        heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, logits_student)
+        t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
         tmp_mask = s_fc_mask - t_fc_mask
         fc_mask = torch.zeros_like(tmp_mask)
         fc_mask[tmp_mask == 0] = 1
@@ -94,8 +94,8 @@ class RegKD(Distiller):
         # t_area_reg = torch.cat((wh, offset), dim=1)
         # s_area_reg = torch.cat((wh_s, offset_s), dim=1)
         # loss_size = self.area_reg_weight * F.mse_loss(s_area_reg, t_area_reg)
-        t_area = torch.cat((heat_map, wh, offset), dim=1)
-        s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
+        t_area = torch.cat((heat_map, wh, offset, s_thresh), dim=1)
+        s_area = torch.cat((t_heat_map, t_wh, t_offset, t_thresh), dim=1)
         loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
