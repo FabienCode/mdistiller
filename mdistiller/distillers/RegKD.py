@@ -66,8 +66,8 @@ class RegKD(Distiller):
         ############## !@ Reg Pred ################
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, logits_student)
-        t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
+        heat_map, wh, offset, s_fc_mask = self.area_det(f_s, logits_student)
+        t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, logits_teacher)
         tmp_mask = s_fc_mask - t_fc_mask
         fc_mask = torch.zeros_like(tmp_mask)
         fc_mask[tmp_mask == 0] = 1
@@ -86,7 +86,7 @@ class RegKD(Distiller):
         #     self.temperature,
         #     s_fc_mask,
         # )
-        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
+        loss_dkd = self.channel_weight * min(kwargs["epoch"] / self.warmup, 1.0) * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
         # 2. RegKD loss
         # heat_map, wh, offset = self.area_det(f_s)
         # heat_map_s, wh_s, offset_s = self.area_det(f_t)
@@ -103,8 +103,6 @@ class RegKD(Distiller):
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
             "losses_reg": loss_regkd,
-            # "losses_heat": loss_heat,
-            # "losses_area": loss_size
             "losses_area": loss_area
         }
         return logits_student, losses_dict
