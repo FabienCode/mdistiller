@@ -70,7 +70,9 @@ class RegKD(Distiller):
         t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
         tmp_mask = s_fc_mask - t_fc_mask
         fc_mask = torch.zeros_like(tmp_mask)
-        fc_mask[tmp_mask == 0] = 1
+        fc_mask[tmp_mask == 0 ] = 1
+        # fc_mask[s_fc_mask == 0] = 0
+        # fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
         loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
         b,c,h,w = heat_map.shape
