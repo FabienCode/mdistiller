@@ -22,7 +22,9 @@
                 "--log_wandb",
                 "False",
                 "SOLVER.BATCH_SIZE",
-                "8"
+                "8",
+                "RegKD.HINT_LAYER",
+                "2"
                 // "--num-gpus",
                 // "1"
             ]
