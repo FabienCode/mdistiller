@@ -59,9 +59,9 @@ def aaloss(feature_student,
 def reg_logits_loss(stu_predictions, tea_predictions,temperature, mask=None):
     stu_logits, stu_bbox_offsets = stu_predictions
     tea_logits, tea_bbox_offsets = tea_predictions
-    loss_dkd = mask_kd_loss(stu_logits, tea_logits,  temperature, mask=mask)
+    loss_reg_cls_kd = mask_kd_loss(stu_logits, tea_logits,  temperature, mask=mask)
     return {
-        'loss_dkd': loss_dkd,
+        'loss_reg_cls': loss_reg_cls_kd,
     }
 
 
@@ -274,8 +274,8 @@ class RCNNKD(nn.Module):
             s_features = [features[f] for f in features]
             f_s = self.conv_reg(s_features[-1])
             f_t = t_features[-1]
-            heat_map, wh, offset, s_fc_mask, s_thresh = self.area_det(f_s, stu_predictions[0])
-            t_heat_map, t_wh, t_offset, t_fc_mask, t_thresh = self.area_det(f_t, tea_predictions[0])
+            heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, stu_predictions[0])
+            t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, tea_predictions[0])
             tmp_mask = s_fc_mask - t_fc_mask
             fc_mask = torch.zeros_like(tmp_mask)
             fc_mask[tmp_mask == 0] = 1
