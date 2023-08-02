@@ -165,8 +165,9 @@ class RegKD_pred(nn.Module):
         sxp_min = torch.min(sxp, dim=-1)[0]
         thresh = self.thresh_pred(logits)
         thresh = self.sig(thresh) * self.sig(self.gate)
+        pre_thresh = thresh
         thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
         mask = logits - thresh
         mask[mask > 0] = 1
         mask[mask <= 0] = 0
-        return center_heatmap_pred, wh_pred, offset_pred, thresh, mask
+        return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
