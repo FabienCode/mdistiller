@@ -75,7 +75,7 @@ class RegKD(Distiller):
         fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
         # loss_dcm = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
-        loss_dcm = self.channel_weight * cat_mask_kd_loss(logits_student, logits_teacher, target, self.temperature, fc_mask.bool())
+        loss_dcm = self.channel_weight * cat_mask_kd_loss(logits_student, logits_teacher, target, self.temperature, self.alpha, self.beta, fc_mask.bool())
         b,c,h,w = heat_map.shape
         # t_area = torch.cat((heat_map, wh, offset, s_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
         # s_area = torch.cat((t_heat_map, t_wh, t_offset, t_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
@@ -170,7 +170,7 @@ def cat_mask(t, mask1, mask2):
     rt = torch.cat([t1, t2], dim=1)
     return rt
 
-def cat_mask_kd_loss(logits_student, logits_teacher, target, temperature, mask=None):
+def cat_mask_kd_loss(logits_student, logits_teacher, target, temperature, alpha, beta, mask=None):
     # if mask is not None:
     #     logits_student = logits_student * mask
     #     logits_teacher = logits_teacher * mask
@@ -181,7 +181,18 @@ def cat_mask_kd_loss(logits_student, logits_teacher, target, temperature, mask=N
     pred_student = cat_mask(pred_student, gt_mask, other_mask)
     pred_teacher = cat_mask(pred_teacher, gt_mask, other_mask)
     log_pred_student = torch.log(pred_student)
-    loss_kd = F.kl_div(log_pred_student, pred_teacher, size_average=False) * (temperature ** 2) / target.shape[0]
-    return loss_kd
+    tckd_loss = F.kl_div(log_pred_student, pred_teacher, size_average=False) * (temperature ** 2) / target.shape[0]
+    pred_teacher_part2 = F.softmax(
+        logits_teacher / temperature - 1000.0 * gt_mask, dim=1
+    )
+    log_pred_student_part2 = F.log_softmax(
+        logits_student / temperature - 1000.0 * gt_mask, dim=1
+    )
+    nckd_loss = (
+        F.kl_div(log_pred_student_part2, pred_teacher_part2, size_average=False)
+        * (temperature**2)
+        / target.shape[0]
+    )
+    return alpha * tckd_loss + beta * nckd_loss
 
 
