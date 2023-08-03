@@ -74,7 +74,8 @@ class RegKD(Distiller):
         fc_mask[s_fc_mask == 0] = 0
         fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
-        loss_dkd = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
+        # loss_dcm = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
+        loss_dcm = self.channel_weight * cat_mask_kd_loss(logits_student, logits_teacher, target, self.temperature, fc_mask.bool())
         b,c,h,w = heat_map.shape
         # t_area = torch.cat((heat_map, wh, offset, s_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
         # s_area = torch.cat((t_heat_map, t_wh, t_offset, t_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
@@ -85,11 +86,11 @@ class RegKD(Distiller):
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-torch.mean(s_thresh)-torch.mean(t_thresh)
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-0.5 * torch.mean(s_thresh**2) - 0.5 * torch.mean(t_thresh**2)
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) - 0.5 * torch.sum(s_thresh**2) - 0.5 * torch.sum(t_thresh**2)
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + self.size_reg_weight * F.mse_loss(s_thresh, t_thresh)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_dkd,
+            "loss_dcm": loss_dcm,
             "losses_reg": loss_regkd,
             "losses_area": loss_area
         }
@@ -161,6 +162,26 @@ def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
     loss_kd *= temperature**2
+    return loss_kd
+
+def cat_mask(t, mask1, mask2):
+    t1 = (t * mask1).sum(dim=1, keepdims=True)
+    t2 = (t * mask2).sum(1, keepdims=True)
+    rt = torch.cat([t1, t2], dim=1)
+    return rt
+
+def cat_mask_kd_loss(logits_student, logits_teacher, target, temperature, mask=None):
+    # if mask is not None:
+    #     logits_student = logits_student * mask
+    #     logits_teacher = logits_teacher * mask
+    gt_mask = mask
+    other_mask = ~mask
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    pred_student = cat_mask(pred_student, gt_mask, other_mask)
+    pred_teacher = cat_mask(pred_teacher, gt_mask, other_mask)
+    log_pred_student = torch.log(pred_student)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, size_average=False) * (temperature ** 2) / target.shape[0]
     return loss_kd
 
 
