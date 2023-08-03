@@ -287,9 +287,8 @@ class RCNNKD(nn.Module):
             loss_regkd = 2 * aaloss(f_s, t_features[-1], mask, scores)
             losses['loss_regkd'] = loss_regkd
             losses['loss_area'] = 1 * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1),
-                                                   torch.cat((t_heat_map, t_wh, t_offset,), dim=1)) \
-                                                    - 1e-2 * 0.5 * torch.mean(s_thresh**2) \
-                                                    - 1e-2 * 0.5 * torch.mean(t_thresh**2)
+                                                   torch.cat((t_heat_map, t_wh, t_offset,), dim=1))
+            losses['loss_thresh'] = F.mse_loss(s_thresh, t_thresh)
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:

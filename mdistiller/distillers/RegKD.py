@@ -85,7 +85,8 @@ class RegKD(Distiller):
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-torch.mean(s_thresh)-torch.mean(t_thresh)
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-0.5 * torch.mean(s_thresh**2) - 0.5 * torch.mean(t_thresh**2)
+        # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-0.5 * torch.mean(s_thresh**2) - 0.5 * torch.mean(t_thresh**2)
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + F.mse_loss(s_thresh, t_thresh)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_dkd,
