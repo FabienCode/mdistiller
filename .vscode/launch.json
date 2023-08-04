@@ -9,26 +9,26 @@
             "type": "python",
             "request": "launch",
             // "program": "${file}",
-            // "program": "/home/fabien/Documents/project/2d/mdistiller/tools/train.py",
-            "program": "/home/fabien/Documents/project/2d/mdistiller/detection/train_net.py",
+            "program": "/home/fabien/Documents/project/2d/mdistiller/tools/train.py",
+            // "program": "/home/fabien/Documents/project/2d/mdistiller/detection/train_net.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                // "--cfg",
-                "--config-file",
-                "/home/fabien/Documents/project/2d/mdistiller/detection/configs/RegKD/RegKD-R50-R101.yaml",
+                "--cfg",
+                // "--config-file",
+                // "/home/fabien/Documents/project/2d/mdistiller/detection/configs/RegKD/RegKD-R50-R101.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res110_res32.yaml",
-                // "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res56_res20.yaml",
-                // "--log_wandb",
-                // "False",
-                // "SOLVER.BATCH_SIZE",
-                // "8",
-                // "RegKD.HINT_LAYER",
-                // "2"
-                "--num-gpus",
-                "1",
-                "SOLVER.IMS_PER_BATCH",
-                "1"
+                "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res56_res20.yaml",
+                "--log_wandb",
+                "False",
+                "SOLVER.BATCH_SIZE",
+                "8",
+                "RegKD.HINT_LAYER",
+                "-2"
+                // "--num-gpus",
+                // "1",
+                // "SOLVER.IMS_PER_BATCH",
+                // "1"
             ]
         }
     ]
