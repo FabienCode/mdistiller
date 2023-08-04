@@ -82,7 +82,7 @@ class RegKD(Distiller):
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
         # masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        masks, scores = extract_regions(f_s, t_heat_map, t_wh, offset, self.area_num, 3)
+        masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
         # dis-feature loss
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
