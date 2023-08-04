@@ -145,17 +145,17 @@ class RegKD_pred(nn.Module):
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
         layer = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size=1),
-            nn.InstanceNorm2d(in_channels),
-            nn.ReLU(inplace=True),
+            # nn.Conv2d(in_channels, in_channels, kernel_size=1),
+            # nn.InstanceNorm2d(in_channels),
+            # nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(feat_channels),
+            # nn.InstanceNorm2d(feat_channels),
             # nn.BatchNorm2d(feat_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(feat_channels, out_channels, kernel_size=1),
-            nn.InstanceNorm2d(out_channels),
+            # nn.InstanceNorm2d(out_channels),
             # nn.BatchNorm2d(out_channels),
-            # nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True)
         )
         return layer
 
