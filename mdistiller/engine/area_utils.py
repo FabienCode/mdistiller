@@ -31,7 +31,7 @@ class AreaDetection(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(feat_channels, out_channels, kernel_size=1),
             # nn.BatchNorm2d(out_channels),
-            # nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True)
         )
         return layer
 
