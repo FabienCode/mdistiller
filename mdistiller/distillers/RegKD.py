@@ -75,19 +75,16 @@ class RegKD(Distiller):
         fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
         loss_dcm = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
-        # loss_dcm = self.channel_weight * cat_mask_kd_loss(logits_student, logits_teacher, target, self.temperature, self.alpha, self.beta, fc_mask.bool())
         b,c,h,w = heat_map.shape
-        # t_area = torch.cat((heat_map, wh, offset, s_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
-        # s_area = torch.cat((t_heat_map, t_wh, t_offset, t_thresh.view(b,1,1,1).expand(-1,-1,h,w)), dim=1)
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
-        # masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
+        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        # masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
         # dis-feature loss
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-torch.mean(s_thresh)-torch.mean(t_thresh)
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + self.alpha * 0.5 * torch.sum(s_thresh**2) + self.beta * 0.5 * torch.sum(t_thresh**2)
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) - self.alpha * 0.5 * torch.sum(s_thresh**2) - self.beta * 0.5 * torch.sum(t_thresh**2)
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + self.size_reg_weight * F.mse_loss(s_thresh, t_thresh)
         losses_dict = {
             "loss_ce": loss_ce,
