@@ -37,12 +37,12 @@ class RegKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-            cls_num = self.student.fc.out_features
-        else:
-            cls_num = self.teacher.classifier.out_features
+        # if 'vgg' not in self.cfg.DISTILLER.STUDENT:
+        #     cls_num = self.student.fc.out_features
+        # else:
+        #     cls_num = self.teacher.classifier.out_features
         # self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
-        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, cls_num)
+        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, 100)
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
     #
