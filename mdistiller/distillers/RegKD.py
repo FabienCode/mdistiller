@@ -37,11 +37,6 @@ class RegKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        # if 'vgg' not in self.cfg.DISTILLER.STUDENT:
-        #     cls_num = self.student.fc.out_features
-        # else:
-        #     cls_num = self.teacher.classifier.out_features
-        # self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
         self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, 100)
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
@@ -87,7 +82,7 @@ class RegKD(Distiller):
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-torch.mean(s_thresh)-torch.mean(t_thresh)
-        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) - 0.5 * torch.sum(s_thresh**2) - 0.5 * torch.sum(t_thresh**2)
+        loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + 0.5 * torch.sum(s_thresh**2) + 0.5 * torch.sum(t_thresh**2)
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) + self.size_reg_weight * F.mse_loss(s_thresh, t_thresh)
         losses_dict = {
             "loss_ce": loss_ce,
