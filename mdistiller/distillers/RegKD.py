@@ -42,7 +42,7 @@ class RegKD(Distiller):
         # else:
         #     cls_num = self.teacher.classifier.out_features
         # self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2)
-        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, 100)
+        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, self.student.fc.out_features)
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
     #
