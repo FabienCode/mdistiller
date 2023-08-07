@@ -25,9 +25,7 @@ class RegKD(Distiller):
 
         self.channel_weight = cfg.RegKD.CHANNEL_KD_WEIGHT
         self.area_weight = cfg.RegKD.AREA_KD_WEIGHT
-        self.heat_weight = cfg.RegKD.HEAT_WEIGHT
         self.size_reg_weight = cfg.RegKD.SIZE_REG_WEIGHT
-        self.reg_weight = cfg.RegKD.REG_WEIGHT
 
         self.area_num = cfg.RegKD.AREA_NUM
         self.hint_layer = cfg.RegKD.HINT_LAYER
@@ -78,8 +76,8 @@ class RegKD(Distiller):
         b,c,h,w = heat_map.shape
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
-        # masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
-        masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
+        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        # masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
         # dis-feature loss
         loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
