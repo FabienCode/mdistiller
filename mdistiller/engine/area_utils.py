@@ -137,8 +137,9 @@ class RegKD_pred(nn.Module):
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
 
         self.softmax = nn.Softmax(dim=1)
-        self.thresh_pred = nn.Linear(cls, 1)
-        self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
+        # self.thresh_pred = nn.Linear(cls, 1)
+        # self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
+        self.thresh = 0.8
         self.sig = nn.Sigmoid()
     
     # test
@@ -161,11 +162,15 @@ class RegKD_pred(nn.Module):
         sxp = self.softmax(logits) 
         sxp_max = torch.max(sxp, dim=-1)[0]
         sxp_min = torch.min(sxp, dim=-1)[0]
-        thresh = self.thresh_pred(logits)
-        thresh = self.sig(thresh) * self.sig(self.gate)
-        pre_thresh = thresh
-        thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
+        # thresh = self.thresh_pred(logits)
+        # thresh = self.sig(thresh) * self.sig(self.gate)
+        # thresh = self.sig(thresh)
+        # pre_thresh = thresh
+        # thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
+        thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * self.thresh
         mask = logits - thresh
         mask[mask > 0] = 1
         mask[mask <= 0] = 0
-        return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
+        # return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
+        return center_heatmap_pred, wh_pred, offset_pred, mask
+
