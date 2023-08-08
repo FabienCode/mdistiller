@@ -16,8 +16,8 @@
             "args": [
                 "--cfg",
                 // "--config-file",
-                // "/home/fabien/Documents/project/2d/mdistiller/detection/configs/RegKD/RegKD-R50-R101.yaml",
-                // "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res110_res32.yaml",
+                // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/dkd/res56_res20.yaml",
+                // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/fitnet.yaml",
                 "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res56_res20.yaml",
                 "--log_wandb",
                 "False",
