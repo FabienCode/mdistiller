@@ -10,11 +10,13 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import numpy as np
 
 cudnn.benchmark = True
 
 
 def main(cfg, resume, opts):
+    seed_torch(42)
     experiment_name = cfg.EXPERIMENT.NAME
     if experiment_name == "":
         experiment_name = cfg.EXPERIMENT.TAG
@@ -89,6 +91,17 @@ def main(cfg, resume, opts):
     )
     trainer.train(resume=resume)
 
+def seed_torch(seed):
+    # random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.enabled = False
+ 
 
 if __name__ == "__main__":
     import argparse
