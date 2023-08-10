@@ -119,13 +119,70 @@ def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.kaiming_uniform_(m.weight, a=1)
         m.bias.data.fill_(0.01)
+#
+# class RegKD_pred(nn.Module):
+#     def __init__(self,
+#                  in_channels=256,
+#                  feat_channels=256,
+#                  num_cls=2,
+#                  cls=100,
+#                  thresh=0.8):
+#         super().__init__()
+#         self.num_cls = num_cls
+#         self.in_channels = in_channels
+#         self.feat_channels = feat_channels
+#
+#         # AD
+#         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
+#         self.offset_head = self._build_head(in_channels, feat_channels, 2)
+#         self.wh_head = self._build_head(in_channels, feat_channels, 2)
+#
+#         self.softmax = nn.Softmax(dim=1)
+#         # self.thresh_pred = nn.Linear(cls, 1)
+#         # self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
+#         self.thresh = thresh
+#         self.sig = nn.Sigmoid()
+#
+#     # test
+#     @staticmethod
+#     def _build_head(in_channels, feat_channels, out_channels):
+#         layer = nn.Sequential(
+#             nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(feat_channels, out_channels, kernel_size=1),
+#             nn.ReLU(inplace=True)
+#         )
+#         return layer
+#
+#     def forward(self, x, logits):
+#         heatmap_pred = self.heatmap_head(x)
+#         center_heatmap_pred = heatmap_pred.sigmoid()
+#         wh_pred = self.wh_head(x)
+#         b, _, h, w = wh_pred.shape
+#         offset_pred = self.offset_head(x)
+#         sxp = self.softmax(logits)
+#         sxp_max = torch.max(sxp, dim=-1)[0]
+#         sxp_min = torch.min(sxp, dim=-1)[0]
+#         # thresh = self.thresh_pred(logits)
+#         # thresh = self.sig(thresh) * self.sig(self.gate)
+#         # thresh = self.sig(thresh)
+#         # pre_thresh = thresh
+#         # thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
+#         thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * self.thresh
+#         mask = logits - thresh
+#         mask[mask > 0] = 1
+#         mask[mask <= 0] = 0
+#         # return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
+#         return center_heatmap_pred, wh_pred, offset_pred, mask
+
 
 class RegKD_pred(nn.Module):
     def __init__(self,
                  in_channels=256,
                  feat_channels=256,
                  num_cls=2,
-                 cls=100):
+                 cls=100,
+                 thresh=0.8):
         super().__init__()
         self.num_cls = num_cls
         self.in_channels = in_channels
@@ -139,9 +196,9 @@ class RegKD_pred(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         # self.thresh_pred = nn.Linear(cls, 1)
         # self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
-        self.thresh = 0.8
+        self.thresh = thresh
         self.sig = nn.Sigmoid()
-    
+
     # test
     @staticmethod
     def _build_head(in_channels, feat_channels, out_channels):
@@ -159,18 +216,13 @@ class RegKD_pred(nn.Module):
         wh_pred = self.wh_head(x)
         b, _, h, w = wh_pred.shape
         offset_pred = self.offset_head(x)
-        sxp = self.softmax(logits) 
-        sxp_max = torch.max(sxp, dim=-1)[0]
-        sxp_min = torch.min(sxp, dim=-1)[0]
-        # thresh = self.thresh_pred(logits)
-        # thresh = self.sig(thresh) * self.sig(self.gate)
-        # thresh = self.sig(thresh)
-        # pre_thresh = thresh
-        # thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * thresh
-        thresh = sxp_min[..., None] + (sxp_max - sxp_min)[..., None] * self.thresh
-        mask = logits - thresh
-        mask[mask > 0] = 1
-        mask[mask <= 0] = 0
+        sxp = self.softmax(logits)
+        sorted_indices = torch.argsort(sxp, dim=1)
+        sorted_length = int(sxp.shape[1] * (1 - self.thresh))
+        top_indices = sorted_indices[:, : sorted_length]
+        mask = torch.zeros_like(sxp).scatter_(1, top_indices, 1).bool()
+        # mask = logits - thresh
+        # mask[mask > 0] = 1
+        # mask[mask <= 0] = 0
         # return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
         return center_heatmap_pred, wh_pred, offset_pred, mask
-

@@ -35,8 +35,11 @@ class RegKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 2, 100)
+        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]),
+                                   int(feat_t_shapes[self.hint_layer][1]), 2, 100, cfg.RegKD.LOGITS_THRESH)
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
+
+        # self.logits_thresh = cfg.RegKD.LOGITS_THRESH
 
     #
     # # list(self.score_norm.parameters())
