@@ -220,7 +220,7 @@ class RegKD_pred(nn.Module):
         sorted_indices = torch.argsort(sxp, dim=1)
         sorted_length = int(sxp.shape[1] * (1 - self.thresh))
         top_indices = sorted_indices[:, : sorted_length]
-        mask = torch.zeros_like(sxp).scatter_(1, top_indices, 1).bool()
+        mask = torch.zeros_like(sxp).scatter_(1, top_indices, 1)
         # mask = logits - thresh
         # mask[mask > 0] = 1
         # mask[mask <= 0] = 0
