@@ -3,7 +3,7 @@ EXPERIMENT:
   TAG: "vx-x-x,[12,1,1,1,-2]"
   PROJECT: "cifar100_r56_r20_RegKD_Final_v2"
 DISTILLER:
-  TYPE: "RegKD"
+  TYPE: "RegKD_KR"
   TEACHER: "resnet56"
   STUDENT: "resnet20"
 SOLVER:
