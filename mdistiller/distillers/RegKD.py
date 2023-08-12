@@ -71,14 +71,16 @@ class RegKD(Distiller):
         # t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
         heat_map, wh, offset, s_fc_mask = self.area_det(f_s, logits_student)
         t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, logits_teacher)
-        tmp_mask = s_fc_mask - t_fc_mask
-        fc_mask = torch.zeros_like(tmp_mask)
-        fc_mask[tmp_mask == 0] = 1
-        fc_mask[s_fc_mask == 0] = 0
-        fc_mask[t_fc_mask == 0] = 0
+        # tmp_mask = s_fc_mask - t_fc_mask
+        # fc_mask = torch.zeros_like(tmp_mask)
+        # fc_mask[tmp_mask == 0] = 1
+        # fc_mask[s_fc_mask == 0] = 0
+        # fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
-        # loss_logits = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
-        loss_logits = self.channel_weight * mask_logits_loss(logits_student, logits_teacher, target, self.alpha, self.beta, self.temperature, fc_mask.bool())
+        loss_logits = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, s_fc_mask.bool())
+        # # loss_logits = self.channel_weight * mask_logits_loss(logits_student, logits_teacher, target, self.alpha, self.beta, self.temperature, fc_mask.bool())
+        # loss_logits = min(kwargs["epoch"] / self.warmup, 1.0) * mask_logits_loss(logits_student, logits_teacher, target, self.alpha,
+        #                                                                          self.beta, self.temperature, fc_mask.bool())
         b,c,h,w = heat_map.shape
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
