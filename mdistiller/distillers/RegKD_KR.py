@@ -28,16 +28,18 @@ class RegKD_KR(Distiller):
         self.area_weight = cfg.RegKD.AREA_KD_WEIGHT
         self.size_reg_weight = cfg.RegKD.SIZE_REG_WEIGHT
 
-        self.shapes = cfg.REVIEWKD.SHAPES
-        self.out_shapes = cfg.REVIEWKD.OUT_SHAPES
+        self.shapes = cfg.RegKD.SHAPES
+        self.out_shapes = cfg.RegKD.OUT_SHAPES
+        in_channels = cfg.RegKD.IN_CHANNELS
+        out_channels = cfg.RegKD.OUT_CHANNELS
 
         self.area_num = cfg.RegKD.AREA_NUM
         self.hint_layer = cfg.RegKD.HINT_LAYER
-        self.shapes = cfg.REVIEWKD.SHAPES
+        self.shapes = cfg.RegKD.SHAPES
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.RegKD.INPUT_SIZE
         )
-        self.stu_preact = cfg.REVIEWKD.STU_PREACT
+        self.stu_preact = cfg.RegKD.STU_PREACT
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
@@ -49,15 +51,14 @@ class RegKD_KR(Distiller):
         #     self.conv_reg.append(ConvReg(feat_s_shapes[i], feat_t_shapes[i]))
         self.area_det = nn.ModuleList()
         for i in range(4):
-            self.area_det.append(RegKD_pred(int(feat_t_shapes[i][1]),
-                                            int(feat_t_shapes[i][1]), 2, 100, cfg.RegKD.LOGITS_THRESH))
+            self.area_det.append(RegKD_pred(out_channels[i], out_channels[i], 2, 100, cfg.RegKD.LOGITS_THRESH))
         self.channel_mask = cfg.RegKD.CHANNEL_MASK
 
         self.max_mid_channel = cfg.REVIEWKD.MAX_MID_CHANNEL
 
         abfs = nn.ModuleList()
-        mid_channel = min(512, feat_s_shapes[-1])
-        for idx, in_channel in enumerate(feat_s_shapes):
+        mid_channel = min(512, in_channels[-1])
+        for idx, in_channel in enumerate(in_channels):
             abfs.append(
                 ABF(
                     in_channel,
@@ -72,15 +73,20 @@ class RegKD_KR(Distiller):
 
     #
     # # list(self.score_norm.parameters())
+    # def get_learnable_parameters(self):
+    #     return super().get_learnable_parameters() + list(self.area_det.parameters()) + \
+    #         list(self.conv_reg.parameters()) + list(self.abfs.parameters())
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.area_det.parameters()) + \
-            list(self.conv_reg.parameters()) + list(self.abfs.parameters())
+            list(self.abfs.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.area_det.parameters():
             num_p += p.numel()
-        for p in self.conv_reg.parameters():
+        # for p in self.conv_reg.parameters():
+        #     num_p += p.numel()
+        for p in self.abfs.parameters():
             num_p += p.numel()
         return num_p
 
@@ -113,8 +119,8 @@ class RegKD_KR(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         loss_reviewkd = (
-            self.reviewkd_loss_weight
-            * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
+            self.area_weight
+            * min(kwargs["epoch"] / self.warmup, 1.0)
             * hcl_loss(results, features_teacher)
         )
         losses_dict = {

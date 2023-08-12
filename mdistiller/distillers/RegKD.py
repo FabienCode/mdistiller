@@ -77,14 +77,14 @@ class RegKD(Distiller):
         fc_mask[s_fc_mask == 0] = 0
         fc_mask[t_fc_mask == 0] = 0
         # dis-cls loss
-        loss_dcm = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
+        loss_logits = self.channel_weight * mask_kd_loss(logits_student, logits_teacher, self.temperature, fc_mask.bool())
         b,c,h,w = heat_map.shape
         t_area = torch.cat((heat_map, wh, offset), dim=1)
         s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
         masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
         # masks, scores = extract_regions(f_t, t_heat_map, t_wh, offset, self.area_num, 3)
         # dis-feature loss
-        loss_regkd = self.area_weight * aaloss(f_s, f_t, masks, scores)
+        loss_feature = self.area_weight * aaloss(f_s, f_t, masks, scores)
         # area loss
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)-torch.mean(s_thresh)-torch.mean(t_thresh)
         # loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area) - 0.5 * torch.sum(s_thresh**2) - 0.5 * torch.sum(t_thresh**2)
@@ -92,8 +92,8 @@ class RegKD(Distiller):
         loss_area = self.size_reg_weight * F.mse_loss(s_area, t_area)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_dcm": loss_dcm,
-            "losses_reg": loss_regkd,
+            "loss_dcm": loss_logits,
+            "losses_reg": loss_feature,
             "losses_area": loss_area
         }
         return logits_student, losses_dict
