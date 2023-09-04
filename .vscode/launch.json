@@ -19,11 +19,11 @@
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/dkd/res56_res20.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/robotMLP/fitnet.yaml",
                 // "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res56_res20.yaml",
-                "/home/fabien/Documents/project/2d/mdistiller/configs/Reg/c/res32t4_shuv2.yaml",
+                "/home/fabien/Documents/project/2d/mdistiller/configs/UniLogits/cifar/res32t4_res8t4.yaml",
                 "--log_wandb",
                 "False",
                 "SOLVER.BATCH_SIZE",
-                "64",
+                "2",
                 "RegKD.HINT_LAYER",
                 "-2"
                 // "--num-gpus",
