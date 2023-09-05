@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-x-x,[12,1,1,1,-2]"
-  PROJECT: "cifar100_RegKD_RegKD_Final_v2"
+  TAG: "vtest-5-1"
+  PROJECT: "cifar100_UniLogits_test"
 DISTILLER:
   TYPE: "UniLogitsKD"
   TEACHER: "resnet32x4"
