@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
+from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
 
 def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
@@ -35,6 +36,11 @@ class UniLogitsKD(Distiller):
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
 
         self.channel_weight = cfg.RegKD.CHANNEL_KD_WEIGHT
+
+        # dkd para
+        self.warmup = cfg.DKD.WARMUP
+        self.alpha = cfg.DKD.ALPHA
+        self.beta = cfg.DKD.BETA
 
         self.hint_layer = cfg.FITNET.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
@@ -69,8 +75,18 @@ class UniLogitsKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         loss_kd = self.channel_weight * feature_dis_loss(f_s, f_t, self.temperature)
 
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
+            "loss_dkd": loss_dkd
         }
         return logits_student, losses_dict
