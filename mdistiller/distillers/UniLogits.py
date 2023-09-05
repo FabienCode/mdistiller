@@ -34,6 +34,8 @@ class UniLogitsKD(Distiller):
         self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
         self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
 
+        self.channel_weight = cfg.RegKD.CHANNEL_KD_WEIGHT
+
         self.hint_layer = cfg.FITNET.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
@@ -65,7 +67,7 @@ class UniLogitsKD(Distiller):
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        loss_kd = feature_dis_loss(f_s, f_t, self.temperature)
+        loss_kd = self.channel_weight * feature_dis_loss(f_s, f_t, self.temperature)
 
         losses_dict = {
             "loss_ce": loss_ce,
