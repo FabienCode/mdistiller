@@ -84,21 +84,24 @@ class UniLogitsKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
         # loss_kd = self.channel_weight * feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
-        loss_f = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
-                feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
+        # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
+        #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
+        loss_feat = 100 * F.mse_loss(
+            f_s, feature_teacher["feats"][self.hint_layer]
+        )
 
-        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
+        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feature": loss_f,
-            # "loss_dkd": loss_dkd
+            "loss_feature": loss_feat,
+            "loss_dkd": loss_dkd
         }
         return logits_student, losses_dict
