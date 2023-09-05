@@ -25,6 +25,16 @@ def feature_dis_loss(feature_student, feature_teacher, temperature):
     # loss = F.kl_div(F.normalize(mean_s), F.normalize(mean_t), reduction='batchmean')
     return loss
 
+def feature_dkd_dis_loss(feature_student, feature_teacher, target, alpha, beta, temperature):
+    b, c, h, w = feature_student.shape
+    mean_s = torch.mean(feature_student.reshape(b, c, -1), dim=1)
+    mean_t = torch.mean(feature_teacher.reshape(b, c, -1), dim=1)
+    mask = torch.zeros_like(mean_s)
+    max_indices = torch.argmax(mean_t, dim=-1)
+    mask[torch.arange(b), max_indices] = 1
+    loss = mask_logits_loss(mean_s, mean_t, target, alpha, beta, temperature, mask.bool())
+    return loss
+
 
 class UniLogitsKD(Distiller):
     """Distilling the Knowledge in a Neural Network"""
@@ -73,20 +83,22 @@ class UniLogitsKD(Distiller):
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        loss_kd = self.channel_weight * feature_dis_loss(f_s, f_t, self.temperature)
+        # loss_kd = self.channel_weight * feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
+        loss_f = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
+                feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
 
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_kd,
-            "loss_dkd": loss_dkd
+            "loss_feature": loss_f,
+            # "loss_dkd": loss_dkd
         }
         return logits_student, losses_dict
