@@ -17,11 +17,11 @@ def feature_dis_loss(feature_student, feature_teacher, temperature):
     b, c, h, w = feature_student.shape
     mean_s = torch.mean(feature_student.reshape(b, c, -1), dim=1)
     mean_t = torch.mean(feature_teacher.reshape(b, c, -1), dim=1)
-    log_s = F.log_softmax(mean_s / temperature, dim=1)
-    log_t = F.softmax(mean_t / temperature, dim=1)
-    loss = F.kl_div(log_s, log_t, reduction="none").sum(1).mean()
-    loss *= temperature**2
-    # loss = F.mse_loss(mean_s, mean_t)
+    # log_s = F.log_softmax(mean_s / temperature, dim=1)
+    # log_t = F.softmax(mean_t / temperature, dim=1)
+    # loss = F.kl_div(log_s, log_t, reduction="none").sum(1).mean()
+    # loss *= temperature**2
+    loss = F.mse_loss(mean_s, mean_t)
     # loss = F.kl_div(F.normalize(mean_s), F.normalize(mean_t), reduction='batchmean')
     return loss
 
