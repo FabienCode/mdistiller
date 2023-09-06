@@ -41,11 +41,10 @@ class UniLogitsKD(Distiller):
 
     def __init__(self, student, teacher, cfg):
         super(UniLogitsKD, self).__init__(student, teacher)
-        self.temperature = cfg.KD.TEMPERATURE
-        self.ce_loss_weight = cfg.KD.LOSS.CE_WEIGHT
-        self.kd_loss_weight = cfg.KD.LOSS.KD_WEIGHT
-
-        self.channel_weight = cfg.RegKD.CHANNEL_KD_WEIGHT
+        self.temperature = cfg.Uni.TEMPERATURE
+        self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
+        self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
+        self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
 
         # dkd para
         self.warmup = cfg.DKD.WARMUP
@@ -77,31 +76,31 @@ class UniLogitsKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        # loss_kd = self.kd_loss_weight * kd_loss(
-        #     logits_student, logits_teacher, self.temperature
-        # )
+        loss_kd = self.logits_weight * kd_loss(
+            logits_student, logits_teacher, self.temperature
+        )
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        # loss_kd = self.channel_weight * feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
+        loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
         # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
         #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
-        loss_feat = 100 * F.mse_loss(
-            f_s, feature_teacher["feats"][self.hint_layer]
-        )
+        # loss_feat = 100 * F.mse_loss(
+        #     f_s, feature_teacher["feats"][self.hint_layer]
+        # )
 
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
 
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feature": loss_feat,
-            "loss_dkd": loss_dkd
+            "loss_dkd": loss_kd
         }
         return logits_student, losses_dict

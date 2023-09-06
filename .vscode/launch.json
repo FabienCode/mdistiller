@@ -25,11 +25,19 @@
                 "SOLVER.BATCH_SIZE",
                 "2",
                 "RegKD.HINT_LAYER",
-                "-2"
+                "-2",
                 // "--num-gpus",
                 // "1",
                 // "SOLVER.IMS_PER_BATCH",
                 // "1"
+                "Uni.TEMPERATURE",
+                "4",
+                "Uni.LOSS.CE_WEIGHT",
+                "1.0",
+                "Uni.LOSS.LOGITS_WEIGHT",
+                "1.0",
+                "Uni.LOSS.FEAT_KD_WEIGHT",
+                "1.0"
             ]
         }
     ]
