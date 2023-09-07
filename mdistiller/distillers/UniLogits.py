@@ -60,12 +60,16 @@ class UniLogitsKD(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
 
+        self.feat2pro = featPro(feat_s_shapes[self.hint_layer][1], feat_s_shapes[self.hint_layer][2], 100)
+
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
+            num_p += p.numel()
+        for p in self.feat2pro.parameters():
             num_p += p.numel()
         return num_p
 
@@ -82,7 +86,10 @@ class UniLogitsKD(Distiller):
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
+        f_s_pro = self.feat2pro(f_s)
+        f_t_pro = self.feat2pro(f_t)
+        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        # loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
         # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
         #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
         # loss_feat = 100 * F.mse_loss(
@@ -104,3 +111,34 @@ class UniLogitsKD(Distiller):
             "loss_dkd": loss_kd
         }
         return logits_student, losses_dict
+
+class featPro(nn.Module):
+    def __init__(self, in_channels, size, latent_dim):
+        super(featPro, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2,padding=1),
+            nn.BatchNorm2d(in_channels),
+            nn.LeakyReLU(inplace=True)
+            # nn.Conv2d(in_channels, hidden_channels, kernel_size=3, stride=2,padding=1),
+            # nn.BatchNorm2d(hidden_channels),
+            # nn.LeakyReLU(inplace=True)
+        )
+        self.fc_mu = nn.Linear(in_channels * size * 4, latent_dim)
+        self.fc_var = nn.Linear(in_channels * size * 4, latent_dim)
+    
+    def encode(self, input):
+        result = self.encoder(input)
+        result = result.view(result.size(0), -1)
+        mu = self.fc_mu(result)
+        log_var = self.fc_var(result)
+        return mu, log_var
+    
+    def reparameterize(self, mu, log_var):
+        std = torch.exp(log_var/2)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)
+    
+    def forward(self, input):
+        mu, log_var = self.encode(input)
+        z = self.reparameterize(mu, log_var)
+        return z
