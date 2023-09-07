@@ -88,8 +88,8 @@ class UniLogitsKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
-        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-        # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
+        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         # loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
         # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
         #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
