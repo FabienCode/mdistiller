@@ -116,15 +116,16 @@ class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim):
         super(featPro, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2,padding=1),
+            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(in_channels),
             nn.LeakyReLU(inplace=True)
             # nn.Conv2d(in_channels, hidden_channels, kernel_size=3, stride=2,padding=1),
             # nn.BatchNorm2d(hidden_channels),
             # nn.LeakyReLU(inplace=True)
         )
-        self.fc_mu = nn.Linear(in_channels * size * 4, latent_dim)
-        self.fc_var = nn.Linear(in_channels * size * 4, latent_dim)
+        self.fc_mu = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_var = nn.Linear(in_channels * size * size, latent_dim)
     
     def encode(self, x):
         result = self.encoder(x)
