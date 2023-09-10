@@ -59,7 +59,6 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-
         self.feat2pro = featPro(feat_s_shapes[self.hint_layer][1], feat_s_shapes[self.hint_layer][2], 100)
 
     def get_learnable_parameters(self):
@@ -127,8 +126,8 @@ class featPro(nn.Module):
         self.fc_mu = nn.Linear(in_channels * size * 4, latent_dim)
         self.fc_var = nn.Linear(in_channels * size * 4, latent_dim)
     
-    def encode(self, input):
-        result = self.encoder(input)
+    def encode(self, x):
+        result = self.encoder(x)
         result = result.view(result.size(0), -1)
         mu = self.fc_mu(result)
         log_var = self.fc_var(result)
@@ -139,7 +138,7 @@ class featPro(nn.Module):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mu)
     
-    def forward(self, input):
-        mu, log_var = self.encode(input)
+    def forward(self, x):
+        mu, log_var = self.encode(x)
         z = self.reparameterize(mu, log_var)
         return z
