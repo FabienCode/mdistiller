@@ -82,22 +82,23 @@ class UniLogitsKD(Distiller):
         loss_kd = self.logits_weight * kd_loss(
             logits_student, logits_teacher, self.temperature
         )
+        ######## normal END!!!! ########
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
         # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-        # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
+        loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         # loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
         # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
         #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
         # loss_feat = 100 * F.mse_loss(
         #     f_s, feature_teacher["feats"][self.hint_layer]
         # )
-        loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            f_s_pro, f_t_pro, target, self.alpha, self.beta, self.temperature   
-        )
+        # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     f_s_pro, f_t_pro, target, self.alpha, self.beta, self.temperature   
+        # )
 
         # loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     logits_student,
