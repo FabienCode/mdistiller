@@ -132,6 +132,7 @@ class featPro(nn.Module):
     
     def forward(self, x):
         mu, log_var = self.encode(x)
-        z = torch.cat((mu, log_var), dim=1)
+        # z = torch.cat((mu, log_var), dim=1)
+        z = mu + log_var
         # z = self.reparameterize(mu, log_var)
         return z
