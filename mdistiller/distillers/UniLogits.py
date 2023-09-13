@@ -79,8 +79,16 @@ class UniLogitsKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        loss_kd = self.logits_weight * kd_loss(
-            logits_student, logits_teacher, self.temperature
+        # loss_kd = self.logits_weight * kd_loss(
+        #     logits_student, logits_teacher, self.temperature
+        # )
+        loss_kd = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
         )
         ######## normal END!!!! ########
 
@@ -88,26 +96,7 @@ class UniLogitsKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
-        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
-        # loss_feat = self.feat_weight * feature_dis_loss(f_s, f_t, self.temperature)
-        # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * self.channel_weight * \
-        #         feature_dkd_dis_loss(f_s, f_t, target, self.alpha, self.beta, self.temperature)
-        # loss_feat = 100 * F.mse_loss(
-        #     f_s, feature_teacher["feats"][self.hint_layer]
-        # )
-        # loss_feat = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     f_s_pro, f_t_pro, target, self.alpha, self.beta, self.temperature   
-        # )
-
-        # loss_kd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
-        # )
 
         losses_dict = {
             "loss_ce": loss_ce,
