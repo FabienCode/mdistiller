@@ -96,7 +96,8 @@ class UniLogitsKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
-        loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
+        # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
+        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
 
         losses_dict = {
             "loss_ce": loss_ce,
@@ -132,7 +133,7 @@ class featPro(nn.Module):
     
     def forward(self, x):
         mu, log_var = self.encode(x)
-        z = torch.cat((mu, log_var), dim=1)
+        # z = torch.cat((mu, log_var), dim=1)
         # z = mu + log_var
-        # z = self.reparameterize(mu, log_var)
+        z = self.reparameterize(mu, log_var)
         return z
