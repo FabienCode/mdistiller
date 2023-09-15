@@ -90,7 +90,7 @@ class UniLogitsKD(Distiller):
             self.beta,
             self.temperature,
         )
-        ######## normal END!!!! ########
+                            
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
@@ -133,6 +133,6 @@ class featPro(nn.Module):
     def forward(self, x):
         mu, log_var = self.encode(x)
         # z = torch.cat((mu, log_var), dim=1)
-        z = mu + log_var
-        # z = self.reparameterize(mu, log_var)
+        # z = mu + log_var
+        z = self.reparameterize(mu, log_var)
         return z
