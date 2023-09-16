@@ -59,7 +59,7 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.feat2pro = featPro(feat_s_shapes[self.hint_layer][1], feat_s_shapes[self.hint_layer][2], 100)
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 100)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
