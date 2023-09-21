@@ -45,6 +45,7 @@ class UniLogitsKD(Distiller):
         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
+        self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
 
         # dkd para
         self.warmup = cfg.DKD.WARMUP
@@ -98,10 +99,14 @@ class UniLogitsKD(Distiller):
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
 
+        loss_supp_feat2pro = self.supp_weight * \
+            (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feature": loss_feat,
-            "loss_dkd": loss_kd
+            "loss_dkd": loss_kd,
+            "loss_supp_feat2pro": loss_supp_feat2pro
         }
         return logits_student, losses_dict
 
