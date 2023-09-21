@@ -56,31 +56,19 @@ class UniLogitsKD(Distiller):
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
 
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        # )
-        # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 100)
-
-        self.conv_regs = nn.Sequential()
-        self.feat2pros = nn.Sequential()
-        for i in range(len(feat_s_shapes)):
-            self.conv_regs.add_module(
-                'conv_reg_{}'.format(i),
-                ConvReg(feat_s_shapes[i], feat_t_shapes[i])
-            )
-            self.feat2pros.add_module(
-                'feat_pro_{}'.format(i),
-                featPro(feat_t_shapes[i][1], feat_t_shapes[i][2], 100)
-            )
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 100)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_regs.parameters()) + list(self.feat2pros.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
-        for p in self.conv_regs.parameters():
+        for p in self.conv_reg.parameters():
             num_p += p.numel()
-        for p in self.feat2pros.parameters():
+        for p in self.feat2pro.parameters():
             num_p += p.numel()
         return num_p
 
@@ -103,13 +91,10 @@ class UniLogitsKD(Distiller):
             self.temperature,
         )
 
-        # f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
-        f_s_adapter = self.s_adapter(feature_student["feats"])
-        
-        # f_t = feature_teacher["feats"][self.hint_layer]
-        # f_s_pro = self.feat2pro(f_s)
+        f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
+        f_t = feature_teacher["feats"][self.hint_layer]
+        f_s_pro, f_t_pro = self.feat2pro(f_s, f_t)
         # f_t_pro = self.feat2pro(f_t)
-        f_s_pro, f_t_pro = self.feats2pros(f_s_adapter, feature_teacher["feats"])
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
 
@@ -119,39 +104,40 @@ class UniLogitsKD(Distiller):
             "loss_dkd": loss_kd
         }
         return logits_student, losses_dict
-    
-    def s_adapter(self, feature_student):
-        feature_adapter_student = []
-        for i in range(len(feature_student)):
-            feature_adapter_student.append(self.conv_regs[i](feature_student[i]))
-        return feature_adapter_student
-    
-    def feats2pros(self, f_s, f_t):
-        f_s_pro = []
-        f_t_pro = []
-        for i in range(len(f_s)):
-            f_s_pro.append(self.feat2pros[i](f_s[i]))
-            f_t_pro.append(self.feat2pros[i](f_t[i]))
-        return torch.stack(f_s_pro, 1), torch.stack(f_t_pro, 1)
 
 class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim):
         super(featPro, self).__init__()
-        self.encoder = nn.Sequential(
+        self.encoder_s = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
-        self.fc_mu = nn.Linear(in_channels * size * size, latent_dim)
-        self.fc_var = nn.Linear(in_channels * size * size, latent_dim)
-    
-    def encode(self, x):
-        result = self.encoder(x)
+        self.encoder_t = nn.Sequential(
+            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(in_channels),
+            # nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
+        )
+        self.fc_mu_s = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_var_s = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_mu_t = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_var_t = nn.Linear(in_channels * size * size, latent_dim)
+    def encode_student(self, x):
+        result = self.encoder_s(x)
         result = result.view(result.size(0), -1)
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
+        mu = self.fc_mu_s(result)
+        log_var = self.fc_var_s(result)
+        return mu, log_var
+
+    def encode_teacher(self, x):
+        result = self.encoder_t(x)
+        result = result.view(result.size(0), -1)
+        mu = self.fc_mu_t(result)
+        log_var = self.fc_var_t(result)
         return mu, log_var
     
     def reparameterize(self, mu, log_var):
@@ -159,9 +145,13 @@ class featPro(nn.Module):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mu)
     
-    def forward(self, x):
-        mu, log_var = self.encode(x)
-        # z = torch.cat((mu, log_var), dim=1)
-        # z = mu + log_var
-        z = self.reparameterize(mu, log_var)
-        return z
+    def forward(self, f_s, f_t):
+        # mu, log_var = self.encode(x)
+        mu_s, log_var_s = self.encode_student(f_s)
+        mu_t, log_var_t = self.encode_teacher(f_t)
+        std_s = torch.exp(log_var_s/2)
+        eps = torch.rand_like(std_s)
+        z_s = eps.mul(std_s).add_(mu_s)
+        std_t = torch.exp(log_var_t/2)
+        z_t = eps.mul(std_t).add_(mu_t)
+        return z_s, z_t
