@@ -108,36 +108,45 @@ class UniLogitsKD(Distiller):
 class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim):
         super(featPro, self).__init__()
-        self.encoder_s = nn.Sequential(
+        # self.encoder_s = nn.Sequential(
+        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     # nn.BatchNorm2d(in_channels),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        # )
+        # self.encoder_t = nn.Sequential(
+        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     # nn.BatchNorm2d(in_channels),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        # )
+        self.encoder = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
-        self.encoder_t = nn.Sequential(
-            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
-        )
-        self.fc_mu_s = nn.Linear(in_channels * size * size, latent_dim)
-        self.fc_var_s = nn.Linear(in_channels * size * size, latent_dim)
-        self.fc_mu_t = nn.Linear(in_channels * size * size, latent_dim)
-        self.fc_var_t = nn.Linear(in_channels * size * size, latent_dim)
+        # self.fc_mu_s = nn.Linear(in_channels * size * size, latent_dim)
+        # self.fc_var_s = nn.Linear(in_channels * size * size, latent_dim)
+        # self.fc_mu_t = nn.Linear(in_channels * size * size, latent_dim)
+        # self.fc_var_t = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_mu = nn.Linear(in_channels * size * size, latent_dim)
+        self.fc_var = nn.Linear(in_channels * size * size, latent_dim)
     def encode_student(self, x):
-        result = self.encoder_s(x)
+        result = self.encoder(x)
         result = result.view(result.size(0), -1)
-        mu = self.fc_mu_s(result)
-        log_var = self.fc_var_s(result)
+        mu = self.fc_mu(result)
+        log_var = self.fc_var(result)
         return mu, log_var
 
     def encode_teacher(self, x):
-        result = self.encoder_t(x)
+        result = self.encoder(x)
         result = result.view(result.size(0), -1)
-        mu = self.fc_mu_t(result)
-        log_var = self.fc_var_t(result)
+        mu = self.fc_mu(result)
+        log_var = self.fc_var(result)
         return mu, log_var
     
     def reparameterize(self, mu, log_var):
