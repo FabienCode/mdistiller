@@ -83,14 +83,15 @@ class UniLogitsKD(Distiller):
         # loss_kd = self.logits_weight * kd_loss(
         #     logits_student, logits_teacher, self.temperature
         # )
-        loss_kd = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        # loss_kd = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+        #     logits_student,
+        #     logits_teacher,
+        #     target,
+        #     self.alpha,
+        #     self.beta,
+        #     self.temperature,
+        # )
+        loss_kd = self.logits_weight * kd_loss(logits_student, logits_teacher, self.temperature)
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
