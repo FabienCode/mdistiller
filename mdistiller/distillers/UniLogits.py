@@ -48,6 +48,7 @@ class UniLogitsKD(Distiller):
         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
+        self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
 
         # dkd para
         self.warmup = cfg.DKD.WARMUP
