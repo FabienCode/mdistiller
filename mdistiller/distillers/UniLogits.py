@@ -39,11 +39,11 @@ def feature_dkd_dis_loss(feature_student, feature_teacher, target, alpha, beta, 
     return loss
 
 
-class UniLogitsKD_single(Distiller):
+class UniLogitsKD(Distiller):
     """Distilling the Knowledge in a Neural Network"""
 
     def __init__(self, student, teacher, cfg):
-        super(UniLogitsKD_single, self).__init__(student, teacher)
+        super(UniLogitsKD, self).__init__(student, teacher)
         self.temperature = cfg.Uni.TEMPERATURE
         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
