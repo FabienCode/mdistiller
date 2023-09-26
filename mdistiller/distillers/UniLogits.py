@@ -126,7 +126,7 @@ class featPro(nn.Module):
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels),
+            nn.BatchNorm2d(latent_dim),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
