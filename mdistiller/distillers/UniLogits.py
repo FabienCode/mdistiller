@@ -140,12 +140,12 @@ class featPro(nn.Module):
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
+            # nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
+            # nn.ReLU(inplace=True),
         )
         self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
         self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
