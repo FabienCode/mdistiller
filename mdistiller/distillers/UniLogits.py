@@ -100,7 +100,8 @@ class UniLogitsKD(Distiller):
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
-        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
         loss_supp_feat2pro = self.supp_weight * \
             (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
@@ -139,11 +140,11 @@ class featPro(nn.Module):
         self.encoder = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels),
+            # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(latent_dim),
+            # nn.BatchNorm2d(latent_dim),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
