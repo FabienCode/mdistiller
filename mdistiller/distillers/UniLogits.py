@@ -63,7 +63,8 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
+        # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
+        self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, 5)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
@@ -100,8 +101,8 @@ class UniLogitsKD(Distiller):
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
-        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-        loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
+        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
         loss_supp_feat2pro = self.supp_weight * \
             (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
@@ -173,3 +174,80 @@ class featPro(nn.Module):
         # z = mu + log_var
         z = self.reparameterize(mu, log_var)
         return z
+    
+class GaussianMixtureLayer(nn.Module):
+    def __init__(self, in_channels, size, latent_dim, num_classes, num_gaussians):
+        super(GaussianMixtureLayer, self).__init__()
+        self.in_channels = in_channels
+        self.size = size
+        self.latent_dim = latent_dim
+        self.num_classes = num_classes
+        self.num_gaussians = num_gaussians
+
+        # Difine linear layers to predict the parameters of the Gaussian mixture
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+        )
+
+        self.avg_pool = nn.AvgPool2d((size, size))
+        self.mu_layer = nn.Linear(latent_dim, num_classes * num_gaussians)
+        self.sigma_layer = nn.Linear(latent_dim, num_classes * num_gaussians)
+        self.pi_layer = nn.Linear(latent_dim, num_gaussians)
+
+    def forward(self, x):
+        res = self.encoder(x)
+        res_pooled = self.avg_pool(res).reshape(res.size(0), -1)
+        mu = self.mu_layer(res_pooled).view(-1, self.num_gaussians, self.num_classes)
+        sigma = F.softplus(self.sigma_layer(res_pooled)).view(-1, self.num_gaussians, self.num_classes)
+        pi = F.softmax(self.pi_layer(res_pooled), dim=1)  # Mixing coefficients
+        return pi, mu, sigma
+    
+class MixtureOfGaussians(nn.Module):
+    def __init__(self, n_components=2):
+        super(MixtureOfGaussians, self).__init__()
+        self.n_components = n_components
+
+    # Gumbel-Softmax trick for differentiable sampling
+    def gumber_softmax_sample(self, logits, temperature):
+        gumbel_noise = -torch.empty_like(logits).exponential_().log()
+        sampled_logtis = (logits + gumbel_noise) / temperature
+        return F.softmax(sampled_logtis, dim=-1)
+    
+    # Reparameterization trick for Gaussian sampling
+    def reparameterize(self, mean, log_var):
+        std = torch.exp(log_var / 2)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mean)
+    
+    def forward(self, pi, mu, sigma, temperature=1.0):
+        # Convert variance to log variance
+        log_var = 2 * sigma.log()
+
+        # Use Gumbel-Softmax to get the continuous approximation of the component weight
+        weights = self.gumber_softmax_sample(pi, temperature)
+
+        # Sample from each Gaussian
+        samples =[self.reparameterize(mu[:, i], log_var[:, i]) for i in range(self.n_components)]
+
+        # Weighted combination of Gaussian samples
+        final_sample = sum([weights[:, i].unsqueeze(1) * samples[i] for i in range(self.n_components)])
+
+        return final_sample
+    
+
+class feat2Pro(nn.Module):
+    def __init__(self, in_channels, size, latent_dim, num_classes, n_components):
+        super(feat2Pro, self).__init__()
+        self.gaussian_mixture_layer = GaussianMixtureLayer(in_channels, size, latent_dim, num_classes, n_components)
+        self.mixture_of_gaussians = MixtureOfGaussians(n_components)
+
+    def forward(self, x, temperature=1.0):
+        pi, mu, sigma = self.gaussian_mixture_layer(x)
+        final_sample = self.mixture_of_gaussians(pi, mu, sigma, temperature)
+        return final_sample
+
+
+
