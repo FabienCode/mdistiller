@@ -49,6 +49,7 @@ class UniLogitsKD(Distiller):
         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
         self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
+        self.gmm_num = cfg.Uni.GMM_NUM
 
         # dkd para
         self.warmup = cfg.DKD.WARMUP
@@ -64,7 +65,7 @@ class UniLogitsKD(Distiller):
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
         # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
-        self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, 5)
+        self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
