@@ -63,7 +63,7 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 100)
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
@@ -134,27 +134,31 @@ class UniLogitsKD(Distiller):
 #         self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
 
 class featPro(nn.Module):
-    def __init__(self, in_channels, size, latent_dim):
+    def __init__(self, in_channels, size, latent_dim, num_classes):
         super(featPro, self).__init__()
         self.encoder = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels),
+            # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(latent_dim),
+            # nn.BatchNorm2d(latent_dim),
             # nn.LeakyReLU(inplace=True),
-            # nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True),
         )
-        self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
-        self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
+        self.avg_pool = nn.AvgPool2d((size, size))
+        # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
+        # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
+        self.fc_mu = nn.Linear(latent_dim, num_classes)
+        self.fc_var = nn.Linear(latent_dim, num_classes)
 
     def encode(self, x):
         result = self.encoder(x)
-        result = result.view(result.size(0), -1)
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
+        # result = result.view(result.size(0), -1)
+        res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        mu = self.fc_mu(res_pooled)
+        log_var = self.fc_var(res_pooled)
         return mu, log_var
 
     def reparameterize(self, mu, log_var):
