@@ -37,7 +37,11 @@
                 "Uni.LOSS.LOGITS_WEIGHT",
                 "1.0",
                 "Uni.LOSS.FEAT_KD_WEIGHT",
-                "1.0"
+                "1.0",
+                "Uni.LOSS.SUPP_WEIGHT",
+                "0.01",
+                "Uni.GMM_NUM",
+                "10"
             ]
         }
     ]

@@ -64,17 +64,21 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
-        self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
+        # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
+        self.supp_loss = MGDLoss(100, 0.5)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.feat2pro.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
+            list(self.feat2pro.parameters()) + list(self.supp_loss.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
             num_p += p.numel()
         for p in self.feat2pro.parameters():
+            num_p += p.numel()
+        for p in self.supp_loss.parameters():
             num_p += p.numel()
         return num_p
 
@@ -105,8 +109,10 @@ class UniLogitsKD(Distiller):
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
+        # loss_supp_feat2pro = self.supp_weight * \
+        #     (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
         loss_supp_feat2pro = self.supp_weight * \
-            (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
+            (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
         # loss_supp_feat2pro = self.supp_weight * \
         #     (F.mse_loss(f_s_pro, logits_student) + F.mse_loss(f_t_pro, logits_teacher))
 
@@ -249,6 +255,38 @@ class feat2Pro(nn.Module):
         pi, mu, sigma = self.gaussian_mixture_layer(x)
         final_sample = self.mixture_of_gaussians(pi, mu, sigma, temperature)
         return final_sample
+    
+class MGDLoss(nn.Module):
+    def __init__(self, channels, alpha_mgd, lambda_mgd=0.5):
+        super(MGDLoss, self).__init__()
+        self.alpha_mgd = alpha_mgd
+        self.lambda_mgd = lambda_mgd
+
+        self.generation = nn.Sequential(
+            nn.Linear(channels, channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels, channels)
+        )
+
+    def get_dis_loss(self, s, t):
+        loss_mse = nn.MSELoss(reduction='sum')
+        N, C= s.shape
+        device = s.device
+        mat = torch.rand((N, C)).to(device)
+        mat = torch.where(mat < self.lambda_mgd, 0, 1).to(device)
+
+        masked_feat = torch.mul(s, mat)
+        new_feat = self.generation(masked_feat)
+        dis_loss = loss_mse(new_feat, t) / N
+        return dis_loss
+    
+    def forward(self, s, t):
+        # assert s.shape[-2:] == t.shape[-2:]
+        loss = self.get_dis_loss(s, t) * self.alpha_mgd
+        return loss
+
+
+        
 
 
 
