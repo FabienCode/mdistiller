@@ -67,7 +67,7 @@ class UniLogitsKD(Distiller):
         )
         self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
-        self.supp_loss = MGDLoss(100, self.mask_rate)
+        # self.supp_loss = MGDLoss(100, self.mask_rate)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
@@ -110,10 +110,10 @@ class UniLogitsKD(Distiller):
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
-        # loss_supp_feat2pro = self.supp_weight * \
-        #     (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
         loss_supp_feat2pro = self.supp_weight * \
-            (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
+            (kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher, self.temperature))
+        # loss_supp_feat2pro = self.supp_weight * \
+        #     (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
         # loss_supp_feat2pro = self.supp_weight * \
         #     (F.mse_loss(f_s_pro, logits_student) + F.mse_loss(f_t_pro, logits_teacher))
 
