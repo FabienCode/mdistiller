@@ -71,7 +71,7 @@ class UniLogitsKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
-            list(self.feat2pro.parameters()) + list(self.supp_loss.parameters())
+            list(self.feat2pro.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -79,8 +79,8 @@ class UniLogitsKD(Distiller):
             num_p += p.numel()
         for p in self.feat2pro.parameters():
             num_p += p.numel()
-        for p in self.supp_loss.parameters():
-            num_p += p.numel()
+        # for p in self.supp_loss.parameters():
+        #     num_p += p.numel()
         return num_p
 
     def forward_train(self, image, target, **kwargs):
