@@ -49,23 +49,23 @@ class UniLogitsKD(Distiller):
         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
         self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
-        self.gmm_num = cfg.Uni.GMM_NUM
-        self.mask_rate = cfg.Uni.MGD_RATE
 
         # dkd para
-        self.warmup = cfg.DKD.WARMUP
-        self.alpha = cfg.DKD.ALPHA
-        self.beta = cfg.DKD.BETA
+        self.warmup = cfg.Uni.WARMUP
+        self.alpha = cfg.Uni.ALPHA
+        self.beta = cfg.Uni.BETA
+        self.class_num = cfg.Uni.CLASS_NUM
+        self.latent_dim = cfg.Uni.LATENT_DIM
 
-        self.hint_layer = cfg.FITNET.HINT_LAYER
+        self.hint_layer = cfg.Uni.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
-            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+            self.student, self.teacher, cfg.Uni.INPUT_SIZE
         )
 
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100)
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
         # self.supp_loss = MGDLoss(100, self.mask_rate)
 
