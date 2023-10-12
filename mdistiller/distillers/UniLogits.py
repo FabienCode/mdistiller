@@ -182,7 +182,8 @@ class featPro(nn.Module):
         # z = mu + log_var
         z = self.reparameterize(mu, log_var)
         return z
-    
+
+
 class GaussianMixtureLayer(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes, num_gaussians):
         super(GaussianMixtureLayer, self).__init__()
@@ -212,7 +213,8 @@ class GaussianMixtureLayer(nn.Module):
         sigma = F.softplus(self.sigma_layer(res_pooled)).view(-1, self.num_gaussians, self.num_classes)
         pi = F.softmax(self.pi_layer(res_pooled), dim=1)  # Mixing coefficients
         return pi, mu, sigma
-    
+
+
 class MixtureOfGaussians(nn.Module):
     def __init__(self, n_components=2):
         super(MixtureOfGaussians, self).__init__()
