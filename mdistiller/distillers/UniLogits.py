@@ -245,7 +245,7 @@ class MixtureOfGaussians(nn.Module):
 
         return final_sample
     
-
+# Test auto update
 class feat2Pro(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes, n_components):
         super(feat2Pro, self).__init__()
