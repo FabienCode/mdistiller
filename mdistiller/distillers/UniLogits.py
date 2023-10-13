@@ -83,6 +83,7 @@ class UniLogitsKD(Distiller):
         #     num_p += p.numel()
         return num_p
 
+# Test
     def forward_train(self, image, target, **kwargs):
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
