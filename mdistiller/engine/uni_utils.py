@@ -93,14 +93,22 @@ class Feat2ProAttention(nn.Module):
         super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.channel_attention = ChannelAttentionModule(channel, 3, hw, hw)
+        # self.fc = nn.Sequential(
+        #     nn.Linear(channel, channel // reduction, bias=False),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(channel // reduction, channel, bias=False),
+        #     # nn.Sigmoid(),
+        #     nn.ReLU()
+        # )
+        # self.pre_fc = nn.Linear(channel, num_class)
         self.fc = nn.Sequential(
             nn.Linear(channel, channel // reduction, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(channel // reduction, channel, bias=False),
             # nn.Sigmoid(),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Linear(channel, num_class)
         )
-        self.pre_fc = nn.Linear(channel, num_class)
 
     def init_weights(self):
         for m in self.modules():
@@ -122,9 +130,9 @@ class Feat2ProAttention(nn.Module):
         y = self.avg_pool(channel_x).view(b, c)
         # y = self.fc(y).view(b, c, 1, 1)
         y = self.fc(y)
-        y_pre = self.pre_fc(y)
+        # y_pre = self.pre_fc(y)
         # return x * y.expand_as(x)
-        return y_pre
+        return y
 
 
 if __name__ == '__main__':
