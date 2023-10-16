@@ -97,8 +97,8 @@ class Feat2ProAttention(nn.Module):
             nn.Linear(channel, channel // reduction, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(channel // reduction, channel, bias=False),
-            nn.Sigmoid(),
-            # nn.ReLU()
+            # nn.Sigmoid(),
+            nn.ReLU()
         )
         self.pre_fc = nn.Linear(channel, num_class)
 
