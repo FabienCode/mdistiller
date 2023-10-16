@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
+from mdistiller.engine.uni_utils import Feat2ProAttention
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -65,9 +66,10 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
+        # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
         # self.supp_loss = MGDLoss(100, self.mask_rate)
+        self.feat2pro = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 16, self.class_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
