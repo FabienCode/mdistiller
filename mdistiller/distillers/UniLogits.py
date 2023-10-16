@@ -69,17 +69,24 @@ class UniLogitsKD(Distiller):
         # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
         # self.supp_loss = MGDLoss(100, self.mask_rate)
-        self.feat2pro = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 1, self.class_num)
+        self.feat2pro_s = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 1,
+                                            self.class_num)
+        self.feat2pro_t = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 1,
+                                            self.class_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
-            list(self.feat2pro.parameters())
+            list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
             num_p += p.numel()
-        for p in self.feat2pro.parameters():
+        # for p in self.feat2pro.parameters():
+        #     num_p += p.numel()
+        for p in self.feat2pro_s.parameters():
+            num_p += p.numel()
+        for p in self.feat2pro_t.parameters():
             num_p += p.numel()
         # for p in self.supp_loss.parameters():
         #     num_p += p.numel()
@@ -107,8 +114,8 @@ class UniLogitsKD(Distiller):
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        f_s_pro = self.feat2pro(f_s)
-        f_t_pro = self.feat2pro(f_t)
+        f_s_pro = self.feat2pro_s(f_s)
+        f_t_pro = self.feat2pro_t(f_t)
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
