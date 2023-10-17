@@ -122,7 +122,7 @@ class UniLogitsKD(Distiller):
         # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
         loss_supp_feat2pro = self.supp_weight * (
-                    kd_loss(f_s_pro, logits_teacher, self.temperature) + kd_loss(f_t_pro, logits_teacher,
+                    kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher,
                                                                                  self.temperature))
         # loss_supp_feat2pro = self.supp_weight * \
         #     (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
