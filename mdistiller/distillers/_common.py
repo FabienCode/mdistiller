@@ -19,15 +19,15 @@ class ConvReg(nn.Module):
             self.conv = nn.Conv2d(s_C, t_C, kernel_size=(1 + s_H - t_H, 1 + s_W - t_W))
         else:
             raise NotImplemented("student size {}, teacher size {}".format(s_H, t_H))
-        # self.bn = nn.BatchNorm2d(t_C)
-        self.ln = nn.LayerNorm([t_C, t_H, t_W])
+        self.bn = nn.BatchNorm2d(t_C)
+        # self.ln = nn.LayerNorm([t_C, t_H, t_W])
         self.relu = nn.ReLU(inplace=True)
         self.conv_2 = nn.Conv2d(t_C, t_C, kernel_size=3, stride=1, padding=1)
-        # self.bn2 = nn.BatchNorm2d(t_C)
-        self.ln2 = nn.LayerNorm([t_C, t_H, t_W])
+        self.bn2 = nn.BatchNorm2d(t_C)
+        # self.ln2 = nn.LayerNorm([t_C, t_H, t_W])
         self.conv_3 = nn.Conv2d(t_C, t_C, kernel_size=3, stride=1, padding=1)
-        # self.bn3 = nn.BatchNorm2d(t_C)
-        self.ln3 = nn.LayerNorm([t_C, t_H, t_W])
+        self.bn3 = nn.BatchNorm2d(t_C)
+        # self.ln3 = nn.LayerNorm([t_C, t_H, t_W])
 
     def forward(self, x):
         x = self.conv(x)
