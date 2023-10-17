@@ -51,25 +51,29 @@ class ConvReg(nn.Module):
     #         return self.bn3(x)
 
     def forward(self, x):
-        x = self.conv(x)
+        x = self.relu(self.conv(x))
+        x = self.relu(self.conv_2(x))
+        x = self.relu(self.conv_3(x))
+        return x
+        # x = self.conv(x)
+        # # if self.use_relu:
+        # #     return self.relu(self.bn(x))
+        # # else:
+        # #     return self.bn(x)
         # if self.use_relu:
-        #     return self.relu(self.bn(x))
+        #     x = self.relu(self.ln(x))
         # else:
-        #     return self.bn(x)
-        if self.use_relu:
-            x = self.relu(self.ln(x))
-        else:
-            x = self.ln(x)
-        x = self.conv_2(x)
-        if self.use_relu:
-            x = self.relu(self.ln2(x))
-        else:
-            x = self.ln2(x)
-        x = self.conv_3(x)
-        if self.use_relu:
-            return self.relu(self.ln3(x))
-        else:
-            return self.ln3(x)
+        #     x = self.ln(x)
+        # x = self.conv_2(x)
+        # if self.use_relu:
+        #     x = self.relu(self.ln2(x))
+        # else:
+        #     x = self.ln2(x)
+        # x = self.conv_3(x)
+        # if self.use_relu:
+        #     return self.relu(self.ln3(x))
+        # else:
+        #     return self.ln3(x)
         
 class ConvRegE(nn.Module):
     """Convolutional regression"""
