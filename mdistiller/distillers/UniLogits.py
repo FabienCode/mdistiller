@@ -79,7 +79,7 @@ class UniLogitsKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
-            list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
+            list(self.feat2pro.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -87,9 +87,7 @@ class UniLogitsKD(Distiller):
             num_p += p.numel()
         # for p in self.feat2pro.parameters():
         #     num_p += p.numel()
-        for p in self.feat2pro_s.parameters():
-            num_p += p.numel()
-        for p in self.feat2pro_t.parameters():
+        for p in self.feat2pro.parameters():
             num_p += p.numel()
         # for p in self.supp_loss.parameters():
         #     num_p += p.numel()
@@ -103,17 +101,17 @@ class UniLogitsKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        loss_logits = self.logits_weight * kd_loss(
-            logits_student, logits_teacher, self.temperature
-        )
-        # loss_logits = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-        #     logits_student,
-        #     logits_teacher,
-        #     target,
-        #     self.alpha,
-        #     self.beta,
-        #     self.temperature,
+        # loss_logits = self.logits_weight * kd_loss(
+        #     logits_student, logits_teacher, self.temperature
         # )
+        loss_logits = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            logits_student,
+            logits_teacher,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
