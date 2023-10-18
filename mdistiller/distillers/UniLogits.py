@@ -118,7 +118,15 @@ class UniLogitsKD(Distiller):
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
-        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        loss_feat = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
+            f_s_pro,
+            f_t_pro,
+            target,
+            self.alpha,
+            self.beta,
+            self.temperature,
+        )
 
         loss_supp_feat2pro = self.supp_weight * (
                 kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher,
