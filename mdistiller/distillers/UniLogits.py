@@ -162,27 +162,29 @@ class UniLogitsKD(Distiller):
 #         self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
 #         self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
 
+
 class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes):
         super(featPro, self).__init__()
-        self.encoder = nn.Sequential(
-            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            # nn.LayerNorm([in_channels, size, size]),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            # nn.LayerNorm([latent_dim, size, size]),
-            # nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
-        )
+        self.encoder = ChannelAttentionModule(in_channels, 3, size, size)
+        # self.encoder = nn.Sequential(
+        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     # nn.BatchNorm2d(in_channels),
+        #     # nn.LeakyReLU(inplace=True),
+        #     # nn.LayerNorm([in_channels, size, size]),
+        #     nn.ReLU(inplace=True),
+        #     nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
+        #     # nn.LayerNorm([latent_dim, size, size]),
+        #     # nn.BatchNorm2d(latent_dim),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        # )
         self.avg_pool = nn.AvgPool2d((size, size))
         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
-        self.fc_mu = nn.Linear(latent_dim, num_classes)
-        self.fc_var = nn.Linear(latent_dim, num_classes)
+        self.fc_mu = nn.Linear(in_channels, num_classes)
+        self.fc_var = nn.Linear(in_channels, num_classes)
 
     def encode(self, x):
         result = self.encoder(x)
