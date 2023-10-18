@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
-from mdistiller.engine.uni_utils import Feat2ProAttention, ChannelAttentionModule
+from mdistiller.engine.uni_utils import Feat2ProAttention, ChannelAttentionModule, UNet
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -166,8 +166,16 @@ class UniLogitsKD(Distiller):
 class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes):
         super(featPro, self).__init__()
-        self.encoder = ChannelAttentionModule(num_classes, 3, size, size)
+        # self.encoder = ChannelAttentionModule(num_classes, 3, size, size)
+        # if in_channels == 2 * num_classes:
+        #     self.conv = nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=2, padding=1)
+        # elif in_channels * 2 == num_classes:
+        #     self.conv = nn.ConvTranspose2d(in_channels, num_classes, kernel_size=4, stride=2, padding=1)
+        # elif in_channels >= num_classes:
+        #     self.conv = nn.Conv2d(in_channels, num_classes, kernel_size=1)
         # self.encoder = nn.Sequential(
+        #     self.conv,
+        #     nn.ReLU(),
         #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
         #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
         #     # nn.BatchNorm2d(in_channels),
@@ -180,31 +188,33 @@ class featPro(nn.Module):
         #     # nn.LeakyReLU(inplace=True),
         #     nn.ReLU(inplace=True),
         # )
+        self.encoder = UNet(in_channels, num_classes, False)
         self.avg_pool = nn.AvgPool2d((size, size))
         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
         # self.fc_mu = nn.Linear(in_channels, num_classes)
         # self.fc_var = nn.Linear(in_channels, num_classes)
-        self.conv_mu = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
-            nn.ReLU()
-        )
-        self.conv_var = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
-            nn.ReLU()
-        )
+        # self.conv_mu = nn.Sequential(
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU()
+        # )
+        # self.conv_var = nn.Sequential(
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU()
+        # )
 
     def encode(self, x):
-        res_mu = self.conv_mu(x)
-        res_var = self.conv_var(x)
-        res_mu = self.encoder(res_mu)
-        res_var = self.encoder(res_var)
-        mu = self.avg_pool(res_mu).view(res_mu.size(0), -1)
-        var = self.avg_pool(res_var).view(res_var.size(0), -1)
+        # res_mu = self.conv_mu(x)
+        # res_var = self.conv_var(x)
+        # res_mu = self.encoder(res_mu)
+        # res_var = self.encoder(res_var)
+        mu, var = self.encoder(x)
+        mu = self.avg_pool(mu).view(mu.size(0), -1)
+        var = self.avg_pool(var).view(var.size(0), -1)
         return mu, var
         # result = self.encoder(x)
         # # result = result.view(result.size(0), -1)
