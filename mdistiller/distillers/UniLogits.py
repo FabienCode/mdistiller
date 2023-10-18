@@ -166,7 +166,7 @@ class UniLogitsKD(Distiller):
 class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes):
         super(featPro, self).__init__()
-        self.encoder = ChannelAttentionModule(in_channels, 3, size, size)
+        self.encoder = ChannelAttentionModule(num_classes, 3, size, size)
         # self.encoder = nn.Sequential(
         #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
         #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
@@ -183,16 +183,35 @@ class featPro(nn.Module):
         self.avg_pool = nn.AvgPool2d((size, size))
         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
-        self.fc_mu = nn.Linear(in_channels, num_classes)
-        self.fc_var = nn.Linear(in_channels, num_classes)
+        # self.fc_mu = nn.Linear(in_channels, num_classes)
+        # self.fc_var = nn.Linear(in_channels, num_classes)
+        self.conv_mu = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
+        )
+        self.conv_var = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
+        )
 
     def encode(self, x):
-        result = self.encoder(x)
-        # result = result.view(result.size(0), -1)
-        res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
-        mu = self.fc_mu(res_pooled)
-        log_var = self.fc_var(res_pooled)
-        return mu, log_var
+        res_mu = self.conv_mu(x)
+        res_var = self.conv_var(x)
+        res_mu = self.encoder(res_mu)
+        res_var = self.encoder(res_var)
+        mu = self.avg_pool(res_mu).view(res_mu.size(0), -1)
+        var = self.avg_pool(res_var).view(res_var.size(0), -1)
+        return mu, var
+        # result = self.encoder(x)
+        # # result = result.view(result.size(0), -1)
+        # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        # mu = self.fc_mu(res_pooled)
+        # log_var = self.fc_var(res_pooled)
+        # return mu, log_var
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var / 2)
