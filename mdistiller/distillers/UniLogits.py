@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.kd_loss import mask_logits_loss, dkd_loss
-from mdistiller.engine.uni_utils import Feat2ProAttention
+from mdistiller.engine.uni_utils import Feat2ProAttention, ChannelAttentionModule
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -119,11 +119,10 @@ class UniLogitsKD(Distiller):
         f_t_pro = self.feat2pro(f_t)
         # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
         loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-        # loss_feat = self.feat_weight * F.smooth_l1_loss(f_s_pro, f_t_pro)
 
         loss_supp_feat2pro = self.supp_weight * (
-                    kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher,
-                                                                                 self.temperature))
+                kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher,
+                                                                             self.temperature))
         # loss_supp_feat2pro = self.supp_weight * \
         #     (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
         # loss_supp_feat2pro = self.supp_weight * \
@@ -163,10 +162,10 @@ class featPro(nn.Module):
             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
-            nn.LayerNorm([in_channels, size, size]),
+            # nn.LayerNorm([in_channels, size, size]),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            nn.LayerNorm([latent_dim, size, size]),
+            # nn.LayerNorm([latent_dim, size, size]),
             # nn.BatchNorm2d(latent_dim),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
