@@ -57,6 +57,7 @@ class UniLogitsKD(Distiller):
         self.beta = cfg.Uni.BETA
         self.class_num = cfg.Uni.CLASS_NUM
         self.latent_dim = cfg.Uni.LATENT_DIM
+        self.supp_t = cfg.Uni.SUPP_T
 
         self.hint_layer = cfg.Uni.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
@@ -72,9 +73,9 @@ class UniLogitsKD(Distiller):
                                 self.class_num)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
         # self.supp_loss = MGDLoss(100, self.mask_rate)
-        # self.feat2pro_s = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 2,
+        # self.feat2pro_s = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256,
         #                                     self.class_num)
-        # self.feat2pro_t = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 2,
+        # self.feat2pro_t = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256,
         #                                     self.class_num)
 
     def get_learnable_parameters(self):
@@ -117,8 +118,9 @@ class UniLogitsKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro(f_s)
         f_t_pro = self.feat2pro(f_t)
-        # loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.temperature)
-        loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
+        # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+        # loss_feat = self.feat_weight * F.kl_div(torch.log(f_s_pro), f_t_pro, size_average=False)
         # loss_feat = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
         #     f_s_pro,
         #     f_t_pro,
@@ -129,8 +131,8 @@ class UniLogitsKD(Distiller):
         # )
 
         loss_supp_feat2pro = self.supp_weight * (
-                kd_loss(f_s_pro, logits_student, self.temperature) + kd_loss(f_t_pro, logits_teacher,
-                                                                             self.temperature))
+                kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
+                                                                        self.supp_t))
         # loss_supp_feat2pro = self.supp_weight * \
         #     (self.supp_loss(f_s_pro, logits_student) + self.supp_loss(f_t_pro, logits_teacher))
         # loss_supp_feat2pro = self.supp_weight * \
@@ -343,3 +345,12 @@ class MGDLoss(nn.Module):
         # assert s.shape[-2:] == t.shape[-2:]
         loss = self.get_dis_loss(s, t) * self.alpha_mgd
         return loss
+
+
+def kl_divergence(p, q):
+    """
+    计算两个概率分布的KL散度
+    :param p: 第一个分布
+    :param q: 第二个分布
+    """
+    return torch.sum(p * torch.log(p / q))
