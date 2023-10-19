@@ -110,6 +110,7 @@ class UniLogitsKD(Distiller):
             self.beta,
             self.temperature,
         )
+        # gitee
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
         f_s_pro = self.feat2pro_s(f_s)
