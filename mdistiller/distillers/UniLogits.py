@@ -167,33 +167,35 @@ class featPro(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes):
         super(featPro, self).__init__()
         # self.encoder = ChannelAttentionModule(num_classes, 3, size, size)
-        # if in_channels == 2 * num_classes:
-        #     self.conv = nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=2, padding=1)
-        # elif in_channels * 2 == num_classes:
-        #     self.conv = nn.ConvTranspose2d(in_channels, num_classes, kernel_size=4, stride=2, padding=1)
-        # elif in_channels >= num_classes:
-        #     self.conv = nn.Conv2d(in_channels, num_classes, kernel_size=1)
-        # self.encoder = nn.Sequential(
-        #     self.conv,
-        #     nn.ReLU(),
-        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-        #     # nn.BatchNorm2d(in_channels),
-        #     # nn.LeakyReLU(inplace=True),
-        #     # nn.LayerNorm([in_channels, size, size]),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-        #     # nn.LayerNorm([latent_dim, size, size]),
-        #     # nn.BatchNorm2d(latent_dim),
-        #     # nn.LeakyReLU(inplace=True),
-        #     nn.ReLU(inplace=True),
-        # )
-        self.encoder = UNet(in_channels, num_classes, False)
+        if in_channels == 2 * latent_dim:
+            self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=2, padding=1)
+        elif in_channels * 2 == latent_dim:
+            self.conv = nn.ConvTranspose2d(in_channels, latent_dim, kernel_size=4, stride=2, padding=1)
+        elif in_channels >= latent_dim:
+            self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=1)
+        else:
+            self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1)
+        self.encoder = nn.Sequential(
+            self.conv,
+            nn.ReLU(),
+            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(latent_dim, latent_dim, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(in_channels),
+            # nn.LeakyReLU(inplace=True),
+            # nn.LayerNorm([in_channels, size, size]),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(latent_dim, latent_dim, kernel_size=3, stride=1, padding=1),
+            # nn.LayerNorm([latent_dim, size, size]),
+            # nn.BatchNorm2d(latent_dim),
+            # nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
+        )
+        # self.encoder = UNet(in_channels, num_classes, False)
         self.avg_pool = nn.AvgPool2d((size, size))
         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
-        # self.fc_mu = nn.Linear(in_channels, num_classes)
-        # self.fc_var = nn.Linear(in_channels, num_classes)
+        self.fc_mu = nn.Linear(latent_dim, num_classes)
+        self.fc_var = nn.Linear(latent_dim, num_classes)
         # self.conv_mu = nn.Sequential(
         #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
         #     nn.ReLU(),
@@ -212,16 +214,16 @@ class featPro(nn.Module):
         # res_var = self.conv_var(x)
         # res_mu = self.encoder(res_mu)
         # res_var = self.encoder(res_var)
-        mu, var = self.encoder(x)
-        mu = self.avg_pool(mu).view(mu.size(0), -1)
-        var = self.avg_pool(var).view(var.size(0), -1)
-        return mu, var
-        # result = self.encoder(x)
-        # # result = result.view(result.size(0), -1)
-        # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
-        # mu = self.fc_mu(res_pooled)
-        # log_var = self.fc_var(res_pooled)
-        # return mu, log_var
+        # mu, var = self.encoder(x)
+        # mu = self.avg_pool(mu).view(mu.size(0), -1)
+        # var = self.avg_pool(var).view(var.size(0), -1)
+        # return mu, var
+        result = self.encoder(x)
+        # result = result.view(result.size(0), -1)
+        res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        mu = self.fc_mu(res_pooled)
+        log_var = self.fc_var(res_pooled)
+        return mu, log_var
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var / 2)
