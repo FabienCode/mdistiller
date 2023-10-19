@@ -80,15 +80,15 @@ class UniLogitsKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
-            list(self.feat2pro.parameters())
+            list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
             num_p += p.numel()
-        # for p in self.feat2pro.parameters():
-        #     num_p += p.numel()
-        for p in self.feat2pro.parameters():
+        for p in self.feat2pro_t.parameters():
+            num_p += p.numel()
+        for p in self.feat2pro_s.parameters():
             num_p += p.numel()
         # for p in self.supp_loss.parameters():
         #     num_p += p.numel()
