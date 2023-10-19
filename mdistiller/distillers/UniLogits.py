@@ -67,10 +67,10 @@ class UniLogitsKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        # self.feat2pro_s = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
-        # self.feat2pro_t = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
-        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim,
-                                self.class_num)
+        self.feat2pro_s = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
+        self.feat2pro_t = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
+        # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim,
+        #                         self.class_num)
         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
         # self.supp_loss = MGDLoss(100, self.mask_rate)
         # self.feat2pro_s = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256,
@@ -116,8 +116,8 @@ class UniLogitsKD(Distiller):
 
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        f_s_pro = self.feat2pro(f_s)
-        f_t_pro = self.feat2pro(f_t)
+        f_s_pro = self.feat2pro_s(f_s)
+        f_t_pro = self.feat2pro_t(f_t)
         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
         # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         # loss_feat = self.feat_weight * F.kl_div(torch.log(f_s_pro), f_t_pro, size_average=False)
