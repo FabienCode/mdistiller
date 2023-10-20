@@ -83,9 +83,8 @@ class UniLogitsKD(Distiller):
                 )
             )
         self.abfs = abfs[::-1]
-        self.feat2pro_s = featPro(out_channels[-1], min(512, out_channels[-1]), self.class_num)
-        self.feat2pro_t = featPro(out_channels[-1], min(512, out_channels[-1]), self.class_num)
-
+        self.feat2pro_s = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
+        self.feat2pro_t = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
@@ -144,8 +143,8 @@ class UniLogitsKD(Distiller):
         # gitee
         # f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         # f_t = feature_teacher["feats"][self.hint_layer]
-        f_s = results[-1]
-        f_t = features_teacher[-1]
+        f_s = results[0]
+        f_t = features_teacher[0]
         f_s_pro = self.feat2pro_s(f_s)
         f_t_pro = self.feat2pro_t(f_t)
         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
@@ -370,20 +369,20 @@ class UniLogitsKD(Distiller):
 
 class featPro(nn.Module):
     # Review KD version
-    def __init__(self, in_channels, latent_dim, num_classes):
+    def __init__(self, in_channels, latent_dim, size, num_classes):
         super(featPro, self).__init__()
         self.encoder = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-            nn.Conv2d(in_channels, in_channels, kernel_size=1),
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(in_channels),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels, latent_dim, kernel_size=1),
+            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
             # nn.BatchNorm2d(latent_dim),
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
-        # self.avg_pool = nn.AvgPool2d((1, 1))
+        self.avg_pool = nn.AvgPool2d((size, size))
         self.fc_mu = nn.Linear(latent_dim, num_classes)
         self.fc_var = nn.Linear(latent_dim, num_classes)
         # self.fc_mu = nn.Sequential(
@@ -394,7 +393,7 @@ class featPro(nn.Module):
     def encode(self, x):
         result = self.encoder(x)
         # result = result.view(result.size(0), -1)
-        res_pooled = result.reshape(result.size(0), -1)
+        res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
         mu = self.fc_mu(res_pooled)
         log_var = self.fc_var(res_pooled)
         return mu, log_var
