@@ -39,7 +39,7 @@ def feature_dkd_dis_loss(feature_student, feature_teacher, target, alpha, beta, 
     loss = mask_logits_loss(mean_s, mean_t, target, alpha, beta, temperature, mask.bool())
     return loss
 
-
+# JB remote
 class UniLogitsKD(Distiller):
     """Distilling the Knowledge in a Neural Network"""
 
