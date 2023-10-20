@@ -369,10 +369,10 @@ class MGDLoss(nn.Module):
         return loss
 
 
-def kl_divergence(p, q):
-    """
-    计算两个概率分布的KL散度
-    :param p: 第一个分布
-    :param q: 第二个分布
-    """
-    return torch.sum(p * torch.log(p / q))
+# def kl_divergence(p, q):
+#     """
+#     计算两个概率分布的KL散度
+#     :param p: 第一个分布
+#     :param q: 第二个分布
+#     """
+#     return torch.sum(p * torch.log(p / q))
