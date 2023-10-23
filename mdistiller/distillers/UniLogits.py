@@ -71,6 +71,7 @@ class UniLogitsKD(Distiller):
         out_channels = cfg.Uni.OUT_CHANNELS
         self.stu_preact = cfg.Uni.STU_PREACT
         self.max_mid_channel = cfg.Uni.MAX_MID_CHANNEL
+        # origin (student) fuse module
         abfs = nn.ModuleList()
         mid_channel = min(512, in_channels[-1])
         for idx, in_channel in enumerate(in_channels):
@@ -83,16 +84,31 @@ class UniLogitsKD(Distiller):
                 )
             )
         self.abfs = abfs[::-1]
+        # teacher fuse module
+        abfs_t = nn.ModuleList()
+        for idx, in_channel in enumerate(out_channels):
+            abfs_t.append(
+                ABF(
+                    in_channel,
+                    mid_channel,
+                    out_channels[idx],
+                    idx < len(out_channels) - 1,
+                )
+            )
+        self.abfs_t = abfs_t[::-1]
+        #
         self.feat2pro_s = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
         self.feat2pro_t = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
+        return super().get_learnable_parameters() + list(self.abfs.parameters()) + list(self.abfs_t.parameters()) +\
             list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.abfs.parameters():
+            num_p += p.numel()
+        for p in self.abfs_t.parameters():
             num_p += p.numel()
         for p in self.feat2pro_t.parameters():
             num_p += p.numel()
@@ -113,11 +129,18 @@ class UniLogitsKD(Distiller):
             x = feature_student["preact_feats"] + [
                 feature_student["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
             ]
+            y = feature_teacher["preact_feats"] + [
+                feature_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
         else:
             x = feature_student["feats"] + [
                 feature_student["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
             ]
+            y = feature_teacher["feats"] + [
+                feature_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
         x = x[::-1]
+        y = y[::-1]
         results = []
         out_features, res_features = self.abfs[0](x[0], out_shape=self.out_shapes[0])
         results.append(out_features)
@@ -126,9 +149,17 @@ class UniLogitsKD(Distiller):
         ):
             out_features, res_features = abf(features, res_features, shape, out_shape)
             results.insert(0, out_features)
-        features_teacher = feature_teacher["preact_feats"][1:] + [
-            feature_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
-        ]
+        # features_teacher = feature_teacher["preact_feats"][1:] + [
+        #     feature_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+        # ]
+        results_y = []
+        out_features, res_features = self.abfs_t[0](y[0], out_shape=self.out_shapes[0])
+        results_y.append(out_features)
+        for features, abf, shape, out_shape in zip(
+                y[1:], self.abfs_t[1:], self.shapes[1:], self.out_shapes[1:]
+        ):
+            out_features, res_features = abf(features, res_features, shape, out_shape)
+            results_y.insert(0, out_features)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
@@ -144,7 +175,7 @@ class UniLogitsKD(Distiller):
         # f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         # f_t = feature_teacher["feats"][self.hint_layer]
         f_s = results[0]
-        f_t = features_teacher[0]
+        f_t = results_y[0]
         f_s_pro = self.feat2pro_s(f_s)
         f_t_pro = self.feat2pro_t(f_t)
         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
@@ -161,210 +192,6 @@ class UniLogitsKD(Distiller):
         return logits_student, losses_dict
 
 
-# class UniLogitsKD(Distiller):
-#     """Distilling the Knowledge in a Neural Network"""
-#
-#     def __init__(self, student, teacher, cfg):
-#         super(UniLogitsKD, self).__init__(student, teacher)
-#         self.temperature = cfg.Uni.TEMPERATURE
-#         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
-#         self.logits_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
-#         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
-#         self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
-#
-#         # dkd para
-#         self.warmup = cfg.Uni.WARMUP
-#         self.alpha = cfg.Uni.ALPHA
-#         self.beta = cfg.Uni.BETA
-#         self.class_num = cfg.Uni.CLASS_NUM
-#         self.latent_dim = cfg.Uni.LATENT_DIM
-#         self.supp_t = cfg.Uni.SUPP_T
-#
-#         self.hint_layer = cfg.Uni.HINT_LAYER
-#         feat_s_shapes, feat_t_shapes = get_feat_shapes(
-#             self.student, self.teacher, cfg.Uni.INPUT_SIZE
-#         )
-#
-#         self.conv_reg = ConvReg(
-#             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-#         )
-#         self.feat2pro_s = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
-#         self.feat2pro_t = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim, self.class_num)
-#         # self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], self.latent_dim,
-#         #                         self.class_num)
-#         # self.feat2pro = feat2Pro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256, 100, self.gmm_num)
-#         # self.supp_loss = MGDLoss(100, self.mask_rate)
-#         # self.feat2pro_s = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256,
-#         #                                     self.class_num)
-#         # self.feat2pro_t = Feat2ProAttention(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][2], 256,
-#         #                                     self.class_num)
-#
-#     def get_learnable_parameters(self):
-#         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
-#             list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
-#
-#     def get_extra_parameters(self):
-#         num_p = 0
-#         for p in self.conv_reg.parameters():
-#             num_p += p.numel()
-#         for p in self.feat2pro_t.parameters():
-#             num_p += p.numel()
-#         for p in self.feat2pro_s.parameters():
-#             num_p += p.numel()
-#         # for p in self.supp_loss.parameters():
-#         #     num_p += p.numel()
-#         return num_p
-#
-#     # Test
-#     def forward_train(self, image, target, **kwargs):
-#         logits_student, feature_student = self.student(image)
-#         with torch.no_grad():
-#             logits_teacher, feature_teacher = self.teacher(image)
-#
-#         # losses
-#         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-#         loss_logits = self.logits_weight * min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-#             logits_student,
-#             logits_teacher,
-#             target,
-#             self.alpha,
-#             self.beta,
-#             self.temperature,
-#         )
-#         # gitee
-#         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
-#         f_t = feature_teacher["feats"][self.hint_layer]
-#         f_s_pro = self.feat2pro_s(f_s)
-#         f_t_pro = self.feat2pro_t(f_t)
-#         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
-#         # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-#         loss_supp_feat2pro = self.supp_weight * (
-#                 kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
-#                                                                         self.supp_t))
-#         losses_dict = {
-#             "loss_ce": loss_ce,
-#             "loss_feature": loss_feat,
-#             "loss_logits": loss_logits,
-#             "loss_supp_feat2pro": loss_supp_feat2pro
-#         }
-#         return logits_student, losses_dict
-
-
-# class featPro(nn.Module):
-#     def __init__(self, in_channels, size, latent_dim, num_classes):
-#         super(featPro, self).__init__()
-#         # self.encoder = ChannelAttentionModule(num_classes, 3, size, size)
-#         if in_channels == 2 * latent_dim:
-#             self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=2, padding=1)
-#         elif in_channels * 2 == latent_dim:
-#             self.conv = nn.ConvTranspose2d(in_channels, latent_dim, kernel_size=4, stride=2, padding=1)
-#         elif in_channels >= latent_dim:
-#             self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=1)
-#         else:
-#             self.conv = nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1)
-#         self.encoder = nn.Sequential(
-#             self.conv,
-#             nn.ReLU(),
-#             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-#             nn.Conv2d(latent_dim, latent_dim, kernel_size=3, stride=1, padding=1),
-#             # nn.BatchNorm2d(in_channels),
-#             # nn.LeakyReLU(inplace=True),
-#             # nn.LayerNorm([in_channels, size, size]),
-#             nn.ReLU(inplace=True),
-#             nn.Conv2d(latent_dim, latent_dim, kernel_size=3, stride=1, padding=1),
-#             # nn.LayerNorm([latent_dim, size, size]),
-#             # nn.BatchNorm2d(latent_dim),
-#             # nn.LeakyReLU(inplace=True),
-#             nn.ReLU(inplace=True),
-#         )
-#         # self.encoder = UNet(in_channels, num_classes, False)
-#         self.avg_pool = nn.AvgPool2d((size, size))
-#         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
-#         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
-#         self.fc_mu = nn.Linear(latent_dim, num_classes)
-#         self.fc_var = nn.Linear(latent_dim, num_classes)
-#         # self.conv_mu = nn.Sequential(
-#         #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-#         #     nn.ReLU(),
-#         #     nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
-#         #     nn.ReLU()
-#         # )
-#         # self.conv_var = nn.Sequential(
-#         #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-#         #     nn.ReLU(),
-#         #     nn.Conv2d(in_channels, num_classes, kernel_size=3, stride=1, padding=1),
-#         #     nn.ReLU()
-#         # )
-#
-#     def encode(self, x):
-#         # res_mu = self.conv_mu(x)
-#         # res_var = self.conv_var(x)
-#         # res_mu = self.encoder(res_mu)
-#         # res_var = self.encoder(res_var)
-#         # mu, var = self.encoder(x)
-#         # mu = self.avg_pool(mu).view(mu.size(0), -1)
-#         # var = self.avg_pool(var).view(var.size(0), -1)
-#         # return mu, var
-#         result = self.encoder(x)
-#         # result = result.view(result.size(0), -1)
-#         res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
-#         mu = self.fc_mu(res_pooled)
-#         log_var = self.fc_var(res_pooled)
-#         return mu, log_var
-#
-#     def reparameterize(self, mu, log_var):
-#         std = torch.exp(log_var / 2)
-#         eps = torch.randn_like(std)
-#         return eps.mul(std).add_(mu)
-#
-#     def forward(self, x):
-#         mu, log_var = self.encode(x)
-#         # z = torch.cat((mu, log_var), dim=1)
-#         # z = mu + log_var
-#         z = self.reparameterize(mu, log_var)
-#         return z
-
-
-# class featPro(nn.Module):
-#     # normal version
-#     def __init__(self, in_channels, size, latent_dim, num_classes):
-#         super(featPro, self).__init__()
-#         self.encoder = nn.Sequential(
-#             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-#             nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-#             # nn.BatchNorm2d(in_channels),
-#             # nn.LeakyReLU(inplace=True),
-#             nn.ReLU(inplace=True),
-#             nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-#             # nn.BatchNorm2d(latent_dim),
-#             # nn.LeakyReLU(inplace=True),
-#             nn.ReLU(inplace=True),
-#         )
-#         self.avg_pool = nn.AvgPool2d((size, size))
-#         # self.fc_mu = nn.Linear(latent_dim * size * size, latent_dim)
-#         # self.fc_var = nn.Linear(latent_dim * size * size, latent_dim)
-#         self.fc_mu = nn.Linear(latent_dim, num_classes)
-#         self.fc_var = nn.Linear(latent_dim, num_classes)
-#
-#     def encode(self, x):
-#         result = self.encoder(x)
-#         # result = result.view(result.size(0), -1)
-#         res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
-#         mu = self.fc_mu(res_pooled)
-#         log_var = self.fc_var(res_pooled)
-#         return mu, log_var
-#
-#     def reparameterize(self, mu, log_var):
-#         std = torch.exp(log_var / 2)
-#         eps = torch.randn_like(std)
-#         return eps.mul(std).add_(mu)
-#
-#     def forward(self, x):
-#         mu, log_var = self.encode(x)
-#         # z = torch.cat((mu, log_var), dim=1)
-#         # z = mu + log_var
-#         z = self.reparameterize(mu, log_var)
-#         return z
 
 
 class featPro(nn.Module):
@@ -523,12 +350,14 @@ class ABF(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channel, mid_channel, kernel_size=1, bias=False),
             nn.BatchNorm2d(mid_channel),
+            nn.ReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d(
                 mid_channel, out_channel, kernel_size=3, stride=1, padding=1, bias=False
             ),
             nn.BatchNorm2d(out_channel),
+            nn.ReLU(),
         )
         if fuse:
             self.att_conv = nn.Sequential(
