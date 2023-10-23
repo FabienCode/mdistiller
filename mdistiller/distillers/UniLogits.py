@@ -349,14 +349,14 @@ class ABF(nn.Module):
         super(ABF, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channel, mid_channel, kernel_size=1, bias=False),
-            nn.BatchNorm2d(mid_channel),
+            # nn.BatchNorm2d(mid_channel),
             nn.ReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d(
                 mid_channel, out_channel, kernel_size=3, stride=1, padding=1, bias=False
             ),
-            nn.BatchNorm2d(out_channel),
+            # nn.BatchNorm2d(out_channel),
             nn.ReLU(),
         )
         if fuse:
