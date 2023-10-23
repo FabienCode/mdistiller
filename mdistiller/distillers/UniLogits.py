@@ -350,7 +350,7 @@ class ABF(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channel, mid_channel, kernel_size=1, bias=False),
             # nn.BatchNorm2d(mid_channel),
-            # nn.ReLU(),
+            nn.ReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d(
