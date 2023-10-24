@@ -540,8 +540,8 @@ class ABF(nn.Module):
             )
         else:
             self.att_conv = None
-        nn.init.kaiming_uniform_(self.conv1[0].weight, a=1)  # pyre-ignore
-        nn.init.kaiming_uniform_(self.conv2[0].weight, a=1)  # pyre-ignore
+        # nn.init.kaiming_uniform_(self.conv1[0].weight, a=1)  # pyre-ignore
+        # nn.init.kaiming_uniform_(self.conv2[0].weight, a=1)  # pyre-ignore
 
     def forward(self, x, y=None, shape=None, out_shape=None):
         n, _, h, w = x.shape
