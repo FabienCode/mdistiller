@@ -311,10 +311,6 @@ class RCNNKD(nn.Module):
             f_s_pro = self.feat2pro(f_s)
             f_t_pro = self.feat2pro(f_t)
             losses['feat2pro'] = self.kd_args.REVIEWKD.LOSS_WEIGHT * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
-            # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
-            # loss_supp_feat2pro = self.supp_weight * (
-                    # kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
-                    #                                                     self.supp_t))
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
