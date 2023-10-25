@@ -19,6 +19,7 @@ from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from mdistiller.distillers.DKD import dkd_loss
 from mdistiller.engine.kd_loss import mask_logits_loss
 from mdistiller.engine.area_utils import AreaDetection, extract_regions, RegKD_pred
+from mdistiller.distillers.UniLogits import featPro
 
 from .teacher import build_teacher
 from .reviewkd import build_kd_trans, hcl
@@ -107,11 +108,11 @@ class RCNNKD(nn.Module):
         self.roi_heads = roi_heads
         self.teacher = teacher
         self.kd_args = kd_args
-        # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "RegKD"):
-        #     self.kd_trans = build_kd_trans(self.kd_args)
-        self.area_det = RegKD_pred(256, 256, 2, 81)
-        self.channel_mask = 0.95
-        self.conv_reg = ConvReg(256, 256)
+        if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "UniKD"):
+            self.kd_trans = build_kd_trans(self.kd_args)
+        # self.area_det = RegKD_pred(256, 256, 2, 81)
+        # self.channel_mask = 0.95
+        # self.conv_reg = ConvReg(256, 256)
 
         self.input_format = input_format
         self.teacher_input_format = teacher_input_format
@@ -126,6 +127,9 @@ class RCNNKD(nn.Module):
         assert (
                 self.pixel_mean.shape == self.pixel_std.shape
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
+
+        # UniKD module
+        # self.feat2pro = featPro(256, 256, 81)
 
     @classmethod
     def from_config(cls, cfg):
@@ -289,6 +293,20 @@ class RCNNKD(nn.Module):
             losses['loss_area'] = 1 * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1),
                                                    torch.cat((t_heat_map, t_wh, t_offset,), dim=1))
             losses['loss_thresh'] = F.mse_loss(s_thresh, t_thresh)
+        elif self.kd_args.TYPE == "UniKD":
+            teacher_images = self.teacher_preprocess_image(batched_inputs)
+            t_features = self.teacher.backbone(teacher_images.tensor)
+            # dkd loss
+            stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
+            tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
+            detector_losses.update(rcnn_dkd_loss(
+                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
+                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
+            # reviewkd loss
+            t_features = [t_features[f] for f in t_features]
+            s_features = [features[f] for f in features]
+            s_features = self.kd_trans(s_features)
+            losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
