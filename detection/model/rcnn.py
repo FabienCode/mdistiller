@@ -19,7 +19,6 @@ from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from mdistiller.distillers.DKD import dkd_loss
 from mdistiller.engine.kd_loss import mask_logits_loss
 from mdistiller.engine.area_utils import AreaDetection, extract_regions, RegKD_pred
-from mdistiller.distillers.UniLogits import featPro
 
 from .teacher import build_teacher
 from .reviewkd import build_kd_trans, hcl
@@ -129,7 +128,7 @@ class RCNNKD(nn.Module):
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
 
         # UniKD module
-        # self.feat2pro = featPro(256, 256, 81)
+        self.feat2pro = featPro(256, 256, 200, 184, 81)
 
     @classmethod
     def from_config(cls, cfg):
@@ -306,7 +305,16 @@ class RCNNKD(nn.Module):
             t_features = [t_features[f] for f in t_features]
             s_features = [features[f] for f in features]
             s_features = self.kd_trans(s_features)
-            losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
+            # losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
+            f_s = s_features[0]
+            f_t = t_features[0]
+            f_s_pro = self.feat2pro(f_s)
+            f_t_pro = self.feat2pro(f_t)
+            losses['feat2pro'] = self.kd_args.REVIEWKD.LOSS_WEIGHT * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
+            # loss_supp_feat2pro = self.supp_weight * (
+                    # kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
+                    #                                                     self.supp_t))
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
@@ -469,4 +477,59 @@ def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
     loss_kd *= temperature**2
+    return loss_kd
+
+
+class featPro(nn.Module):
+    # Review KD version
+    def __init__(self, in_channels, latent_dim, h, w, num_classes):
+        super(featPro, self).__init__()
+        self.encoder = nn.Sequential(
+            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(in_channels),
+            # nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(latent_dim),
+            # nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
+        )
+        self.avg_pool = nn.AvgPool2d((h, w))
+        self.fc_mu = nn.Linear(latent_dim, num_classes)
+        self.fc_var = nn.Linear(latent_dim, num_classes)
+        # self.fc_mu = nn.Sequential(
+        #     nn.Linear(in_channels, latent_dim),
+        #     nn.Linear(latent_dim, num_classes)
+        # )
+
+    def encode(self, x):
+        result = self.encoder(x)
+        b,c,h,w = result.shape
+        res_pooled = F.avg_pool2d(result, (h,w)).reshape(result.size(0), -1)
+        # res_pooled = F.adaptive_avg_pool2d((h,w)).reshape(result.size(0), -1)
+        # # result = result.view(result.size(0), -1)
+        # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        mu = self.fc_mu(res_pooled)
+        log_var = self.fc_var(res_pooled)
+        return mu, log_var
+
+    def reparameterize(self, mu, log_var):
+        std = torch.exp(log_var / 2)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)
+
+    def forward(self, x):
+        mu, log_var = self.encode(x)
+        # z = torch.cat((mu, log_var), dim=1)
+        # z = mu + log_var
+        z = self.reparameterize(mu, log_var)
+        return z
+
+
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature ** 2
     return loss_kd
