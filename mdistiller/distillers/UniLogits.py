@@ -84,21 +84,23 @@ class UniLogitsKD(Distiller):
                 )
             )
         self.abfs = abfs[::-1]
-        self.feat2pro_s = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
-        self.feat2pro_t = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
+        self.feat2pro = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
+        # self.feat2pro_s = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
+        # self.feat2pro_t = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
-            list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
+            list(self.feat2pro.parameters())
+
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.abfs.parameters():
             num_p += p.numel()
-        for p in self.feat2pro_t.parameters():
+        for p in self.feat2pro.parameters():
             num_p += p.numel()
-        for p in self.feat2pro_s.parameters():
-            num_p += p.numel()
+        # for p in self.feat2pro_s.parameters():
+        #     num_p += p.numel()
         # for p in self.supp_loss.parameters():
         #     num_p += p.numel()
         return num_p
@@ -146,8 +148,8 @@ class UniLogitsKD(Distiller):
         # f_t = feature_teacher["feats"][self.hint_layer]
         f_s = results[0]
         f_t = features_teacher[0]
-        f_s_pro = self.feat2pro_s(f_s)
-        f_t_pro = self.feat2pro_t(f_t)
+        f_s_pro = self.feat2pro(f_s)
+        f_t_pro = self.feat2pro(f_t)
         loss_feat = self.feat_weight * kd_loss(f_s_pro, f_t_pro, self.supp_t)
         # loss_feat = self.feat_weight * F.mse_loss(f_s_pro, f_t_pro)
         loss_supp_feat2pro = self.supp_weight * (
