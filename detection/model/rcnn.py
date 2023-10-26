@@ -311,7 +311,7 @@ class RCNNKD(nn.Module):
             f_t = t_features[0]
             f_s_pro = self.feat2pro_s(f_s)
             f_t_pro = self.feat2pro_t(f_t)
-            losses['loss_feat2pro'] = 0.1 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            losses['loss_feat2pro'] = 0.01 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
