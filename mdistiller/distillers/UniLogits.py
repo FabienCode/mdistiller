@@ -403,7 +403,7 @@ class featPro(nn.Module):
         # )
 
     def encode(self, x):
-        # result = self.layernorm(self.feature_adapt(x))
+        # x = self.layernorm(self.feature_adapt(x))
         # result = self.encoder(x)
         # result = result.view(result.size(0), -1)
         res_pooled = self.avg_pool(x).reshape(x.size(0), -1)
