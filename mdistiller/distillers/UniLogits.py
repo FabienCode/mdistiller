@@ -521,7 +521,7 @@ class MGDLoss(nn.Module):
         return loss
 
 
-# v1
+# v2
 class ABF(nn.Module):
     def __init__(self, in_channel, mid_channel, out_channel, fuse):
         super(ABF, self).__init__()
