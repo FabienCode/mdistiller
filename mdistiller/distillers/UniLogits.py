@@ -86,8 +86,8 @@ class UniLogitsKD(Distiller):
         self.abfs = abfs[::-1]
         # self.feat2pro = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
 
-        self.feat2pro_s = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
-        self.feat2pro_t = featPro(out_channels[0], min(256, out_channels[-1]), self.shapes[-1], self.class_num)
+        self.feat2pro_s = featPro(out_channels[0], 128, self.shapes[-1], self.class_num)
+        self.feat2pro_t = featPro(out_channels[0], 128, self.shapes[-1], self.class_num)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
