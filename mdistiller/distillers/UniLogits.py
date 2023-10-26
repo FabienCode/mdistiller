@@ -375,27 +375,36 @@ class featPro(nn.Module):
     # Review KD version
     def __init__(self, in_channels, latent_dim, size, num_classes):
         super(featPro, self).__init__()
-        self.encoder = nn.Sequential(
-            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
+        # self.encoder = nn.Sequential(
+        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(in_channels),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(latent_dim),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        # )
+        self.feature_adapt = nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
         )
+        self.layernorm = nn.GroupNorm(num_groups=1, num_channels=in_channels, affine=False)
         self.avg_pool = nn.AvgPool2d((size, size))
-        self.fc_mu = nn.Linear(latent_dim, num_classes)
-        self.fc_var = nn.Linear(latent_dim, num_classes)
+        self.fc_mu = nn.Linear(in_channels, num_classes)
+        self.fc_var = nn.Linear(in_channels, num_classes)
         # self.fc_mu = nn.Sequential(
         #     nn.Linear(in_channels, latent_dim),
         #     nn.Linear(latent_dim, num_classes)
         # )
 
     def encode(self, x):
-        result = self.encoder(x)
+        result = self.layernorm(self.feature_adapt(x))
+        # result = self.encoder(x)
         # result = result.view(result.size(0), -1)
         res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
         mu = self.fc_mu(res_pooled)
