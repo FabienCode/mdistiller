@@ -386,14 +386,14 @@ class featPro(nn.Module):
         #     # nn.LeakyReLU(inplace=True),
         #     nn.ReLU(inplace=True),
         # )
-        self.feature_adapt = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
-                nn.ReLU(),
-                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
-                nn.ReLU(),
-                nn.Conv2d(in_channels, in_channels, 3, 1, 1),
-        )
-        self.layernorm = nn.GroupNorm(num_groups=1, num_channels=in_channels, affine=False)
+        # self.feature_adapt = nn.Sequential(
+        #         nn.Conv2d(in_channels, in_channels, 3, 1, 1),
+        #         nn.ReLU(),
+        #         nn.Conv2d(in_channels, in_channels, 3, 1, 1),
+        #         nn.ReLU(),
+        #         nn.Conv2d(in_channels, in_channels, 3, 1, 1),
+        # )
+        # self.layernorm = nn.GroupNorm(num_groups=1, num_channels=in_channels, affine=False)
         self.avg_pool = nn.AvgPool2d((size, size))
         self.fc_mu = nn.Linear(in_channels, num_classes)
         self.fc_var = nn.Linear(in_channels, num_classes)
@@ -403,10 +403,10 @@ class featPro(nn.Module):
         # )
 
     def encode(self, x):
-        result = self.layernorm(self.feature_adapt(x))
+        # result = self.layernorm(self.feature_adapt(x))
         # result = self.encoder(x)
         # result = result.view(result.size(0), -1)
-        res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        res_pooled = self.avg_pool(x).reshape(x.size(0), -1)
         mu = self.fc_mu(res_pooled)
         log_var = self.fc_var(res_pooled)
         return mu, log_var
