@@ -128,7 +128,8 @@ class RCNNKD(nn.Module):
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
 
         # UniKD module
-        self.feat2pro = featPro(256, 256, 200, 184, 81)
+        self.feat2pro_s = featPro(256, 256, 200, 184, 81)
+        self.feat2pro_t = featPro(256, 256, 200, 184, 81)
 
     @classmethod
     def from_config(cls, cfg):
@@ -308,8 +309,8 @@ class RCNNKD(nn.Module):
             # losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
             f_s = s_features[0]
             f_t = t_features[0]
-            f_s_pro = self.feat2pro(f_s)
-            f_t_pro = self.feat2pro(f_t)
+            f_s_pro = self.feat2pro_s(f_s)
+            f_t_pro = self.feat2pro_t(f_t)
             losses['loss_feat2pro'] = 0.1 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
         else:
             raise NotImplementedError(self.kd_args.TYPE)
