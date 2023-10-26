@@ -530,4 +530,3 @@ def kd_loss(logits_student, logits_teacher, temperature):
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
     loss_kd *= temperature ** 2
     return loss_kd
-# v1
