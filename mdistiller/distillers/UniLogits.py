@@ -521,6 +521,7 @@ class MGDLoss(nn.Module):
         return loss
 
 
+# v1
 class ABF(nn.Module):
     def __init__(self, in_channel, mid_channel, out_channel, fuse):
         super(ABF, self).__init__()
@@ -562,4 +563,3 @@ class ABF(nn.Module):
             x = F.interpolate(x, (out_shape, out_shape), mode="nearest")
         y = self.conv2(x)
         return y, x
-#test 1
