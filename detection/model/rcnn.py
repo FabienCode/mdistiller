@@ -107,8 +107,8 @@ class RCNNKD(nn.Module):
         self.roi_heads = roi_heads
         self.teacher = teacher
         self.kd_args = kd_args
-        if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "UniKD"):
-            self.kd_trans = build_kd_trans(self.kd_args)
+        # if self.kd_args.TYPE in ("ReviewKD", "ReviewDKD", "UniKD"):
+        #     self.kd_trans = build_kd_trans(self.kd_args)
         # self.area_det = RegKD_pred(256, 256, 2, 81)
         # self.channel_mask = 0.95
         # self.conv_reg = ConvReg(256, 256)
@@ -128,8 +128,8 @@ class RCNNKD(nn.Module):
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
 
         # UniKD module
-        self.feat2pro_s = featPro(256, 256, 200, 184, 81)
-        self.feat2pro_t = featPro(256, 256, 200, 184, 81)
+        self.feat2pro_s = featPro(256, 512, 1024)
+        self.feat2pro_t = featPro(256, 512, 1024)
 
     @classmethod
     def from_config(cls, cfg):
@@ -192,9 +192,10 @@ class RCNNKD(nn.Module):
     def forward_pure_roi_head(self, roi_head, features, proposals):
         features = [features[f] for f in roi_head.box_in_features]
         box_features = roi_head.box_pooler(features, [x.proposal_boxes for x in proposals])
+        box_feature_full = box_features
         box_features = roi_head.box_head(box_features)
         predictions = roi_head.box_predictor(box_features)
-        return predictions
+        return box_feature_full, box_features, predictions
 
     def forward(self, batched_inputs: Tuple[Dict[str, torch.Tensor]]):
         """
@@ -258,8 +259,8 @@ class RCNNKD(nn.Module):
             teacher_images = self.teacher_preprocess_image(batched_inputs)
             t_features = self.teacher.backbone(teacher_images.tensor)
             # dkd loss
-            stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
-            tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
+            box_full_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
+            box_full_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
@@ -297,21 +298,29 @@ class RCNNKD(nn.Module):
             teacher_images = self.teacher_preprocess_image(batched_inputs)
             t_features = self.teacher.backbone(teacher_images.tensor)
             # dkd loss
-            stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
-            tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
+            box_full_feature_s, gt_box_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
+            box_full_feature_t, gt_box_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
                 self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
             # reviewkd loss
-            t_features = [t_features[f] for f in t_features]
-            s_features = [features[f] for f in features]
-            s_features = self.kd_trans(s_features)
+            # t_features = box_full_feature_s
+            # s_features = box_full_feature_t
+            # s_features = self.kd_trans(s_features)
             # losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
-            f_s = s_features[0]
-            f_t = t_features[0]
-            f_s_pro = self.feat2pro_s(f_s)
-            f_t_pro = self.feat2pro_t(f_t)
+            # f_s = s_features[0]
+            # f_t = t_features[0]
+            f_s_pro = self.feat2pro_s(box_full_feature_s)
+            f_t_pro = self.feat2pro_t(box_full_feature_t)
             losses['loss_feat2pro'] = 0.01 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            # losses['loss_supp'] = 0.1 * (kd_loss(f_s_pro, gt_box_feature_s, self.kd_args.DKD.T) + kd_loss(f_t_pro, gt_box_feature_t, self.kd_args.DKD.T))
+            # with torch.no_grad():
+            supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
+            supp_pre_t = self.roi_heads.box_predictor(f_t_pro)
+            loss_supp = 0
+            for i in range(2):
+                loss_supp += 0.1 * (kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i], tea_predictions[i], self.kd_args.DKD.T))
+            losses['loss_supp'] = loss_supp
         else:
             raise NotImplementedError(self.kd_args.TYPE)
         if self.vis_period > 0:
@@ -479,7 +488,7 @@ def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
 
 class featPro(nn.Module):
     # Review KD version
-    def __init__(self, in_channels, latent_dim, h, w, num_classes):
+    def __init__(self, in_channels, latent_dim, num_classes):
         super(featPro, self).__init__()
         self.encoder = nn.Sequential(
             # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
@@ -492,7 +501,6 @@ class featPro(nn.Module):
             # nn.LeakyReLU(inplace=True),
             nn.ReLU(inplace=True),
         )
-        self.avg_pool = nn.AvgPool2d((h, w))
         self.fc_mu = nn.Linear(latent_dim, num_classes)
         self.fc_var = nn.Linear(latent_dim, num_classes)
         # self.fc_mu = nn.Sequential(
