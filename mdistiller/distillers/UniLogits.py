@@ -93,7 +93,6 @@ class UniLogitsKD(Distiller):
         return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
             list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
 
-
     def get_extra_parameters(self):
         num_p = 0
         for p in self.abfs.parameters():
@@ -126,7 +125,7 @@ class UniLogitsKD(Distiller):
         out_features, res_features = self.abfs[0](x[0], out_shape=self.out_shapes[0])
         results.append(out_features)
         for features, abf, shape, out_shape in zip(
-            x[1:], self.abfs[1:], self.shapes[1:], self.out_shapes[1:]
+                x[1:], self.abfs[1:], self.shapes[1:], self.out_shapes[1:]
         ):
             out_features, res_features = abf(features, res_features, shape, out_shape)
             results.insert(0, out_features)
@@ -422,6 +421,7 @@ class featPro(nn.Module):
         # z = mu + log_var
         z = self.reparameterize(mu, log_var)
         return z
+
 
 class GaussianMixtureLayer(nn.Module):
     def __init__(self, in_channels, size, latent_dim, num_classes, num_gaussians):
