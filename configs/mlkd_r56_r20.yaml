@@ -3,7 +3,7 @@ EXPERIMENT:
   TAG: "kd_ours,res56,res20"
   PROJECT: "cifar100_baselines"
 DISTILLER:
-  TYPE: "KD_ours"
+  TYPE: "MLKD"
   TEACHER: "resnet56"
   STUDENT: "resnet20"
 SOLVER:
