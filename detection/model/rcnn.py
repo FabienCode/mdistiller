@@ -26,14 +26,16 @@ from .reviewkd import build_kd_trans, hcl
 __all__ = ["RCNNKD", "ProposalNetwork"]
 
 
-def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature):
+def rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature, weight=1.0):
     stu_logits, stu_bbox_offsets = stu_predictions
     tea_logits, tea_bbox_offsets = tea_predictions
     gt_classes = torch.cat(tuple(gt_classes), 0).reshape(-1)
     loss_dkd = dkd_loss(stu_logits, tea_logits, gt_classes, alpha, beta, temperature)
     return {
-        'loss_dkd': loss_dkd,
+        'loss_dkd': weight * loss_dkd,
     }
+
+
 def dlm_rcnn_dkd_loss(stu_predictions, tea_predictions, gt_classes, alpha, beta, temperature):
     stu_logits, stu_bbox_offsets = stu_predictions
     tea_logits, tea_bbox_offsets = tea_predictions
@@ -56,10 +58,10 @@ def aaloss(feature_student,
     return loss
 
 
-def reg_logits_loss(stu_predictions, tea_predictions,temperature, mask=None):
+def reg_logits_loss(stu_predictions, tea_predictions, temperature, mask=None):
     stu_logits, stu_bbox_offsets = stu_predictions
     tea_logits, tea_bbox_offsets = tea_predictions
-    loss_reg_cls_kd = mask_kd_loss(stu_logits, tea_logits,  temperature, mask=mask)
+    loss_reg_cls_kd = mask_kd_loss(stu_logits, tea_logits, temperature, mask=mask)
     return {
         'loss_reg_cls': loss_reg_cls_kd,
     }
@@ -128,8 +130,8 @@ class RCNNKD(nn.Module):
         ), f"{self.pixel_mean} and {self.pixel_std} have different shapes!"
 
         # UniKD module
-        self.feat2pro_s = featPro(256, 512, 1024)
-        self.feat2pro_t = featPro(256, 512, 1024)
+        self.feat2pro_s = featPro(256, 1024)
+        self.feat2pro_t = featPro(256, 1024)
 
     @classmethod
     def from_config(cls, cfg):
@@ -255,20 +257,22 @@ class RCNNKD(nn.Module):
             s_features = [features[f] for f in features]
             s_features = self.kd_trans(s_features)
             losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
-        elif self.kd_args.TYPE == "ReviewDKD":
-            teacher_images = self.teacher_preprocess_image(batched_inputs)
-            t_features = self.teacher.backbone(teacher_images.tensor)
-            # dkd loss
-            box_full_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
-            box_full_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
-            detector_losses.update(rcnn_dkd_loss(
-                stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
-                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
-            # reviewkd loss
-            t_features = [t_features[f] for f in t_features]
-            s_features = [features[f] for f in features]
-            s_features = self.kd_trans(s_features)
-            losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
+        # elif self.kd_args.TYPE == "ReviewDKD":
+        #     teacher_images = self.teacher_preprocess_image(batched_inputs)
+        #     t_features = self.teacher.backbone(teacher_images.tensor)
+        #     # dkd loss
+        #     box_full_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features,
+        #                                                                      sampled_proposals)
+        #     box_full_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features,
+        #                                                                      sampled_proposals)
+        #     detector_losses.update(rcnn_dkd_loss(
+        #         stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
+        #         self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
+        #     # reviewkd loss
+        #     t_features = [t_features[f] for f in t_features]
+        #     s_features = [features[f] for f in features]
+        #     s_features = self.kd_trans(s_features)
+        #     losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
         elif self.kd_args.TYPE == "RegKD":
             teacher_images = self.teacher_preprocess_image(batched_inputs)
             t_features = self.teacher.backbone(teacher_images.tensor)
@@ -292,17 +296,20 @@ class RCNNKD(nn.Module):
             loss_regkd = 2 * aaloss(f_s, t_features[-1], mask, scores)
             losses['loss_regkd'] = loss_regkd
             losses['loss_area'] = 1 * F.mse_loss(torch.cat((heat_map, wh, offset), dim=1),
-                                                   torch.cat((t_heat_map, t_wh, t_offset,), dim=1))
+                                                 torch.cat((t_heat_map, t_wh, t_offset,), dim=1))
             losses['loss_thresh'] = F.mse_loss(s_thresh, t_thresh)
         elif self.kd_args.TYPE == "UniKD":
             teacher_images = self.teacher_preprocess_image(batched_inputs)
             t_features = self.teacher.backbone(teacher_images.tensor)
             # dkd loss
-            box_full_feature_s, gt_box_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features, sampled_proposals)
-            box_full_feature_t, gt_box_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads, t_features, sampled_proposals)
+            box_full_feature_s, gt_box_feature_s, stu_predictions = self.forward_pure_roi_head(self.roi_heads, features,
+                                                                                               sampled_proposals)
+            box_full_feature_t, gt_box_feature_t, tea_predictions = self.forward_pure_roi_head(self.teacher.roi_heads,
+                                                                                               t_features,
+                                                                                               sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
-                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T))
+                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, 0.1))
             # reviewkd loss
             # t_features = box_full_feature_s
             # s_features = box_full_feature_t
@@ -312,14 +319,17 @@ class RCNNKD(nn.Module):
             # f_t = t_features[0]
             f_s_pro = self.feat2pro_s(box_full_feature_s)
             f_t_pro = self.feat2pro_t(box_full_feature_t)
-            losses['loss_feat2pro'] = 0.01 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            losses['loss_feat2pro'] = 0.1 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
             # losses['loss_supp'] = 0.1 * (kd_loss(f_s_pro, gt_box_feature_s, self.kd_args.DKD.T) + kd_loss(f_t_pro, gt_box_feature_t, self.kd_args.DKD.T))
             with torch.no_grad():
                 supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
                 supp_pre_t = self.roi_heads.box_predictor(f_t_pro)
             loss_supp = 0
             for i in range(2):
-                loss_supp += 0.1 * (kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i], tea_predictions[i], self.kd_args.DKD.T))
+                loss_supp += 0.1 * (
+                        kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i],
+                                                                                                 tea_predictions[i],
+                                                                                                 self.kd_args.DKD.T))
             losses['loss_supp'] = loss_supp
         else:
             raise NotImplementedError(self.kd_args.TYPE)
@@ -475,6 +485,7 @@ class ConvReg(nn.Module):
         else:
             return self.bn3(x)
 
+
 def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
     if mask is not None:
         logits_student = logits_student * mask
@@ -482,36 +493,36 @@ def mask_kd_loss(logits_student, logits_teacher, temperature, mask=None):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
-    loss_kd *= temperature**2
+    loss_kd *= temperature ** 2
     return loss_kd
 
 
 class featPro(nn.Module):
     # Review KD version
-    def __init__(self, in_channels, latent_dim, num_classes):
+    def __init__(self, in_channels, num_classes):
         super(featPro, self).__init__()
-        self.encoder = nn.Sequential(
-            # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
-            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm2d(in_channels),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(inplace=True),
-            nn.ReLU(inplace=True),
-        )
-        self.fc_mu = nn.Linear(latent_dim, num_classes)
-        self.fc_var = nn.Linear(latent_dim, num_classes)
+        # self.encoder = nn.Sequential(
+        #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),
+        #     nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
+        #     # nn.BatchNorm2d(in_channels),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        #     nn.Conv2d(in_channels, latent_dim, kernel_size=3, stride=1, padding=1),
+        #     # nn.BatchNorm2d(latent_dim),
+        #     # nn.LeakyReLU(inplace=True),
+        #     nn.ReLU(inplace=True),
+        # )
+        self.fc_mu = nn.Linear(in_channels, num_classes)
+        self.fc_var = nn.Linear(in_channels, num_classes)
         # self.fc_mu = nn.Sequential(
         #     nn.Linear(in_channels, latent_dim),
         #     nn.Linear(latent_dim, num_classes)
         # )
 
     def encode(self, x):
-        result = self.encoder(x)
-        b,c,h,w = result.shape
-        res_pooled = F.avg_pool2d(result, (h,w)).reshape(result.size(0), -1)
+        # result = self.encoder(x)
+        b, c, h, w = x.shape
+        res_pooled = F.avg_pool2d(x, (h, w)).reshape(x.size(0), -1)
         # res_pooled = F.adaptive_avg_pool2d((h,w)).reshape(result.size(0), -1)
         # # result = result.view(result.size(0), -1)
         # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
