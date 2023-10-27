@@ -25,14 +25,14 @@ def main(cfg, resume, opts):
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
     experiment_name = os.path.join(cfg.EXPERIMENT.PROJECT, experiment_name)
-    if cfg.LOG.WANDB:
+    if cfg.log_wandb:
         try:
             import wandb
 
             wandb.init(project=cfg.EXPERIMENT.PROJECT, name=experiment_name, tags=tags)
         except:
             print(log_msg("Failed to use WANDB", "INFO"))
-            cfg.LOG.WANDB = False
+            cfg.log_wandb = False
 
     # cfg & loggers
     show_cfg(cfg)
@@ -96,11 +96,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("training for knowledge distillation.")
     parser.add_argument("--cfg", type=str, default="")
+    parser.add_argument("--log_wandb", type=str, default=True)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
+    cfg.log_wandb = args.log_wandb.lower() == "true"
     cfg.freeze()
     main(cfg, args.resume, args.opts)
