@@ -21,6 +21,7 @@ from .RegKD import RegKD
 from .RegKD_KR import RegKD_KR
 from .UniLogits import UniLogitsKD
 from .UniLogits_single import UniLogitsKD_single
+from .MLKD import MLKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -45,5 +46,6 @@ distiller_dict = {
     "RegKD": RegKD,
     "RegKD_KR": RegKD_KR,
     "UniLogitsKD": UniLogitsKD,
-    "UniLogitsKD_single": UniLogitsKD_single
+    "UniLogitsKD_single": UniLogitsKD_single,
+    "MLKD": MLKD,
 }
