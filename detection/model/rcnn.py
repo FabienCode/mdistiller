@@ -309,7 +309,7 @@ class RCNNKD(nn.Module):
                                                                                                sampled_proposals)
             detector_losses.update(rcnn_dkd_loss(
                 stu_predictions, tea_predictions, [x.gt_classes for x in sampled_proposals],
-                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, 0.1))
+                self.kd_args.DKD.ALPHA, self.kd_args.DKD.BETA, self.kd_args.DKD.T, 1.0))
             # reviewkd loss
             # t_features = box_full_feature_s
             # s_features = box_full_feature_t
@@ -319,7 +319,7 @@ class RCNNKD(nn.Module):
             # f_t = t_features[0]
             f_s_pro = self.feat2pro_s(box_full_feature_s)
             f_t_pro = self.feat2pro_t(box_full_feature_t)
-            losses['loss_feat2pro'] = 0.1 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            losses['loss_feat2pro'] = 1.0 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
             # losses['loss_supp'] = 0.1 * (kd_loss(f_s_pro, gt_box_feature_s, self.kd_args.DKD.T) + kd_loss(f_t_pro, gt_box_feature_t, self.kd_args.DKD.T))
             with torch.no_grad():
                 supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
