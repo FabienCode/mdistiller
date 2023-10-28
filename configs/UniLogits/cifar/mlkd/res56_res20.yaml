@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "kd_ours,res56,res20"
+  TAG: "UniML&KR,res56,res20"
   PROJECT: "cifar100_baselines"
 DISTILLER:
   TYPE: "UniMLKD"
