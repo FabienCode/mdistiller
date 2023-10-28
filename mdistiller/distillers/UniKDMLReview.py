@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from ._base import Distiller
-
+from .UniLogits import ABF, featPro
 
 def kd_loss(logits_student, logits_teacher, temperature, reduce=True):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
@@ -78,19 +78,43 @@ def mixup_data_conf(x, y, lam, use_cuda=True):
     return mixed_x, y_a, y_b, lam
 
 
-class MLKD(Distiller):
+class UniMLKD(Distiller):
     def __init__(self, student, teacher, cfg):
-        super(MLKD, self).__init__(student, teacher)
+        super(UniMLKD, self).__init__(student, teacher)
         self.temperature = cfg.Uni.TEMPERATURE
         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
         self.kd_loss_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
+        self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
+        self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
+
+        # feat2pro config
+        self.shapes = cfg.Uni.SHAPES
+        self.out_shapes = cfg.Uni.OUT_SHAPES
+        in_channels = cfg.Uni.IN_CHANNELS
+        out_channels = cfg.Uni.OUT_CHANNELS
+        self.class_num = cfg.Uni.CLASS_NUM
+        self.stu_preact = cfg.Uni.STU_PREACT
+        abfs = nn.ModuleList()
+        mid_channel = min(512, in_channels[-1])
+        for idx, in_channel in enumerate(in_channels):
+            abfs.append(
+                ABF(
+                    in_channel,
+                    mid_channel,
+                    out_channels[idx],
+                    idx < len(in_channels) - 1,
+                )
+            )
+        self.abfs = abfs[::-1]
+        self.feat2pro_s = featPro(out_channels[0], 512, self.shapes[-1], self.class_num)
+        self.feat2pro_t = featPro(out_channels[0], 512, self.shapes[-1], self.class_num)
 
     def forward_train(self, image_weak, image_strong, target, **kwargs):
-        logits_student_weak, _ = self.student(image_weak)
-        logits_student_strong, _ = self.student(image_strong)
+        logits_student_weak, feature_student_weak = self.student(image_weak)
+        logits_student_strong, feature_student_strong = self.student(image_strong)
         with torch.no_grad():
-            logits_teacher_weak, _ = self.teacher(image_weak)
-            logits_teacher_strong, _ = self.teacher(image_strong)
+            logits_teacher_weak, feature_teacher_weak = self.teacher(image_weak)
+            logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         batch_size, class_num = logits_student_strong.shape
 
@@ -248,10 +272,91 @@ class MLKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd_weak + loss_kd_strong,
-            "loss_cc": loss_cc_weak,
+            "loss_cc": loss_cc_weak + loss_cc_strong,
             "loss_bc": loss_bc_weak + loss_bc_strong
         }
+
+        # get features
+        if self.stu_preact:
+            x_weak = feature_student_weak["preact_feats"] + [
+                feature_student_weak["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
+            x_strong = feature_student_strong["preact_feats"] + [
+                feature_student_strong["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
+        else:
+            x_weak = feature_student_weak["feats"] + [
+                feature_student_weak["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
+            x_strong = feature_student_strong["feats"] + [
+                feature_student_strong["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+            ]
+        x_weak = x_weak[::-1]
+        x_strong = x_strong[::-1]
+        results_weak = []
+        out_features_weak, res_features_weak = self.abfs[0](x_weak[0], out_shape=self.out_shapes[0])
+        results_weak.append(out_features_weak)
+        for features, abf, shape, out_shape in zip(
+                x_weak[1:], self.abfs[1:], self.shapes[1:], self.out_shapes[1:]
+        ):
+            out_features, res_features = abf(features, res_features_weak, shape, out_shape)
+            results_weak.insert(0, out_features)
+        features_teacher_weaks = feature_teacher_weak["preact_feats"][1:] + [
+            feature_teacher_weak["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+        ]
+        f_s_weak = results_weak[0]
+        f_t_weak = features_teacher_weaks[0]
+        f_s_pro_weak = self.feat2pro_s(f_s_weak)
+        f_t_pro_weak = self.feat2pro_t(f_t_weak)
+        loss_feat_weak = self.feat_weight * kd_loss(f_s_pro_weak, f_t_pro_weak, self.temperature)
+        results_strong = []
+        out_features_strong, res_features_strong = self.abfs[0](x_strong[0], out_shape=self.out_shapes[0])
+        results_strong.append(out_features_strong)
+        for features, abf, shape, out_shape in zip(
+                x_strong[1:], self.abfs[1:], self.shapes[1:], self.out_shapes[1:]
+        ):
+            out_features, res_features = abf(features, res_features_strong, shape, out_shape)
+            results_strong.insert(0, out_features)
+        feature_teacher_strongs = feature_teacher_strong["preact_feats"][1:] + [
+            feature_teacher_strong["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
+        ]
+        f_s_strong = results_strong[0]
+        f_t_strong = feature_teacher_strongs[0]
+        f_s_pro_strong = self.feat2pro_s(f_s_strong)
+        f_t_pro_strong = self.feat2pro_t(f_t_strong)
+        loss_feat_strong = self.feat_weight * kd_loss(f_s_pro_strong, f_t_pro_strong, self.temperature)
+        loss_feat = loss_feat_weak + loss_feat_strong
+        # loss_supp_feat2pro = self.supp_weight * (
+        #         kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
+        #                                                                 self.supp_t))
+        loss_supp_feat2pro = self.supp_weight * (
+            kd_loss(f_s_pro_weak, logits_student_weak, self.temperature) + kd_loss(f_t_pro_weak, logits_teacher_weak, self.temperature)
+        )
+        losses_dict = {
+            "loss_ce": loss_ce,
+            "loss_kd": loss_kd_weak + loss_kd_strong,
+            "loss_cc": loss_cc_weak,
+            "loss_bc": loss_bc_weak + loss_bc_strong,
+            "loss_feat": loss_feat,
+            "loss_supp_feat2pro": loss_supp_feat2pro,
+        }
         return logits_student_weak, losses_dict
+
+    def get_learnable_parameters(self):
+        return super().get_learnable_parameters() + list(self.abfs.parameters()) + \
+            list(self.feat2pro_s.parameters()) + list(self.feat2pro_t.parameters())
+
+    def get_extra_parameters(self):
+        num_p = 0
+        for p in self.abfs.parameters():
+            num_p += p.numel()
+        for p in self.feat2pro_s.parameters():
+            num_p += p.numel()
+        for p in self.feat2pro_t.parameters():
+            num_p += p.numel()
+        # for p in self.supp_loss.parameters():
+        #     num_p += p.numel()
+        return num_p
 
 
 class CrossEntropyLabelSmooth(nn.Module):
