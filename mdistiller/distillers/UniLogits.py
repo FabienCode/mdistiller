@@ -372,7 +372,7 @@ class UniLogitsKD(Distiller):
 
 class featPro(nn.Module):
     # Review KD version
-    def __init__(self, in_channels, latent_dim, size, num_classes):
+    def __init__(self, in_channels, size, num_classes):
         super(featPro, self).__init__()
         # self.encoder = nn.Sequential(
         #     # nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1),

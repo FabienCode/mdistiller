@@ -83,7 +83,7 @@ class UniMLKD(Distiller):
         super(UniMLKD, self).__init__(student, teacher)
         self.temperature = cfg.Uni.TEMPERATURE
         self.ce_loss_weight = cfg.Uni.LOSS.CE_WEIGHT
-        self.kd_loss_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
+        self.kd_loss_weight = cfg.Uni.LOSS.LOGITS_WEIGHT
         self.feat_weight = cfg.Uni.LOSS.FEAT_KD_WEIGHT
         self.supp_weight = cfg.Uni.LOSS.SUPP_WEIGHT
 
@@ -106,8 +106,8 @@ class UniMLKD(Distiller):
                 )
             )
         self.abfs = abfs[::-1]
-        self.feat2pro_s = featPro(out_channels[0], 512, self.shapes[-1], self.class_num)
-        self.feat2pro_t = featPro(out_channels[0], 512, self.shapes[-1], self.class_num)
+        self.feat2pro_s = featPro(out_channels[0], self.shapes[-1], self.class_num)
+        self.feat2pro_t = featPro(out_channels[0], self.shapes[-1], self.class_num)
 
     def forward_train(self, image_weak, image_strong, target, **kwargs):
         logits_student_weak, feature_student_weak = self.student(image_weak)
