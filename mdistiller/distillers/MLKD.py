@@ -249,7 +249,7 @@ class MLKD(Distiller):
             "loss_ce": loss_ce,
             "loss_kd": loss_kd_weak + loss_kd_strong,
             "loss_cc": loss_cc_weak,
-            "loss_bc": loss_bc_weak
+            "loss_bc": loss_bc_weak + loss_bc_strong
         }
         return logits_student_weak, losses_dict
 
