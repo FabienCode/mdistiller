@@ -4,6 +4,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import threading
 
 cudnn.benchmark = True
 
@@ -100,13 +101,46 @@ def main(cfg, resume, opts):
     trainer.train(resume=resume)
 
 
+# if __name__ == "__main__":
+#     torch.multiprocessing.set_start_method('spawn')
+#     configs = [  # 每个元素代表一个不同的配置
+#         ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
+#          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+#           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
+#         ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
+#          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "2.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+#           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
+#         ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+#          "false", False,
+#          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "3.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+#           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
+#         ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+#          "false", False,
+#          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "4.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+#           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
+#         # ... 更多配置
+#     ]
+#
+#     processes = []
+#
+#     for cfg_file, log_wandb, resume, opts in configs:
+#         # 创建一个进程
+#         p = multiprocessing.Process(target=run_program, args=(cfg_file, log_wandb, resume, opts))
+#         p.start()
+#         processes.append(p)
+#
+#     # 等待所有进程完成
+#     for p in processes:
+#         p.join()
+
 if __name__ == "__main__":
-    torch.multiprocessing.set_start_method('spawn')
     configs = [  # 每个元素代表一个不同的配置
-        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+         "false", False,
          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
-        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+         "false", False,
          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "2.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3", "Uni.SUPP_T", "4.0"]),
         ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
@@ -120,14 +154,14 @@ if __name__ == "__main__":
         # ... 更多配置
     ]
 
-    processes = []
+    threads = []
 
     for cfg_file, log_wandb, resume, opts in configs:
-        # 创建一个进程
-        p = multiprocessing.Process(target=run_program, args=(cfg_file, log_wandb, resume, opts))
-        p.start()
-        processes.append(p)
+        # 创建一个线程
+        t = threading.Thread(target=run_program, args=(cfg_file, log_wandb, resume, opts))
+        t.start()
+        threads.append(t)
 
-    # 等待所有进程完成
-    for p in processes:
-        p.join()
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
