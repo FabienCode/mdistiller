@@ -20,7 +20,9 @@ from mdistiller.engine import trainer_dict
 def run_program(cfg_file, log_wandb, resume, opts):
     cfg.merge_from_file(cfg_file)
     cfg.merge_from_list(opts)
-    cfg.log_wandb = log_wandb.lower() == "true"
+    # new_cfg = cfg.clone()  # 创建一个新的可修改的CfgNode对象
+    # new_cfg.log_wandb = log_wandb.lower() == "true"
+    # cfg.log_wandb = log_wandb.lower() == "true"
     cfg.freeze()
     main(cfg, resume, opts)
 
@@ -38,7 +40,6 @@ def main(cfg, resume, opts):
     if cfg.log_wandb:
         try:
             import wandb
-
             wandb.init(project=cfg.EXPERIMENT.PROJECT, name=experiment_name, tags=tags)
         except:
             print(log_msg("Failed to use WANDB", "INFO"))
