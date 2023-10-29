@@ -103,14 +103,24 @@ def main(cfg, resume, opts):
 if __name__ == "__main__":
     torch.multiprocessing.set_start_method('spawn')
     configs = [  # 每个元素代表一个不同的配置
-        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller", "false", False,
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3," "Uni.SUPP_T", "4.0",
           "tag", "v29-1-1"]),
-        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller", "false", False,
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml", "false", False,
          ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
           "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3," "Uni.SUPP_T", "4.0",
-          "tag", "v29-1-1"]),
+          "tag", "v29-1-2"]),
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+         "false", False,
+         ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+          "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3," "Uni.SUPP_T", "4.0",
+          "tag", "v29-1-3"]),
+        ("/data/home/cmshen/hym/project/new_mdistiller/mdistiller/configs/UniLogits/cifar/mlkd/res56_res20.yaml",
+         "false", False,
+         ["SOLVER.BATCH_SIZE", "64", "Uni.LOSS.CE_WEIGHT", "1.0", "Uni.LOSS.LOGITS_WEIGHT", "1.0",
+          "Uni.LOSS.FEAT_KD_WEIGHT", "1.0", "Uni.LOSS.SUPP_WEIGHT", "0.1", "Uni.HINT_LAYER", "3," "Uni.SUPP_T", "4.0",
+          "tag", "v29-1-4"]),
         # ... 更多配置
     ]
 
