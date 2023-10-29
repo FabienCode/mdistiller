@@ -22,7 +22,7 @@ def run_program(cfg_file, log_wandb, resume, opts):
     cfg.merge_from_list(opts)
     # new_cfg = cfg.clone()  # 创建一个新的可修改的CfgNode对象
     # new_cfg.log_wandb = log_wandb.lower() == "true"
-    # cfg.log_wandb = log_wandb.lower() == "true"
+    cfg.log_wandb = log_wandb.lower() == "true"
     cfg.freeze()
     main(cfg, resume, opts)
 
@@ -37,13 +37,13 @@ def main(cfg, resume, opts):
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
     experiment_name = os.path.join(cfg.EXPERIMENT.PROJECT, experiment_name)
-    # if cfg.LOG.WANDB:
-    #     try:
-    import wandb
-    wandb.init(project=cfg.EXPERIMENT.PROJECT, name=experiment_name, tags=tags)
-        # except:
-        #     print(log_msg("Failed to use WANDB", "INFO"))
-        #     cfg.LOG.WANDB = False
+    if cfg.LOG.WANDB:
+        try:
+            import wandb
+            wandb.init(project=cfg.EXPERIMENT.PROJECT, name=experiment_name, tags=tags)
+        except:
+            print(log_msg("Failed to use WANDB", "INFO"))
+            cfg.LOG.WANDB = False
     # cfg & loggers
     show_cfg(cfg)
     # init dataloader & models
