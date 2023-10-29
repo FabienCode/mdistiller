@@ -22,7 +22,7 @@ def run_program(cfg_file, log_wandb, resume, opts):
     cfg.merge_from_list(opts)
     # new_cfg = cfg.clone()  # 创建一个新的可修改的CfgNode对象
     # new_cfg.log_wandb = log_wandb.lower() == "true"
-    cfg.log_wandb = log_wandb.lower() == "true"
+    # cfg.log_wandb = log_wandb.lower() == "true"
     cfg.freeze()
     main(cfg, resume, opts)
 
