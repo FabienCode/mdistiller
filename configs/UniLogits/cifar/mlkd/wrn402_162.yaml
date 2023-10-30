@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-1"
+  TAG: "v30-1-1"
   PROJECT: "wrn402to162_mlkdmulti_v1"
 DISTILLER:
   TYPE: "UniMLKD"
