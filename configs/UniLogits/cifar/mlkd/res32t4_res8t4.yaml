@@ -1,11 +1,11 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "UniML&KR,res56,res20"
-  PROJECT: "cifar100_baselines_mlkdmulti_v1"
+  TAG: "324&84, vx-1-1"
+  PROJECT: "res324to84_mlkdmulti_v1"
 DISTILLER:
   TYPE: "UniMLKD"
-  TEACHER: "resnet56"
-  STUDENT: "resnet20"
+  TEACHER: "resnet32x4"
+  STUDENT: "resnet8x4"
 SOLVER:
   BATCH_SIZE: 64
   EPOCHS: 480
@@ -17,7 +17,10 @@ SOLVER:
   TYPE: "SGD"
   TRAINER: "aug"
 Uni:
-  BETA: 2.0
+  ALPHA: 1.0
+  BETA: 8.0
+  TEMPERATURE: 4.0
+  WARMUP: 20
   OUT_SHAPES: [1, 8, 16, 32]
   IN_CHANNELS: [16, 32, 64, 64]
   OUT_CHANNELS: [16, 32, 64, 64]
