@@ -9,6 +9,7 @@ import numpy as np
 from ._base import Distiller
 from .UniLogits import ABF, featPro
 
+
 def kd_loss(logits_student, logits_teacher, temperature, reduce=True):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
@@ -16,7 +17,7 @@ def kd_loss(logits_student, logits_teacher, temperature, reduce=True):
         loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
     else:
         loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1)
-    loss_kd *= temperature**2
+    loss_kd *= temperature ** 2
     return loss_kd
 
 
@@ -66,7 +67,7 @@ def mixup_data(x, y, alpha=1.0, use_cuda=True):
 
 def mixup_data_conf(x, y, lam, use_cuda=True):
     '''Returns mixed inputs, pairs of targets, and lambda'''
-    lam = lam.reshape(-1,1,1,1)
+    lam = lam.reshape(-1, 1, 1, 1)
     batch_size = x.size()[0]
     if use_cuda:
         index = torch.randperm(batch_size).cuda()
@@ -134,7 +135,8 @@ class UniMLKD(Distiller):
         class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
 
         # losses
-        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_ce = self.ce_loss_weight * (
+                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         loss_kd_weak = self.kd_loss_weight * ((kd_loss(
             logits_student_weak,
             logits_teacher_weak,
@@ -269,12 +271,6 @@ class UniMLKD(Distiller):
             logits_teacher_strong,
             6.0,
         ) * mask).mean())
-        losses_dict = {
-            "loss_ce": loss_ce,
-            "loss_kd": loss_kd_weak + loss_kd_strong,
-            "loss_cc": loss_cc_weak + loss_cc_strong,
-            "loss_bc": loss_bc_weak + loss_bc_strong
-        }
 
         # get features
         if self.stu_preact:
@@ -330,7 +326,9 @@ class UniMLKD(Distiller):
         #         kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
         #                                                                 self.supp_t))
         loss_supp_feat2pro = self.supp_weight * (
-            kd_loss(f_s_pro_weak, logits_student_weak, self.temperature) + kd_loss(f_t_pro_weak, logits_teacher_weak, self.temperature)
+                kd_loss(f_s_pro_weak, logits_student_weak, self.temperature) + kd_loss(f_t_pro_weak,
+                                                                                       logits_teacher_weak,
+                                                                                       self.temperature)
         )
         losses_dict = {
             "loss_ce": loss_ce,

@@ -1,5 +1,6 @@
 from .resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from .mobilenetv1 import MobileNetV1
+from .mobilenetv2 import MobileNetV2
 
 
 imagenet_model_dict = {
@@ -8,4 +9,5 @@ imagenet_model_dict = {
     "ResNet50": resnet50,
     "ResNet101": resnet101,
     "MobileNetV1": MobileNetV1,
+    "MobileNetV2": MobileNetV2,
 }

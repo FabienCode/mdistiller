@@ -26,14 +26,13 @@ def main(cfg, resume, opts):
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
     experiment_name = os.path.join(cfg.EXPERIMENT.PROJECT, experiment_name)
-    if cfg.log_wandb:
+    if cfg.LOG.WANDB:
         try:
             import wandb
-
             wandb.init(project=cfg.EXPERIMENT.PROJECT, name=experiment_name, tags=tags)
         except:
             print(log_msg("Failed to use WANDB", "INFO"))
-            cfg.log_wandb = False
+            cfg.LOG.WANDB = False
 
     # cfg & loggers
     show_cfg(cfg)
@@ -115,6 +114,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
-    cfg.log_wandb = args.log_wandb.lower() == "true"
+    # cfg.log_wandb = args.log_wandb.lower() == "true"
     cfg.freeze()
     main(cfg, args.resume, args.opts)

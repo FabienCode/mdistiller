@@ -393,7 +393,7 @@ class featPro(nn.Module):
         #         nn.Conv2d(in_channels, in_channels, 3, 1, 1),
         # )
         # self.layernorm = nn.GroupNorm(num_groups=1, num_channels=in_channels, affine=False)
-        self.avg_pool = nn.AvgPool2d((size, size))
+        # self.avg_pool = nn.AvgPool2d((size, size))
         self.fc_mu = nn.Linear(in_channels, num_classes)
         self.fc_var = nn.Linear(in_channels, num_classes)
         # self.fc_mu = nn.Sequential(
@@ -402,10 +402,11 @@ class featPro(nn.Module):
         # )
 
     def encode(self, x):
+        b, c, h, w = x.shape
         # x = self.layernorm(self.feature_adapt(x))
         # result = self.encoder(x)
         # result = result.view(result.size(0), -1)
-        res_pooled = self.avg_pool(x).reshape(x.size(0), -1)
+        res_pooled = nn.AvgPool2d((h, w))(x).reshape(b, -1)
         mu = self.fc_mu(res_pooled)
         log_var = self.fc_var(res_pooled)
         return mu, log_var
