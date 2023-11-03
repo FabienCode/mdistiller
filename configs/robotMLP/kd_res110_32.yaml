@@ -4,8 +4,8 @@ EXPERIMENT:
   PROJECT: "cifar100_cld"
 DISTILLER:
   TYPE: "KD"
-  TEACHER: "resnet32x4"
-  STUDENT: "resnet8x4"
+  TEACHER: "resnet110"
+  STUDENT: "resnet32"
 SOLVER:
   BATCH_SIZE: 64
   EPOCHS: 240

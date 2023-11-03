@@ -130,4 +130,6 @@ wandb/
 # download ckpts
 download_ckpts/
 
+*.png
+
 # mdistiller/models/
