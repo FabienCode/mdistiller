@@ -362,6 +362,7 @@ class UniMLKD(Distiller):
         return num_p
 
 
+# Test
 class CrossEntropyLabelSmooth(nn.Module):
     """Cross entropy loss with label smoothing regularizer.
     Reference:
