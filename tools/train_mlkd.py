@@ -104,4 +104,5 @@ if __name__ == "__main__":
     cfg.merge_from_list(args.opts)
     # cfg.log_wandb = args.log_wandb.lower() == "true"
     cfg.freeze()
+    print(torch.cuda.device_count())
     main(cfg, args.resume, args.opts)
