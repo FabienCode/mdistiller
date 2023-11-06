@@ -25,6 +25,7 @@ from .MLKD import MLKD
 from .UniKDMLReview import UniMLKD
 from .hybrid import Hybrid
 from .kr_mlkd import KR_MLKD
+from .fitnet_kd import FitNet_KD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -54,4 +55,5 @@ distiller_dict = {
     "UniMLKD": UniMLKD,
     "Hybrid": Hybrid,
     "KR_MLKD": KR_MLKD,
+    "FitNet_KD": FitNet_KD,
 }
