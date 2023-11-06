@@ -136,7 +136,7 @@ class UniMLKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * (
-                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         loss_kd_weak = self.kd_loss_weight * ((kd_loss(
             logits_student_weak,
             logits_teacher_weak,
@@ -325,18 +325,23 @@ class UniMLKD(Distiller):
         # loss_supp_feat2pro = self.supp_weight * (
         #         kd_loss(f_s_pro, logits_student, self.supp_t) + kd_loss(f_t_pro, logits_teacher,
         #                                                                 self.supp_t))
-        loss_supp_feat2pro = self.supp_weight * (
+        loss_supp_feat2pro_weak = self.supp_weight * (
                 kd_loss(f_s_pro_weak, logits_student_weak, self.temperature) + kd_loss(f_t_pro_weak,
                                                                                        logits_teacher_weak,
                                                                                        self.temperature)
         )
+        loss_supp_feat2pro_strong = self.supp_weight * (
+                kd_loss(f_s_pro_strong, logits_student_strong, self.temperature) + kd_loss(f_t_pro_strong,
+                                                                                           logits_teacher_strong,
+                                                                                           self.temperature)
+        )
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd_weak + loss_kd_strong,
-            "loss_cc": loss_cc_weak,
+            "loss_cc": loss_cc_weak + loss_cc_strong,
             "loss_bc": loss_bc_weak + loss_bc_strong,
             "loss_feat": loss_feat,
-            "loss_supp_feat2pro": loss_supp_feat2pro,
+            "loss_supp_feat2pro": loss_supp_feat2pro_weak + loss_supp_feat2pro_strong,
         }
         return logits_student_weak, losses_dict
 
