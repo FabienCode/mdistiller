@@ -317,19 +317,20 @@ class RCNNKD(nn.Module):
             # losses['loss_reviewkd'] = hcl(s_features, t_features) * self.kd_args.REVIEWKD.LOSS_WEIGHT
             # f_s = s_features[0]
             # f_t = t_features[0]
-            f_s_pro = self.feat2pro_s(box_full_feature_s)
-            f_t_pro = self.feat2pro_t(box_full_feature_t)
-            losses['loss_feat2pro'] = 1.0 * kd_loss(f_s_pro, f_t_pro, self.kd_args.DKD.T)
+            s_cls, s_reg = self.feat2pro_s(box_full_feature_s)
+            t_cls, t_reg = self.feat2pro_t(box_full_feature_t)
+            losses['loss_feat2pro'] = 0.1 * (kd_loss(s_cls, t_cls, self.kd_args.DKD.T) + kd_loss(s_reg, t_reg, self.kd_args.DKD.T))
             # losses['loss_supp'] = 0.1 * (kd_loss(f_s_pro, gt_box_feature_s, self.kd_args.DKD.T) + kd_loss(f_t_pro, gt_box_feature_t, self.kd_args.DKD.T))
-            with torch.no_grad():
-                supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
-                supp_pre_t = self.roi_heads.box_predictor(f_t_pro)
-            loss_supp = 0
-            for i in range(2):
-                loss_supp += 0.1 * (
-                        kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i],
-                                                                                                 tea_predictions[i],
-                                                                                                 self.kd_args.DKD.T))
+            # with torch.no_grad():
+            #     supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
+            #     supp_pre_t = self.roi_heads.box_predictor(f_t_pro)
+            # for i in range(2):
+            #     loss_supp += 0.1 * (
+            #             kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i],
+            #                                                                                      tea_predictions[i],
+            #                                                                                      self.kd_args.DKD.T))
+            loss_supp = 0.1 * (kd_loss(s_cls, stu_predictions[0], self.kd_args.DKD.T) + kd_loss(s_reg, tea_predictions[1], self.kd_args.DKD.T)) + \
+                        0.1 * (kd_loss(t_cls, tea_predictions[0], self.kd_args.DKD.T) + kd_loss(t_reg, tea_predictions[1], self.kd_args.DKD.T))
             losses['loss_supp'] = loss_supp
         else:
             raise NotImplementedError(self.kd_args.TYPE)
@@ -512,23 +513,37 @@ class featPro(nn.Module):
         #     # nn.LeakyReLU(inplace=True),
         #     nn.ReLU(inplace=True),
         # )
-        self.fc_mu = nn.Linear(in_channels, num_classes)
-        self.fc_var = nn.Linear(in_channels, num_classes)
+        self.fc_mu_cls = nn.Linear(in_channels, 81)
+        self.fc_var_cls = nn.Linear(in_channels, 81)
+        self.fc_mu_reg = nn.Linear(in_channels, 320)
+        self.fc_var_reg = nn.Linear(in_channels, 320)
         # self.fc_mu = nn.Sequential(
         #     nn.Linear(in_channels, latent_dim),
         #     nn.Linear(latent_dim, num_classes)
         # )
 
-    def encode(self, x):
+    def encode_cls(self, x):
         # result = self.encoder(x)
         b, c, h, w = x.shape
         res_pooled = F.avg_pool2d(x, (h, w)).reshape(x.size(0), -1)
         # res_pooled = F.adaptive_avg_pool2d((h,w)).reshape(result.size(0), -1)
         # # result = result.view(result.size(0), -1)
         # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
-        mu = self.fc_mu(res_pooled)
-        log_var = self.fc_var(res_pooled)
+        mu = self.fc_mu_cls(res_pooled)
+        log_var = self.fc_var_cls(res_pooled)
         return mu, log_var
+
+    def encode_reg(self, x):
+        # result = self.encoder(x)
+        b, c, h, w = x.shape
+        res_pooled = F.avg_pool2d(x, (h, w)).reshape(x.size(0), -1)
+        # res_pooled = F.adaptive_avg_pool2d((h,w)).reshape(result.size(0), -1)
+        # # result = result.view(result.size(0), -1)
+        # res_pooled = self.avg_pool(result).reshape(result.size(0), -1)
+        mu = self.fc_mu_reg(res_pooled)
+        log_var = self.fc_var_reg(res_pooled)
+        return mu, log_var
+
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var / 2)
@@ -536,11 +551,13 @@ class featPro(nn.Module):
         return eps.mul(std).add_(mu)
 
     def forward(self, x):
-        mu, log_var = self.encode(x)
+        mu_cls, log_var_cls = self.encode_cls(x)
+        mu_reg, log_var_reg = self.encode_reg(x)
         # z = torch.cat((mu, log_var), dim=1)
         # z = mu + log_var
-        z = self.reparameterize(mu, log_var)
-        return z
+        z_cls = self.reparameterize(mu_cls, log_var_cls)
+        z_reg = self.reparameterize(mu_reg, log_var_reg)
+        return z_cls, z_reg
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
