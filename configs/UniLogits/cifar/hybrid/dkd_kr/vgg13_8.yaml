@@ -1,15 +1,15 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "dkd,res110,res32"
-  PROJECT: "cifar100_baselines"
+  TAG: "v31-1-1"
+  PROJECT: "UniKD_vgg13_8"
 DISTILLER:
   TYPE: "KR_DKD"
   TEACHER: "vgg13"
   STUDENT: "vgg8"
 SOLVER:
   BATCH_SIZE: 64
-  EPOCHS: 240
-  LR: 0.05
+  EPOCHS: 480
+  LR: 0.025
   LR_DECAY_STAGES: [150, 180, 210]
   LR_DECAY_RATE: 0.1
   WEIGHT_DECAY: 0.0005
