@@ -319,7 +319,7 @@ class RCNNKD(nn.Module):
             # f_t = t_features[0]
             s_cls, s_reg = self.feat2pro_s(box_full_feature_s)
             t_cls, t_reg = self.feat2pro_t(box_full_feature_t)
-            losses['loss_feat2pro'] = 0.1 * (kd_loss(s_cls, t_cls, self.kd_args.DKD.T) + kd_loss(s_reg, t_reg, self.kd_args.DKD.T))
+            losses['loss_feat2pro'] = 1.0 * (kd_loss(s_cls, t_cls, self.kd_args.DKD.T) + kd_loss(s_reg, t_reg, self.kd_args.DKD.T))
             # losses['loss_supp'] = 0.1 * (kd_loss(f_s_pro, gt_box_feature_s, self.kd_args.DKD.T) + kd_loss(f_t_pro, gt_box_feature_t, self.kd_args.DKD.T))
             # with torch.no_grad():
             #     supp_pre_s = self.roi_heads.box_predictor(f_s_pro)
