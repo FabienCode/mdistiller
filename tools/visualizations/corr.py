@@ -148,15 +148,16 @@ def main_logits(tea, stu, mpath, our_path, max_diff):
     # 显示网格
     plt.grid(True)
 
-    path_name = "/home/fabien/Documents/project/2d/mdistiller/tools/visualizations/corrimg/"
-    final_name = path_name + "uni240_mlkd240_324_84.pdf"
+    path_name = "/home/fabien/Documents/project/2d/mdistiller/tools/output/Vis"
+    final_name = path_name + "uni78.18_latest_mlkd240_324.pdf"
     
     # 保存图像
     plt.savefig(final_name, dpi=300)
     # plt.savefig('plot.pdf')
 
+
 if __name__ == '__main__':
-    mpath = '/home/fabien/Documents/project/2d/mdistiller/output/final/dkd/mlkd_324_84/epoch_240'
-    our_path = '/home/fabien/Documents/project/2d/mdistiller/output/final/UniKD/res324_84_77.71/epoch_240'
+    mpath = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/mlkd_324_84/epoch_240'
+    our_path = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/UniKD_78.18/latest'
     # get_tea_stu_diff('resnet32x4', 'resnet8x4', mpath, 3.0)
     main_logits('resnet32x4', 'resnet8x4', mpath, our_path, 3.0)
