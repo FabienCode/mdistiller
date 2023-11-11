@@ -74,7 +74,7 @@ def get_tea_stu_diff(tea, stu, mpath, max_diff):
     mean_num = str(diff.mean()).split('.')[0] + '.' + str(diff.mean()).split('.')[1][:2]
     fig_name = "max_diff: " + max_num + "mean_diff:" + mean_num
     path_name = "/home/fabien/Documents/project/2d/mdistiller/tools/visualizations/corrimg/"
-    final_name = path_name + fig_name + "unikd_324_84_best.png"
+    final_name = path_name + fig_name + "unikd_324_84_best_v2.png"
     heatmap = fig.get_figure()
     heatmap.savefig(final_name, dpi = 400)
     # plt.show()
@@ -105,7 +105,7 @@ def get_tea_stu_cdf(tea, stu, mpath, max_diff):
     model.load_state_dict(student_weights)
     tea_model = cifar_model_dict[cfg.DISTILLER.TEACHER][0](num_classes=num_classes)
     tea_model.load_state_dict(teacher_weights)
-    print("load model successfully!")
+    print("load {} successfully!".format(mpath))
 
     # 获取输出矩阵
     stu_matrix = get_output_metric(model, val_loader)
@@ -125,17 +125,25 @@ def get_tea_stu_cdf(tea, stu, mpath, max_diff):
 
     return sorted_diff, cumulative
 
-def main_logits(tea, stu, mpath, our_path, max_diff):
+def main_logits(tea, stu, fit_path, kd_path, dkd_path, kr_path, our_path, max_diff):
+    plt.rcParams.update({'font.size': 14})
     # 绘制CDF图
-
-    sorted_diff_fk, cumulative_fk = get_tea_stu_cdf(tea, stu, mpath, max_diff)
+    sorted_diff_fit, cumulative_fit = get_tea_stu_cdf(tea, stu, fit_path, max_diff)
+    sorted_diff_kd, cumulative_kd = get_tea_stu_cdf(tea, stu, kd_path, max_diff)
+    sorted_diff_dkd, cumulative_dkd = get_tea_stu_cdf(tea, stu, dkd_path, max_diff)
+    sorted_diff_kr, cumulative_kr = get_tea_stu_cdf(tea, stu, kr_path, max_diff)
     sorted_diff_our, cumulative_our = get_tea_stu_cdf(tea, stu, our_path, max_diff)
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(10, 6))
     # 绘制第一组数据的CDF线
-    plt.plot(sorted_diff_fk, cumulative_fk, label='FitNet & KD', color='blue')
-
-    # 绘制第二组数据的CDF线
-    plt.plot(sorted_diff_our, cumulative_our, label='UniKD', color='red')
+    plt.plot(sorted_diff_fit, cumulative_fit, label='FitNet', color='blue')
+    # 绘制第组数据的CDF线
+    plt.plot(sorted_diff_dkd, cumulative_dkd, label='KD', color='orange')
+    # 绘制第组数据的CDF线
+    plt.plot(sorted_diff_kr, cumulative_kr, label='KR', color='purple')
+    # # 绘制第组数据的CDF线
+    plt.plot(sorted_diff_kd, cumulative_kd, label='DKD', color='green')
+    # 绘制第五组数据的CDF线
+    plt.plot(sorted_diff_our, cumulative_our, label='UniKD (Ours)', color='red')
 
     # 添加图例
     plt.legend()
@@ -148,8 +156,8 @@ def main_logits(tea, stu, mpath, our_path, max_diff):
     # 显示网格
     plt.grid(True)
 
-    path_name = "/home/fabien/Documents/project/2d/mdistiller/tools/output/Vis"
-    final_name = path_name + "uni78.18_latest_mlkd240_324.pdf"
+    path_name = "/home/fabien/Documents/project/2d/mdistiller/tools/output/Vis/"
+    final_name = path_name + "uni78.18_best_v2.pdf"
     
     # 保存图像
     plt.savefig(final_name, dpi=300)
@@ -157,7 +165,11 @@ def main_logits(tea, stu, mpath, our_path, max_diff):
 
 
 if __name__ == '__main__':
-    mpath = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/mlkd_324_84/epoch_240'
-    our_path = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/UniKD_78.18/latest'
+    fit_p = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/fitnet_324_84/latest'
+    kd_p = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/kd_324_84/latest'
+    dkd_p = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/dkd_324_84/epoch_120'
+    kr_p = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/kr_324_84/latest'
+    our_p = '/home/fabien/Documents/project/2d/mdistiller/tools/output/final/324_84/UniKD_78.18/best'
     # get_tea_stu_diff('resnet32x4', 'resnet8x4', mpath, 3.0)
-    main_logits('resnet32x4', 'resnet8x4', mpath, our_path, 3.0)
+    main_logits('resnet32x4', 'resnet8x4', fit_p, kd_p, dkd_p, kr_p, our_p, 3.0)
+

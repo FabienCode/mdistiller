@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             // "program": "${file}",
-            "program": "/home/fabien/Documents/project/2d/mdistiller/tools/visualizations/corr.py",
+            "program": "/home/fabien/Documents/project/2d/mdistiller/tools/visualizations/feat_corr.py",
             // "program": "/home/fabien/Documents/project/2d/mdistiller/detection/train_net.py",
             "console": "integratedTerminal",
             "justMyCode": true,
