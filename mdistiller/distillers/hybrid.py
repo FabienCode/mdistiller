@@ -131,17 +131,10 @@ class Hybrid(Distiller):
             * hcl_loss(results, features_teacher)
         )
         # KD loss
-        loss_dkd = min(kwargs["epoch"] / self.warmup, 1.0) * dkd_loss(
-            logits_student,
-            logits_teacher,
-            target,
-            self.alpha,
-            self.beta,
-            self.temperature,
-        )
+        loss_kd = F.mse_loss(logits_student, logits_teacher)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_dkd,
+            "loss_kd": loss_kd,
             "loss_reviewkd": loss_reviewkd,
         }
         return logits_student, losses_dict

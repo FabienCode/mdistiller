@@ -52,9 +52,10 @@ class FitNet_KD(Distiller):
         loss_feat = self.feat_loss_weight * F.mse_loss(
             f_s, feature_teacher["feats"][self.hint_layer]
         )
-        loss_kd = self.kd_loss_weight * kd_loss(
-            logits_student, logits_teacher, self.temperature
-        )
+        # loss_kd = self.kd_loss_weight * kd_loss(
+        #     logits_student, logits_teacher, self.temperature
+        # )
+        loss_kd = self.kd_loss_weight * F.mse_loss(logits_student, logits_teacher)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat": loss_feat,
