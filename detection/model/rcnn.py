@@ -329,8 +329,8 @@ class RCNNKD(nn.Module):
             #             kd_loss(supp_pre_s[i], stu_predictions[i], self.kd_args.DKD.T) + kd_loss(supp_pre_t[i],
             #                                                                                      tea_predictions[i],
             #                                                                                      self.kd_args.DKD.T))
-            loss_supp = 0.1 * (kd_loss(s_cls, stu_predictions[0], self.kd_args.DKD.T) + kd_loss(s_reg, tea_predictions[1], self.kd_args.DKD.T)) + \
-                        0.1 * (kd_loss(t_cls, tea_predictions[0], self.kd_args.DKD.T) + kd_loss(t_reg, tea_predictions[1], self.kd_args.DKD.T))
+            loss_supp = 0.01 * (kd_loss(s_cls, stu_predictions[0], self.kd_args.DKD.T) + kd_loss(s_reg, tea_predictions[1], self.kd_args.DKD.T)) + \
+                        0.01 * (kd_loss(t_cls, tea_predictions[0], self.kd_args.DKD.T) + kd_loss(t_reg, tea_predictions[1], self.kd_args.DKD.T))
             losses['loss_supp'] = loss_supp
         else:
             raise NotImplementedError(self.kd_args.TYPE)
