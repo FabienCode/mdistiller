@@ -49,10 +49,12 @@ def cos_heat(stu_feat, tea_feat, selected_indices):
     dkd_stu_feat_flatten_pca = pca.fit_transform(dkd_stu_feat_flatten)
     dkd_tea_feat_flatten_pca = pca.fit_transform(dkd_tea_feat_flatten)
 
+    # euclidean_similarity = np.sqrt(np.sum((dkd_stu_feat_flatten_pca - dkd_tea_feat_flatten_pca)**2, axis=1))
     cosine_similarity = np.dot(dkd_stu_feat_flatten_pca, dkd_tea_feat_flatten_pca.T) / (np.linalg.norm(dkd_stu_feat_flatten_pca, axis=1) * np.linalg.norm(dkd_tea_feat_flatten_pca, axis=1))
     cosine_similarity = np.clip(cosine_similarity, -1, 1)
     ratio = len(np.where(cosine_similarity > 0)[0])/cosine_similarity.size
     return cosine_similarity, ratio
+    # return euclidean_similarity
 
 def load_model(tea, stu, mpath):
     cfg.defrost()
@@ -100,6 +102,8 @@ def fwd(model, val_loader, layer, num_classes=100):
     all_preds = np.concatenate(all_preds, 0)
     all_feats = np.concatenate(all_feats, 0)
     return all_preds, all_feats
+
+
 
 def save_heatmap(fit_sim, kd_sim, kr_sim, dkd_sim, unikd_sim, fit_name, kd_name, kr_name, dkd_name, uni_name):
     plot_sim(fit_sim, fit_name)

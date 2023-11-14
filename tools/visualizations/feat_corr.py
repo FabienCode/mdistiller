@@ -39,7 +39,7 @@ def main_feat(tea, stu, fit_path, kd_path, dkd_path, kr_path, our_path):
 
     i = 0
     while True:
-        selected_indices = np.random.choice(fit_stu_feat.shape[0], size=50, replace=False)
+        selected_indices = np.random.choice(fit_stu_feat.shape[0], size=400, replace=False)
         fit_sim, fit_ratio = cos_heat(fit_stu_feat, fit_tea_feat, selected_indices)
         kd_sim, kd_ratio = cos_heat(kd_stu_feat, kd_tea_feat, selected_indices)
         kr_sim, kr_ratio = cos_heat(kr_stu_feat, kr_tea_feat, selected_indices)
@@ -48,18 +48,18 @@ def main_feat(tea, stu, fit_path, kd_path, dkd_path, kr_path, our_path):
 
         hightest_positive_ratio = max(fit_ratio, kd_ratio, kr_ratio, dkd_ratio, unikd_ratio)
         sorted_ratio = sorted([fit_ratio, kd_ratio, kr_ratio, dkd_ratio, unikd_ratio])
-        if hightest_positive_ratio == unikd_ratio and (sorted_ratio[-1] - sorted_ratio[-2]) > 0.04:
+        if hightest_positive_ratio == unikd_ratio and (sorted_ratio[-1] - sorted_ratio[-2]) > 0.001:
             print("fitnet ratio is {}!".format(fit_ratio))
             print("kd ratio is {}!".format(kd_ratio))
             print("kr ratio is {}!".format(kr_ratio))
             print("dkd ratio is {}!".format(dkd_ratio))
             print("unikd ratio is {}!".format(unikd_ratio))
             save_heatmap(fit_sim, kd_sim, kr_sim, dkd_sim, unikd_sim,
-                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis4/fitnet_cosine_similarity",
-                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis4/kd_cosine_similarity",
-                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis4/kr_cosine_similarity",
-                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis4/dkd_cosine_similarity",
-                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis4/unikd_cosine_similarity")
+                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis5/fitnet_cosine_similarity",
+                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis5/kd_cosine_similarity",
+                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis5/kr_cosine_similarity",
+                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis5/dkd_cosine_similarity",
+                            "/home/fabien/Documents/project/2d/mdistiller/tools/output/vis5/unikd_cosine_similarity")
             break
         else:
             i += 1
