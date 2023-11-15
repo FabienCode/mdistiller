@@ -10,9 +10,9 @@ from mdistiller.dataset import get_dataset
 from mdistiller.engine.utils import load_checkpoint
 from mdistiller.engine.cfg import CFG as cfg
 from collections import OrderedDict
+from featcorr_utils import *
 import sys
 sys.path.append("/home/fabien/Documents/project/2d/mdistiller/tools/visualizations")
-from featcorr_utils import *
 
 
 def main_feat(tea, stu, fit_path, kd_path, dkd_path, kr_path, our_path):
@@ -46,9 +46,15 @@ def main_feat(tea, stu, fit_path, kd_path, dkd_path, kr_path, our_path):
         dkd_sim, dkd_ratio = cos_heat(dkd_stu_feat, dkd_tea_feat, selected_indices)
         unikd_sim, unikd_ratio = cos_heat(unikd_stu_feat, unikd_tea_feat, selected_indices)
 
+        # fit_sim, fit_ratio = edu_heat(fit_stu_feat, fit_tea_feat, selected_indices)
+        # kd_sim, kd_ratio = edu_heat(kd_stu_feat, kd_tea_feat, selected_indices)
+        # kr_sim, kr_ratio = edu_heat(kr_stu_feat, kr_tea_feat, selected_indices)
+        # dkd_sim, dkd_ratio = edu_heat(dkd_stu_feat, dkd_tea_feat, selected_indices)
+        # unikd_sim, unikd_ratio = edu_heat(unikd_stu_feat, unikd_tea_feat, selected_indices)
+
         hightest_positive_ratio = max(fit_ratio, kd_ratio, kr_ratio, dkd_ratio, unikd_ratio)
         sorted_ratio = sorted([fit_ratio, kd_ratio, kr_ratio, dkd_ratio, unikd_ratio])
-        if hightest_positive_ratio == unikd_ratio and (sorted_ratio[-1] - sorted_ratio[-2]) > 0.001:
+        if hightest_positive_ratio == unikd_ratio and (sorted_ratio[-1] - sorted_ratio[-2]) > 0.02:
             print("fitnet ratio is {}!".format(fit_ratio))
             print("kd ratio is {}!".format(kd_ratio))
             print("kr ratio is {}!".format(kr_ratio))
