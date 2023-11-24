@@ -27,6 +27,7 @@ from .hybrid import Hybrid
 from .kr_mlkd import KR_MLKD
 from .fitnet_kd import FitNet_KD
 from .KR_DKD import KR_DKD
+from .MVKD import MVKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -57,5 +58,6 @@ distiller_dict = {
     "Hybrid": Hybrid,
     "KR_MLKD": KR_MLKD,
     "FitNet_KD": FitNet_KD,
-    "KR_DKD": KR_DKD
+    "KR_DKD": KR_DKD,
+    "MVKD": MVKD,
 }
