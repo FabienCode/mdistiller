@@ -23,7 +23,7 @@ class MVKD(Distiller):
 
         # feature restoration
         # Diffusion config
-        timesteps = 1000
+        timesteps = 100
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
         betas = cosine_beta_schedule(timesteps)
         alphas = 1. -betas
@@ -51,9 +51,7 @@ class MVKD(Distiller):
         self.register_buffer('sqrt_recip_alphas_cumprod', torch.sqrt(1. / alphas_cumprod))
         self.register_buffer('sqrt_recipm1_alphas_cumprod', torch.sqrt(1. / alphas_cumprod - 1))
 
-
         # calculations for posterior q(x_{t-1} | x_t, x_0)
-
         posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
         # above: equal to 1. / (1. / (1. - alpha_cumprod_tm1) + alpha_t / beta_t)
@@ -93,12 +91,13 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
-        if cur_epoch > 1:
+        # f_new = self.ddim_sample(f_t)
+        if cur_epoch > 240:
             f_new = self.ddim_sample(f_t)
-            t_f_new = f_new[-10:]
-            loss_feat = 0
+            t_f_new = f_new[-5:]
+            loss_feat = 0.
             for i in range(len(t_f_new)):
-                loss_feat += F.mse_loss(f_s, t_f_new)
+                loss_feat += F.mse_loss(f_s, t_f_new[i])
         else:
             # Diffusion operation
             d_f_s, noise, t = self.prepare_diffusion_concat(f_t)
@@ -113,7 +112,7 @@ class MVKD(Distiller):
             )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_feat,
+            "loss_kd": torch.tensor(loss_feat, dtype=torch.float32, device=loss_ce.device),
         }
         return logits_student, losses_dict
 
