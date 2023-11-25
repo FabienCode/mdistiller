@@ -405,7 +405,7 @@ class Model(nn.Module):
             temb = None
 
         # downsampling
-        hs = [self.conv_in(x)]
+        hs = [self.conv_in(x.to(torch.float32))]
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
                 h = self.down[i_level].block[i_block](hs[-1], temb)
