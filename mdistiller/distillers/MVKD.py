@@ -23,7 +23,7 @@ class MVKD(Distiller):
 
         # feature restoration
         # Diffusion config
-        timesteps = 100
+        timesteps = 1000
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
         betas = cosine_beta_schedule(timesteps)
         alphas = 1. - betas
@@ -98,6 +98,7 @@ class MVKD(Distiller):
             loss_feat = 0.
             for i in range(len(t_f_new)):
                 loss_feat += F.mse_loss(f_s, t_f_new[i])
+            loss_feat += F.mse_loss(f_s, f_t)
         else:
             d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
             d_f_t = self.rec_module(d_f_t, t)
