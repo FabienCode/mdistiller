@@ -100,7 +100,7 @@ class MVKD(Distiller):
         # loss_feat = self.feat_loss_weight * loss_feat
         if cur_epoch > 200:
             f_new = self.ddim_sample(f_t)
-            t_f_new = f_new
+            t_f_new = f_new[-3:]
             loss_feat = 0.
             # indices = torch.linspace(0, 1, steps=len(t_f_new))
             # weights = 0.1 + (1 - 0.1) * indices
