@@ -92,19 +92,19 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         # f_new = self.ddim_sample(f_t)
-        # if cur_epoch > 240:
-        #     f_new = self.ddim_sample(f_t)
-        #     t_f_new = f_new[-5:]
-        #     loss_feat = 0.
-        #     for i in range(len(t_f_new)):
-        #         loss_feat += F.mse_loss(f_s, t_f_new[i])
-        #     loss_feat += F.mse_loss(f_s, f_t)
-        # else:
-        d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
-        d_f_t = self.rec_module(d_f_t, t)
-        loss_feat = self.feat_loss_weight * F.mse_loss(
-            d_f_t, f_t
-        ) + self.feat_loss_weight * F.mse_loss(f_s, f_t)
+        if cur_epoch > 240:
+            f_new = self.ddim_sample(f_t)
+            t_f_new = f_new[-5:]
+            loss_feat = 0.
+            for i in range(len(t_f_new)):
+                loss_feat += F.mse_loss(f_s, t_f_new[i])
+            loss_feat += F.mse_loss(f_s, f_t)
+        else:
+            d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
+            d_f_t = self.rec_module(d_f_t, t)
+            loss_feat = self.feat_loss_weight * F.mse_loss(
+                d_f_t, f_t
+            ) + self.feat_loss_weight * F.mse_loss(f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": torch.tensor(loss_feat, dtype=torch.float32, device=loss_ce.device),
