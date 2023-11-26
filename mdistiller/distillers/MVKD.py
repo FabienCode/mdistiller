@@ -11,9 +11,9 @@ from mdistiller.engine.mvkd_utils import Model
 class MVKD(Distiller):
     def __init__(self, student, teacher, cfg):
         super(MVKD, self).__init__(student, teacher)
-        self.ce_loss_weight = cfg.FITNET.LOSS.CE_WEIGHT
-        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
-        self.hint_layer = cfg.FITNET.HINT_LAYER
+        self.ce_loss_weight = cfg.MVKD.LOSS.CE_WEIGHT
+        self.feat_loss_weight = cfg.MVKD.LOSS.FEAT_WEIGHT
+        self.hint_layer = cfg.MVKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
@@ -26,7 +26,7 @@ class MVKD(Distiller):
         timesteps = 100
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
         betas = cosine_beta_schedule(timesteps)
-        alphas = 1. -betas
+        alphas = 1. - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
         alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.)
         timesteps, = betas.shape
