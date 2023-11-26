@@ -23,6 +23,7 @@ class MVKD(Distiller):
 
         # feature restoration
         # Diffusion config
+        self.rec_weight = cfg.MVKD.LOSS.REC_WEIGHT
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
         betas = cosine_beta_schedule(timesteps)
@@ -89,13 +90,26 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         # f_new = self.ddim_sample(f_t)
-        if cur_epoch > 240:
+        # t_f_new = f_new
+        # loss_feat = 0.
+        # length = len(t_f_new)
+        # for i in range(length):
+        #     weight = 1 / (10 ** (length - i - 1))
+        #     loss_feat += weight * F.mse_loss(f_s, t_f_new[i])
+        # loss_feat += F.mse_loss(f_s, f_t)
+        # loss_feat = self.feat_loss_weight * loss_feat
+        if cur_epoch > 200:
             f_new = self.ddim_sample(f_t)
-            t_f_new = f_new[-5:]
+            t_f_new = f_new
             loss_feat = 0.
-            for i in range(len(t_f_new)):
-                loss_feat += F.mse_loss(f_s, t_f_new[i])
+            # indices = torch.linspace(0, 1, steps=len(t_f_new))
+            # weights = 0.1 + (1 - 0.1) * indices
+            length = len(t_f_new)
+            for i in range(length):
+                weight = 1 / (10 ** (length - i - 1))
+                loss_feat += weight * F.mse_loss(f_s, t_f_new[i])
             loss_feat += F.mse_loss(f_s, f_t)
+            loss_feat = self.feat_loss_weight * loss_feat
         else:
             d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
             d_f_t = self.rec_module(d_f_t, t)
