@@ -102,12 +102,12 @@ class MVKD(Distiller):
             f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
             loss_feat = 0.
-            # indices = torch.linspace(0, 1, steps=len(t_f_new))
-            # weights = 0.1 + (1 - 0.1) * indices
+            indices = torch.linspace(0, 1, steps=len(t_f_new))
+            weights = 0.1 + (1 - 0.1) * indices
             length = len(t_f_new)
             for i in range(length):
-                weight = 1 / (10 ** (length - i - 1))
-                loss_feat += weight * F.mse_loss(f_s, t_f_new[i])
+                # weight = 1 / (10 ** (length - i - 1))
+                loss_feat += weights[i] * F.mse_loss(f_s, t_f_new[i])
             loss_feat += F.mse_loss(f_s, f_t)
             loss_feat = self.feat_loss_weight * loss_feat
         else:
