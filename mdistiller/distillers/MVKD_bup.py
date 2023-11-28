@@ -89,7 +89,7 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
-        if cur_epoch > 0:
+        if cur_epoch > 200:
             f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
             loss_feat = 0.
@@ -100,7 +100,7 @@ class MVKD(Distiller):
                 # weight = 1 / (10 ** (length - i - 1))
                 loss_feat += weights[i] * F.mse_loss(f_s, t_f_new[i])
             loss_feat += F.mse_loss(f_s, f_t)
-            loss_feat = 1 * loss_feat
+            loss_feat = self.feat_loss_weight * loss_feat
         else:
             d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
             d_f_t = self.rec_module(d_f_t, t)
