@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,7 +7,7 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.mvkd_utils import Model
-
+from tqdm import tqdm
 
 class MVKD(Distiller):
     def __init__(self, student, teacher, cfg):
@@ -26,11 +27,11 @@ class MVKD(Distiller):
         self.rec_weight = cfg.MVKD.LOSS.REC_WEIGHT
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
-        betas = cosine_beta_schedule(timesteps)
-        alphas = 1. - betas
-        alphas_cumprod = torch.cumprod(alphas, dim=0)
-        alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.)
-        timesteps, = betas.shape
+        self.betas = cosine_beta_schedule(timesteps)
+        self.alphas = 1. - self.betas
+        self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.)
+        self.timesteps, = self.betas.shape
         self.num_timesteps = int(timesteps)
 
         self.sampling_timesteps = default(sampling_timesteps, timesteps)
@@ -40,31 +41,10 @@ class MVKD(Distiller):
         self.self_condition = False
         self.d_scale = cfg.MVKD.D_SCALE
         self.f_t_shapes = feat_t_shapes
-        self.register_buffer('betas', betas)
-        self.register_buffer('alphas_cumprod', alphas_cumprod)
-        self.register_buffer('alphas_cumprod_prev', alphas_cumprod_prev)
-
-        # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.register_buffer('sqrt_alphas_cumprod', torch.sqrt(alphas_cumprod))
-        self.register_buffer('sqrt_one_minus_alphas_cumprod', torch.sqrt(1. - alphas_cumprod))
-        self.register_buffer('log_one_minus_alphas_cumprod', torch.log(1. - alphas_cumprod))
-        self.register_buffer('sqrt_recip_alphas_cumprod', torch.sqrt(1. / alphas_cumprod))
-        self.register_buffer('sqrt_recipm1_alphas_cumprod', torch.sqrt(1. / alphas_cumprod - 1))
-
-        # calculations for posterior q(x_{t-1} | x_t, x_0)
-        posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
-
-        # above: equal to 1. / (1. / (1. - alpha_cumprod_tm1) + alpha_t / beta_t)
-        self.register_buffer('posterior_variance', posterior_variance)
-
-        # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
-        self.register_buffer('posterior_log_variance_clipped', torch.log(posterior_variance.clamp(min=1e-20)))
-        self.register_buffer('posterior_mean_coef1', betas * torch.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
-        self.register_buffer('posterior_mean_coef2',
-                             (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
-
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c, out_ch=t_c, num_res_blocks=2, attn_resolutions=[4], in_channels=t_c, resolution=t_w, dropout=0.0)
+        self.rec_module = Model(ch=t_c, out_ch=t_c, num_res_blocks=2, attn_resolutions=[4], in_channels=t_c,
+                                resolution=t_w, dropout=0.0)
+        self.make_schedule(self.sampling_timesteps, ddim_discretize="uniform", ddim_eta=self.ddim_sampling_eta, verbose=True)
         # self.prepare_noise_feature
 
     def get_learnable_parameters(self):
@@ -89,8 +69,9 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
-        if cur_epoch > 0:
-            f_new = self.ddim_sample(f_t)
+        if cur_epoch > 200:
+            f_new, f_inter = self.ddim_sampling(f_t)
+            # f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
             loss_dmvkd = 0.
             indices = torch.linspace(0, 1, steps=len(t_f_new))
@@ -145,38 +126,98 @@ class MVKD(Distiller):
                 (extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t - x0) /
                 extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape)
         )
+
     @torch.no_grad()
-    def ddim_sample(self, feature, clip_denoised=True):
-        batch = feature.shape[0]
-        shape = self.f_t_shapes
-        total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
+    def ddim_sampling(self, f_t, cond=None, x_T=None,
+                      ddim_use_original_steps=False,
+                      callback=None, x0=None, img_callback=None, log_every_t=100):
+        device = f_t.device
+        shape = f_t.shape
+        b = shape[0]
+        if x_T is None:
+            img = torch.randn(shape, device=device)
+        else:
+            img = x_T
 
-        # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
-        times = torch.linspace(-1, total_timesteps - 1, steps=sampling_timesteps + 1)
-        times = list(reversed(times.int().tolist()))
-        time_pairs = list(zip(times[:-1], times[1:]))  # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
+        timesteps = self.ddim_timesteps
 
-        fully_f = []
-        f = torch.randn_like(feature, device=feature.device)
-        x_start = None
-        for time, time_next in time_pairs:
-            time_cond = torch.full((batch,), time, device=feature.device, dtype=torch.long)
-            self_cond = x_start if self.self_condition else None
+        intermediates = {'x_inter': [img], 'pred_x0': [img]}
+        time_range = reversed(range(0, timesteps)) if ddim_use_original_steps else np.flip(timesteps)
+        total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
+        # print(f"Running DDIM sampling with {total_steps} steps")
 
-            x_start = self.rec_module(feature, time_cond)
-            x_start = (x_start * 2. - 1.) * self.d_scale
-            x_start = torch.clamp(x_start, min=-1 * self.d_scale, max=self.d_scale)
-            pred_noise = self.predict_noise_from_start(f, time_cond, x_start)
-            alpha = self.alphas_cumprod[time]
-            alpha_next = self.alphas_cumprod[time_next]
+        iterator = tqdm(time_range, desc='DDIM sampling', total=total_steps)
+        D_fss = []
+        for i, step in enumerate(iterator):
+            index = total_steps - i - 1
+            ts = torch.full((b,), step, device=device, dtype=torch.long)
 
-            sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
-            c = (1 - alpha_next - sigma ** 2).sqrt()
-            noise = torch.rand_like(f)
+            outs = self.p_sample_ddim(img, ts, cond, index=index)
+            img, pred_x0 = outs
+            D_fss.append(img)
+            if index % log_every_t == 0 or index == total_steps - 1:
+                intermediates['x_inter'].append(img)
+                intermediates['pred_x0'].append(pred_x0)
 
-            f = x_start * alpha_next.sqrt() + c * pred_noise + sigma * noise
-            fully_f.append(f)
-        return fully_f
+        return D_fss, intermediates
+
+    @torch.no_grad()
+    def p_sample_ddim(self, x, t, c, index, repeat_noise=False, temperature=1.):
+        b, *_, device = *x.shape, x.device
+
+        e_t = self.rec_module(x, t)
+
+        alphas = self.ddim_alphas
+        alphas_prev = self.ddim_alphas_prev
+        sqrt_one_minus_alphas = self.ddim_sqrt_one_minus_alphas
+        sigmas = self.ddim_sigmas
+        # select parameters corresponding to the currently considered timestep
+        a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
+        a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
+        sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
+        sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
+
+        # current prediction for x_0
+        pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
+        # direction pointing to x_t
+        dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
+        noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
+        x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
+        return x_prev, pred_x0
+
+    def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
+        self.ddim_timesteps = make_ddim_timesteps(ddim_discr_method=ddim_discretize, num_ddim_timesteps=ddim_num_steps,
+                                                  num_ddpm_timesteps=self.num_timesteps,verbose=verbose)
+        alphas_cumprod = self.alphas_cumprod
+        assert alphas_cumprod.shape[0] == self.timesteps, 'alphas have to be defined for each timestep'
+        to_torch = lambda x: x.clone().detach().to(torch.float32).cuda()
+
+        self.alphas_cumprod = to_torch(self.alphas_cumprod)
+        self.alphas_cumprod_prev = to_torch(self.alphas_cumprod_prev)
+        self.betas = to_torch(self.betas)
+        # self.register_buffer('betas', to_torch(self.betas))
+        # self.register_buffer('alphas_cumprod', to_torch(alphas_cumprod))
+        # self.register_buffer('alphas_cumprod_prev', to_torch(self.alphas_cumprod_prev))
+
+        # calculations for diffusion q(x_t | x_{t-1}) and others
+        self.register_buffer('sqrt_alphas_cumprod', to_torch(np.sqrt(alphas_cumprod.cpu())))
+        self.register_buffer('sqrt_one_minus_alphas_cumprod', to_torch(np.sqrt(1. - alphas_cumprod.cpu())))
+        self.register_buffer('log_one_minus_alphas_cumprod', to_torch(np.log(1. - alphas_cumprod.cpu())))
+        self.register_buffer('sqrt_recip_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod.cpu())))
+        self.register_buffer('sqrt_recipm1_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod.cpu() - 1)))
+
+        # ddim sampling parameters
+        ddim_sigmas, ddim_alphas, ddim_alphas_prev = make_ddim_sampling_parameters(alphacums=alphas_cumprod.cpu(),
+                                                                                   ddim_timesteps=self.ddim_timesteps,
+                                                                                   eta=ddim_eta,verbose=verbose)
+        self.register_buffer('ddim_sigmas', ddim_sigmas)
+        self.register_buffer('ddim_alphas', ddim_alphas)
+        self.register_buffer('ddim_alphas_prev', torch.tensor(ddim_alphas_prev, dtype=torch.float32))
+        self.register_buffer('ddim_sqrt_one_minus_alphas', np.sqrt(1. - ddim_alphas))
+        sigmas_for_original_sampling_steps = ddim_eta * torch.sqrt(
+            (1 - self.alphas_cumprod_prev) / (1 - self.alphas_cumprod) * (
+                        1 - self.alphas_cumprod / self.alphas_cumprod_prev))
+        self.register_buffer('ddim_sigmas_for_original_num_steps', sigmas_for_original_sampling_steps)
 
 
 
@@ -205,3 +246,39 @@ def default(val, d):
 
 def exists(x):
     return x is not None
+
+def make_ddim_timesteps(ddim_discr_method, num_ddim_timesteps, num_ddpm_timesteps, verbose=True):
+    if ddim_discr_method == 'uniform':
+        c = num_ddpm_timesteps // num_ddim_timesteps
+        ddim_timesteps = np.asarray(list(range(0, num_ddpm_timesteps, c)))
+    elif ddim_discr_method == 'quad':
+        ddim_timesteps = ((np.linspace(0, np.sqrt(num_ddpm_timesteps * .8), num_ddim_timesteps)) ** 2).astype(int)
+    else:
+        raise NotImplementedError(f'There is no ddim discretization method called "{ddim_discr_method}"')
+
+    # assert ddim_timesteps.shape[0] == num_ddim_timesteps
+    # add one to get the final alpha values right (the ones from first scale to data during sampling)
+    steps_out = ddim_timesteps + 1
+    if verbose:
+        print(f'Selected timesteps for ddim sampler: {steps_out}')
+    return steps_out
+
+
+def noise_like(shape, device, repeat=False):
+    repeat_noise = lambda: torch.randn((1, *shape[1:]), device=device).repeat(shape[0], *((1,) * (len(shape) - 1)))
+    noise = lambda: torch.randn(shape, device=device)
+    return repeat_noise() if repeat else noise()
+
+
+def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta, verbose=True):
+    # select alphas for computing the variance schedule
+    alphas = alphacums[ddim_timesteps]
+    alphas_prev = np.asarray([alphacums[0]] + alphacums[ddim_timesteps[:-1]].tolist())
+
+    # according the the formula provided in https://arxiv.org/abs/2010.02502
+    sigmas = eta * np.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
+    if verbose:
+        print(f'Selected alphas for ddim sampler: a_t: {alphas}; a_(t-1): {alphas_prev}')
+        print(f'For the chosen value of eta, which is {eta}, '
+              f'this results in the following sigma_t schedule for ddim sampler {sigmas}')
+    return sigmas, alphas, alphas_prev
