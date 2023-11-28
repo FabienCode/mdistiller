@@ -24,6 +24,7 @@ class MVKD(Distiller):
 
         # feature restoration
         # Diffusion config
+        self.infer_weight = cfg.MVKD.LOSS.INFER_WEIGHT
         self.rec_weight = cfg.MVKD.LOSS.REC_WEIGHT
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
@@ -80,8 +81,7 @@ class MVKD(Distiller):
             for i in range(length):
                 # weight = 1 / (10 ** (length - i - 1))
                 loss_dmvkd += weights[i] * F.mse_loss(f_s, t_f_new[i])
-            loss_feat = F.mse_loss(f_s, f_t) + loss_dmvkd
-            loss_feat = 0.1 * loss_feat
+            loss_feat = self.feat_loss_weight * F.mse_loss(f_s, f_t) + self.infer_weight * loss_dmvkd
         else:
             d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
             d_f_t = self.rec_module(d_f_t, t)
