@@ -100,7 +100,7 @@ class MVKD(Distiller):
                 # weight = 1 / (10 ** (length - i - 1))
                 loss_feat += weights[i] * F.mse_loss(f_s, t_f_new[i])
             loss_feat += F.mse_loss(f_s, f_t)
-            loss_feat = 1 * loss_feat
+            loss_feat = 0.1 * loss_feat
         else:
             d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
             d_f_t = self.rec_module(d_f_t, t)
