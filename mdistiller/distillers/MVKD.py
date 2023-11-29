@@ -88,7 +88,7 @@ class MVKD(Distiller):
             # q_sample的过程, 这里f_t可看成x_0, 即要恢复的图像(feature).d_f_t即x_t, 也就是从x_0采样得到的x_t
             # 公示$x_t = \sqrt{\bar{\alpha}_t} x_0+\sqrt{1-\bar{\alpha}_t} \epsilon_t$
             # 准备采样步数 t, 根据t生成的不同噪声 noise, 以及采样得到的x_t
-            f_x_t, noise, t = self.prepare_diffusion_concat(f_t, f_t)
+            f_x_t, noise, t = self.prepare_diffusion_concat(f_t)
             pred_t_noise = self.rec_module(f_x_t, t, f_t) # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
             loss_ddim = F.mse_loss(pred_t_noise, noise)
             loss_feat = self.rec_weight * loss_ddim + self.feat_loss_weight * F.mse_loss(f_s, f_t)
