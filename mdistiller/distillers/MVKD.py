@@ -70,7 +70,7 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
-        if cur_epoch > 0:
+        if cur_epoch > 200:
             f_new, f_inter = self.ddim_sampling(f_t)
             # f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
