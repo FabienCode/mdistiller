@@ -71,7 +71,8 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         if cur_epoch > 200:
-            f_new, f_inter = self.ddim_sampling(f_t)
+            # 利用训练好的diffusion模型从随机噪声中生成不同的feature.
+            f_new, f_inter = self.ddim_sampling(f_t) #
             # f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
             loss_dmvkd = 0.
@@ -83,11 +84,14 @@ class MVKD(Distiller):
                 loss_dmvkd += weights[i] * F.mse_loss(f_s, t_f_new[i])
             loss_feat = self.feat_loss_weight * F.mse_loss(f_s, f_t) + self.infer_weight * loss_dmvkd
         else:
-            d_f_t, noise, t = self.prepare_diffusion_concat(f_t)
-            d_f_t = self.rec_module(d_f_t, t)
-            loss_feat = self.rec_weight * F.mse_loss(
-                d_f_t, f_t
-            ) + self.feat_loss_weight * F.mse_loss(f_s, f_t)
+            # diffusion 训练过程, 首先通过q_sample (也就是这里的self.prepare_diffusion_concat(f_t))得到对原始图像加噪之后的结果
+            # q_sample的过程, 这里f_t可看成x_0, 即要恢复的图像(feature).d_f_t即x_t, 也就是从x_0采样得到的x_t
+            # 公示$x_t = \sqrt{\bar{\alpha}_t} x_0+\sqrt{1-\bar{\alpha}_t} \epsilon_t$
+            # 准备采样步数 t, 根据t生成的不同噪声 noise, 以及采样得到的x_t
+            f_x_t, noise, t = self.prepare_diffusion_concat(f_t)
+            pred_t_noise = self.rec_module(f_x_noise, t) # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
+            loss_ddim = F.mse_loss(pred_t_noise, noise)
+            loss_feat = self.rec_weight * loss_ddim + self.feat_loss_weight * F.mse_loss(f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": torch.tensor(loss_feat, dtype=torch.float32, device=loss_ce.device),
@@ -105,19 +109,20 @@ class MVKD(Distiller):
         x_start = (x_start * 2. - 1.) * self.d_scale
 
         # noise sample
+        # $x_t = \sqrt{\bar{\alpha}_t} x_0+\sqrt{1-\bar{\alpha}_t} \epsilon_t$
         x = self.q_sample(x_start=x_start, t=t, noise=noise)
         x = torch.clamp(x, min=-1 * self.d_scale, max=self.d_scale)
         x = (x / self.d_scale + 1.) / 2.
 
         return x, noise, t
 
+    # q_sample 计算x_t, 使用网络对噪声进行预测, 之后计算和真实噪声之间的误差
     def q_sample(self, x_start, t, noise):
         if noise is None:
             noise = torch.randn_like(x_start, device=x_start.device)
 
         sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, t, x_start.shape)
         sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
-
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
 
@@ -154,23 +159,25 @@ class MVKD(Distiller):
 
             outs = self.p_sample_ddim(img, ts, cond, index=index)
             img, pred_x0 = outs
-            D_fss.append(img)
+            D_fss.append(pred_x0)
             if index % log_every_t == 0 or index == total_steps - 1:
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
-
+        D_fss.append(img)
         return D_fss, intermediates
 
     @torch.no_grad()
     def p_sample_ddim(self, x, t, c, index, repeat_noise=False, temperature=1.):
         b, *_, device = *x.shape, x.device
 
-        e_t = self.rec_module(x, t)
+        e_t = self.rec_module(x, t) # 模型对当前噪声状态的评估
 
         alphas = self.ddim_alphas
         alphas_prev = self.ddim_alphas_prev
         sqrt_one_minus_alphas = self.ddim_sqrt_one_minus_alphas
-        sigmas = self.ddim_sigmas
+        #*************************
+        sigmas = self.ddim_sigmas # sigmas = eta * np.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
+        #*************************
         # select parameters corresponding to the currently considered timestep
         a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
         a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
@@ -178,11 +185,15 @@ class MVKD(Distiller):
         sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
 
         # current prediction for x_0
+        # x 是输入的随机噪声, 通过这个随机噪声以及 预测的对应到生成最终x_0 的noise e_t, 便可求得最终预测出来的x_0
         pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         # direction pointing to x_t
-        dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
-        noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
-        x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
+        # dir_xt 是指向下一个时间步的预测数据（x_t）的方向。
+        # a_prev 是前一个时间步的扩散系数。
+        # sigma_t 是当前步骤的噪声标准差。
+        dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t # 计算在移除预测噪声后，数据需要移动多远才能到达下一个时间步的合理状态。
+        noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature # 下一个时间步生成噪声
+        x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise # 结合了上述所有计算，以产生下一个时间步的数据状态。
         return x_prev, pred_x0
 
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
