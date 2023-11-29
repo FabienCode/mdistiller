@@ -43,7 +43,7 @@ class MVKD(Distiller):
         self.d_scale = cfg.MVKD.D_SCALE
         self.f_t_shapes = feat_t_shapes
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c, out_ch=t_c, num_res_blocks=2, attn_resolutions=[4], in_channels=t_c,
+        self.rec_module = Model(ch=t_c*2, out_ch=t_c*2, num_res_blocks=2, attn_resolutions=[4], in_channels=t_c*2,
                                 resolution=t_w, dropout=0.0)
         self.make_schedule(self.sampling_timesteps, ddim_discretize="uniform", ddim_eta=self.ddim_sampling_eta, verbose=True)
         # self.prepare_noise_feature
