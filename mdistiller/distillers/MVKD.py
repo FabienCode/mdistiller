@@ -43,7 +43,7 @@ class MVKD(Distiller):
         self.d_scale = cfg.MVKD.D_SCALE
         self.f_t_shapes = feat_t_shapes
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c*2, out_ch=t_c*2, num_res_blocks=2, attn_resolutions=[4], in_channels=t_c*2,
+        self.rec_module = Model(ch=t_c*2, out_ch=t_c*2, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4], in_channels=t_c*2,
                                 resolution=t_w, dropout=0.0)
         self.make_schedule(self.sampling_timesteps, ddim_discretize="uniform", ddim_eta=self.ddim_sampling_eta, verbose=True)
         # self.prepare_noise_feature
@@ -72,7 +72,7 @@ class MVKD(Distiller):
 
         if cur_epoch > 200:
             # 利用训练好的diffusion模型从随机噪声中生成不同的feature.
-            f_new, f_inter = self.ddim_sampling(f_t, f_t) #
+            f_new, f_inter = self.ddim_sampling(f_t, f_t)
             # f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-3:]
             loss_dmvkd = 0.
@@ -89,7 +89,7 @@ class MVKD(Distiller):
             # 公示$x_t = \sqrt{\bar{\alpha}_t} x_0+\sqrt{1-\bar{\alpha}_t} \epsilon_t$
             # 准备采样步数 t, 根据t生成的不同噪声 noise, 以及采样得到的x_t
             f_x_t, noise, t = self.prepare_diffusion_concat(f_t)
-            pred_t_noise = self.rec_module(f_x_t, t, f_t) # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
+            pred_t_noise = self.rec_module(f_x_t, t, f_t)  # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
             loss_ddim = F.mse_loss(pred_t_noise, noise)
             loss_feat = self.rec_weight * loss_ddim + self.feat_loss_weight * F.mse_loss(f_s, f_t)
         losses_dict = {
@@ -170,7 +170,7 @@ class MVKD(Distiller):
     def p_sample_ddim(self, x, t, c, index, repeat_noise=False, temperature=1.):
         b, *_, device = *x.shape, x.device
 
-        e_t = self.rec_module(x, t, f_t) # 模型对当前噪声状态的评估
+        e_t = self.rec_module(x, t, c) # 模型对当前噪声状态的评估
 
         alphas = self.ddim_alphas
         alphas_prev = self.ddim_alphas_prev
