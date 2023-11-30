@@ -152,19 +152,25 @@ class MVKD(Distiller):
         time_range = reversed(range(0, timesteps)) if ddim_use_original_steps else np.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
         # print(f"Running DDIM sampling with {total_steps} steps")
-
-        iterator = tqdm(time_range, desc='DDIM sampling', total=total_steps)
+        # iterator = tqdm(time_range, desc='DDIM sampling', total=total_steps)
         D_fss = []
-        for i, step in enumerate(iterator):
+        # for i, step in enumerate(iterator):
+        #     index = total_steps - i - 1
+        #     ts = torch.full((b,), step, device=device, dtype=torch.long)
+        #
+        #     outs = self.p_sample_ddim(img, ts, cond, index=index)
+        #     img, pred_x0 = outs
+        #     D_fss.append(pred_x0)
+        #     if index % log_every_t == 0 or index == total_steps - 1:
+        #         intermediates['x_inter'].append(img)
+        #         intermediates['pred_x0'].append(pred_x0)
+        for i, step in enumerate(time_range):
             index = total_steps - i - 1
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
             outs = self.p_sample_ddim(img, ts, cond, index=index)
             img, pred_x0 = outs
             D_fss.append(pred_x0)
-            if index % log_every_t == 0 or index == total_steps - 1:
-                intermediates['x_inter'].append(img)
-                intermediates['pred_x0'].append(pred_x0)
         D_fss.append(img)
         return D_fss, intermediates
 
