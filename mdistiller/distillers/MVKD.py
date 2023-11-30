@@ -29,6 +29,7 @@ class MVKD(Distiller):
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.NUM_TIMESTEPS
         self.rec_feature_num = cfg.MVKD.REC_FEATURE_NUM
+        self.first_rec_kd = cfg.MVKD.INIT_REC_EPOCH
         self.betas = cosine_beta_schedule(timesteps)
         self.alphas = 1. - self.betas
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
@@ -71,7 +72,7 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
-        if cur_epoch > 200:
+        if cur_epoch > self.first_rec_kd:
             # 利用训练好的diffusion模型从随机噪声中生成不同的feature.
             f_new, f_inter = self.ddim_sampling(f_t, f_t)
             # f_new = self.ddim_sample(f_t)
