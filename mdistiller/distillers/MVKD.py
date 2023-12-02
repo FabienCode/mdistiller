@@ -8,6 +8,8 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 from mdistiller.engine.mvkd_utils import Model
 from tqdm import tqdm
+from mdistiller.dataset.cifar100 import augment_list, Cutout
+import random
 
 class MVKD(Distiller):
     def __init__(self, student, teacher, cfg):
@@ -21,6 +23,9 @@ class MVKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
+
+        # image aug
+        self.augment_list = augment_list()
 
         # feature restoration
         # Diffusion config
@@ -45,7 +50,7 @@ class MVKD(Distiller):
         self.d_scale = cfg.MVKD.D_SCALE
         self.f_t_shapes = feat_t_shapes
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4], in_channels=t_c*2,
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4], in_channels=t_c,
                                 resolution=t_w, dropout=0.0)
         self.make_schedule(self.sampling_timesteps, ddim_discretize="uniform", ddim_eta=self.ddim_sampling_eta, verbose=True)
         # self.prepare_noise_feature
@@ -62,6 +67,15 @@ class MVKD(Distiller):
         return num_p
 
     def forward_train(self, image, target, **kwargs):
+        # strong image aug
+        ops = random.choices(self.augment_list, k=10)
+        image_strong = image.clone()
+        for op, min_val, max_val in ops:
+            val = min_val + float(max_val - min_val) * random.random()
+            image_strong = op(image_strong, val)
+        cutout_val = random.random() * 0.5
+        image_strong = Cutout(image_strong, cutout_val)  # for fixmatch
+
         cur_epoch = kwargs['epoch']
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
@@ -74,7 +88,7 @@ class MVKD(Distiller):
 
         if cur_epoch > self.first_rec_kd:
             # 利用训练好的diffusion模型从随机噪声中生成不同的feature.
-            f_new, f_inter = self.ddim_sampling(f_t, f_t)
+            f_new, f_inter = self.ddim_sampling(f_t)
             # f_new = self.ddim_sample(f_t)
             t_f_new = f_new[-self.rec_feature_num:]
             loss_dmvkd = 0.
@@ -91,12 +105,12 @@ class MVKD(Distiller):
             # 公示$x_t = \sqrt{\bar{\alpha}_t} x_0+\sqrt{1-\bar{\alpha}_t} \epsilon_t$
             # 准备采样步数 t, 根据t生成的不同噪声 noise, 以及采样得到的x_t
             f_x_t, noise, t = self.prepare_diffusion_concat(f_t)
-            pred_t_noise = self.rec_module(f_x_t, t, f_t)  # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
+            pred_t_noise = self.rec_module(f_x_t, t)  # pred为预测的噪声 $\hat{\epsilon}_{\theta}(x_t, t)$
             loss_ddim = F.mse_loss(pred_t_noise, noise)
             loss_feat = self.rec_weight * loss_ddim + self.feat_loss_weight * F.mse_loss(f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": torch.tensor(loss_feat, dtype=torch.float32, device=loss_ce.device),
+            "loss_kd": loss_feat,
         }
         return logits_student, losses_dict
 
@@ -301,3 +315,5 @@ def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta, verbose=True):
         print(f'For the chosen value of eta, which is {eta}, '
               f'this results in the following sigma_t schedule for ddim sampler {sigmas}')
     return sigmas, alphas, alphas_prev
+
+

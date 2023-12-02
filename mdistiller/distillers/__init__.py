@@ -28,6 +28,7 @@ from .kr_mlkd import KR_MLKD
 from .fitnet_kd import FitNet_KD
 from .KR_DKD import KR_DKD
 from .MVKD import MVKD
+from .demo import KD_strong
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -60,4 +61,5 @@ distiller_dict = {
     "FitNet_KD": FitNet_KD,
     "KR_DKD": KR_DKD,
     "MVKD": MVKD,
+    "KD_strong": KD_strong,
 }
