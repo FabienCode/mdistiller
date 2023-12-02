@@ -67,15 +67,6 @@ class MVKD(Distiller):
         return num_p
 
     def forward_train(self, image, target, **kwargs):
-        # strong image aug
-        ops = random.choices(self.augment_list, k=10)
-        image_strong = image.clone()
-        for op, min_val, max_val in ops:
-            val = min_val + float(max_val - min_val) * random.random()
-            image_strong = op(image_strong, val)
-        cutout_val = random.random() * 0.5
-        image_strong = Cutout(image_strong, cutout_val)  # for fixmatch
-
         cur_epoch = kwargs['epoch']
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
