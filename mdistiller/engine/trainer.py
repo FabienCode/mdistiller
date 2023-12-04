@@ -16,6 +16,7 @@ from .utils import (
     load_checkpoint,
     log_msg,
 )
+import numpy as np
 
 
 class BaseTrainer(object):
@@ -223,6 +224,84 @@ class CRDTrainer(BaseTrainer):
             train_meters["top5"].avg,
         )
         return msg
+
+def mvkd_adjust_learning_rate(epoch, cfg, optimizer):
+    steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
+    if 3 > steps > 0:
+        new_lr = cfg.SOLVER.LR * (cfg.SOLVER.LR_DECAY_RATE**steps)
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = new_lr
+        return new_lr
+    elif steps >= 3:
+        new_lr = cfg.SOLVER.LR * (cfg.SOLVER.LR_DECAY_RATE**steps - 3)
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = new_lr
+        return new_lr
+    return cfg.SOLVER.LR
+
+class DoubleLRTrainer(BaseTrainer):
+    def train_epoch(self, epoch):
+        lr = mvkd_adjust_learning_rate(epoch, self.cfg, self.optimizer)
+        train_meters = {
+            "training_time": AverageMeter(),
+            "data_time": AverageMeter(),
+            "losses": AverageMeter(),
+            "top1": AverageMeter(),
+            "top5": AverageMeter(),
+        }
+        num_iter = len(self.train_loader)
+        pbar = tqdm(range(num_iter))
+
+        # train loops
+        self.distiller.train()
+        for idx, data in enumerate(self.train_loader):
+            msg = self.train_iter(data, epoch, train_meters)
+            pbar.set_description(log_msg(msg, "TRAIN"))
+            pbar.update()
+        pbar.close()
+
+        # validate
+        test_acc, test_acc_top5, test_loss = validate(self.val_loader, self.distiller)
+
+        # log
+        log_dict = OrderedDict(
+            {
+                "train_acc": train_meters["top1"].avg,
+                "train_loss": train_meters["losses"].avg,
+                "test_acc": test_acc,
+                "test_acc_top5": test_acc_top5,
+                "test_loss": test_loss,
+            }
+        )
+        self.log(lr, epoch, log_dict)
+        # saving checkpoint
+        state = {
+            "epoch": epoch,
+            "model": self.distiller.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "best_acc": self.best_acc,
+        }
+        student_state = {"model": self.distiller.module.student.state_dict()}
+        save_checkpoint(state, os.path.join(self.log_path, "latest"))
+        save_checkpoint(
+            student_state, os.path.join(self.log_path, "student_latest")
+        )
+        if epoch % self.cfg.LOG.SAVE_CHECKPOINT_FREQ == 0:
+            save_checkpoint(
+                state, os.path.join(self.log_path, "epoch_{}".format(epoch))
+            )
+            save_checkpoint(
+                student_state,
+                os.path.join(self.log_path, "student_{}".format(epoch)),
+            )
+        # update the best
+        if test_acc >= self.best_acc:
+            save_checkpoint(state, os.path.join(self.log_path, "best"))
+            save_checkpoint(
+                student_state, os.path.join(self.log_path, "student_best")
+            )
+
+
 
 
 class AugTrainer(BaseTrainer):
