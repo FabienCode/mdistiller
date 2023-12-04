@@ -43,6 +43,7 @@ class MVKD(Distiller):
         self.self_condition = False
         self.scale = cfg.MVKD.DIFFUSION.SNR_SCALE
         self.diff_num = cfg.MVKD.DIFFUSION.DIFF_FEATURE_NUM
+        self.first_rec_kd = cfg.MVKD.INIT_REC_EPOCH
 
         self.register_buffer('betas', betas)
         self.register_buffer('alphas_cumprod', alphas_cumprod)
@@ -70,8 +71,7 @@ class MVKD(Distiller):
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4], in_channels=t_c,
                                 resolution=t_w, dropout=0.0)
-        self.rec_feature_num = cfg.MVKD.REC_FEATURE_NUM
-        self.first_rec_kd = cfg.MVKD.INIT_REC_EPOCH
+
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.rec_module.parameters())
