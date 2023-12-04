@@ -29,7 +29,6 @@ class MVKD(Distiller):
         # build diffusion
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.DIFFUSION.SAMPLE_STEP
-        self.objective = 'pred_x0'
         betas = cosine_beta_schedule(timesteps)
         alphas = 1. - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
