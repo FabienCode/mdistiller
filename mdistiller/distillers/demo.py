@@ -51,14 +51,9 @@ class KD_strong(Distiller):
         loss_feat_weak = self.feat_loss_weight * F.mse_loss(
             f_s_weak, feature_teacher_weak["feats"][self.hint_layer]
         )
-        f_s_strong = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
-        loss_feat_strong = self.feat_loss_weight * F.mse_loss(
-            f_s_strong, feature_teacher_strong["feats"][self.hint_layer]
-        )
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": loss_feat_weak,
-            "loss_feat_strong": loss_feat_strong,
+            "loss_feat_weak": loss_feat_weak
         }
         return logits_student_weak, losses_dict
