@@ -167,7 +167,7 @@ class MVKD(Distiller):
                 continue
 
             alpha = self.alphas_cumprod[time]
-            alpha_next = self.alpha_cumprod[time_next]
+            alpha_next = self.alphas_cumprod[time_next]
 
             sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
             c = (1 - alpha_next - sigma ** 2).sqrt()
