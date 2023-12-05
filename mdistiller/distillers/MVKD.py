@@ -154,7 +154,7 @@ class MVKD(Distiller):
         # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = torch.linspace(-1., total_timesteps - 1, steps=sampling_timesteps+1)
         times = list(reversed(times.int().tolist()))
-        time_pairs = list(zip(times[:-1], times[1:])) # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
+        time_pairs = list(zip(times[:-1], times[1:]))  # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
 
         f = torch.randn_like(feature)
         x_start = None
@@ -162,14 +162,14 @@ class MVKD(Distiller):
             time_cond = torch.full((batch,), time, dtype=torch.long).cuda()
             self_cond = x_start if self.self_condition else None
 
-            pred_noise, x_start = self.model_predictions(f, time_cond)
+            pred_noise, x_start = self.model_predictions(f.float(), time_cond)
 
             if time_next < 0:
                 f = x_start
                 continue
 
             alpha = self.alphas_cumprod[time]
-            alpha_next = self.alpha_cumprod[time_next]
+            alpha_next = self.alphas_cumprod[time_next]
 
             sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
             c = (1 - alpha_next - sigma ** 2).sqrt()
