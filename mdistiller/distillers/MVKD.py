@@ -98,7 +98,7 @@ class MVKD(Distiller):
 
         if cur_epoch > self.first_rec_kd:
             diffusion_f_t = self.ddim_sample(f_t)
-            if self.diff_num > 0:
+            if self.diff_num > 1:
                 for i in range(self.diff_num - 1):
                     diffusion_f_t += self.ddim_sample(f_t)
             diffusion_f_t /= self.diff_num
