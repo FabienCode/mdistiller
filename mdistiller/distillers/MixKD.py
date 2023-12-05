@@ -1,0 +1,91 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from ._base import Distiller
+from ._common import ConvReg, get_feat_shapes
+
+
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
+
+
+class MixKD(Distiller):
+    """Distilling the Knowledge in a Neural Network"""
+
+    def __init__(self, student, teacher, cfg):
+        super(MixKD, self).__init__(student, teacher)
+        self.ce_loss_weight = cfg.FITNET.LOSS.CE_WEIGHT
+        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
+        self.hint_layer = cfg.FITNET.HINT_LAYER
+        feat_s_shapes, feat_t_shapes = get_feat_shapes(
+            self.student, self.teacher, cfg.FITNET.INPUT_SIZE
+        )
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
+        self.beta = 1.0
+        self.cutmix_prob = 0.5
+
+    # def get_learnable_parameters(self):
+    #     return super().get_learnable_parameters()
+    #
+    # def get_extra_parameters(self):
+    #     num_p = 0
+    #     for p in self.conv_reg.parameters():
+    #         num_p += p.numel()
+    #     return num_p
+
+    def forward_train(self, image_weak, image_strong, target, **kwargs):
+        logits_student_weak, feature_student_weak = self.student(image_weak)
+        logits_student_strong, feature_student_strong = self.student(image_strong)
+        with torch.no_grad():
+            logits_teacher_weak, feature_teacher_weak = self.teacher(image_weak)
+            logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
+
+        # losses
+        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
+
+        f_s_weak = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
+        f_s_strong = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
+
+        f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
+        f_t_strong = feature_teacher_strong["feats"][self.hint_layer]
+
+        mix_f_t_weak, lma = mix_feature(f_t_strong, f_t_weak, self.beta)
+        loss_feat_weak = F.mse_loss(f_s_weak, mix_f_t_weak) + F.mse_loss(f_s_weak, f_t_strong) * lma + F.mse_loss(f_s_weak, f_t_weak) * (1 - lma)
+        losses_dict = {
+            "loss_ce": loss_ce,
+            "loss_feat_weak": self.feat_loss_weight * loss_feat_weak
+        }
+        return logits_student_strong, losses_dict
+
+def mix_feature(f_w, f_s, beta):
+    beta_distribution = torch.distributions.beta.Beta(beta, beta)
+    lma = beta_distribution.sample()
+    bbx1, bby1, bbx2, bby2 = rand_bbox(f_w.size(), lma)
+    f_w[:, :, bbx1:bbx2, bby1:bby2] = f_s[:, :, bbx1:bbx2, bby1:bby2]
+    return f_w, lma
+
+
+def rand_bbox(size, lam):
+    W = size[2]
+    H = size[3]
+    cut_rat = torch.sqrt(1. - lam)
+    cut_w = torch.tensor(W, dtype=torch.float32).mul(cut_rat).type(torch.int)
+    cut_h = torch.tensor(H, dtype=torch.float32).mul(cut_rat).type(torch.int)
+
+    # uniform
+    cx = torch.randint(0, W, (1,)).item()
+    cy = torch.randint(0, H, (1,)).item()
+
+    bbx1 = torch.clamp(cx - cut_w // 2, 0, W)
+    bby1 = torch.clamp(cy - cut_h // 2, 0, H)
+    bbx2 = torch.clamp(cx + cut_w // 2, 0, W)
+    bby2 = torch.clamp(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
