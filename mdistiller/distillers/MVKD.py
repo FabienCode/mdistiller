@@ -10,8 +10,6 @@ from mdistiller.engine.mvkd_utils import Model
 
 
 class MVKD(Distiller):
-    """FitNets: Hints for Thin Deep Nets"""
-
     def __init__(self, student, teacher, cfg):
         super(MVKD, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.MVKD.LOSS.CE_WEIGHT
