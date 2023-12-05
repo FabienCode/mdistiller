@@ -10,6 +10,8 @@ from mdistiller.engine.mvkd_utils import Model
 
 
 class MVKD(Distiller):
+    """FitNets: Hints for Thin Deep Nets"""
+
     def __init__(self, student, teacher, cfg):
         super(MVKD, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.MVKD.LOSS.CE_WEIGHT
@@ -167,7 +169,7 @@ class MVKD(Distiller):
                 continue
 
             alpha = self.alphas_cumprod[time]
-            alpha_next = self.alphas_cumprod[time_next]
+            alpha_next = self.alpha_cumprod[time_next]
 
             sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
             c = (1 - alpha_next - sigma ** 2).sqrt()
