@@ -56,7 +56,7 @@ class MixKD(Distiller):
         s_t_strong = calculate_saliency(f_t_strong)
         mix_t_weak, mix_t_strong = mix_features(f_t_weak, f_t_strong, s_t_weak, s_t_strong)
 
-        loss_feat = 0.1 * F.mse_loss(f_s_weak, mix_t_weak) + F.mse_loss(f_s_weak, mix_t_strong)
+        loss_feat = F.mse_loss(f_s_weak, mix_t_weak) + F.mse_loss(f_s_weak, mix_t_strong)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat_weak": self.feat_loss_weight * loss_feat
