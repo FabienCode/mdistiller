@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-1"
+  TAG: "vx-1-2"
   PROJECT: "mvkd_324_84_v1"
 DISTILLER:
   TYPE: "MixKD"
@@ -8,7 +8,7 @@ DISTILLER:
   STUDENT: "resnet20"
 SOLVER:
   BATCH_SIZE: 64
-  EPOCHS: 240
+  EPOCHS: 240d
   LR: 0.05
   LR_DECAY_STAGES: [150, 180, 210]
   LR_DECAY_RATE: 0.1

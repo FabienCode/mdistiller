@@ -31,14 +31,14 @@ class MixKD(Distiller):
         self.beta = 1.0
         self.cutmix_prob = 0.5
 
-    # def get_learnable_parameters(self):
-    #     return super().get_learnable_parameters()
-    #
-    # def get_extra_parameters(self):
-    #     num_p = 0
-    #     for p in self.conv_reg.parameters():
-    #         num_p += p.numel()
-    #     return num_p
+    def get_learnable_parameters(self):
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+
+    def get_extra_parameters(self):
+        num_p = 0
+        for p in self.conv_reg.parameters():
+            num_p += p.numel()
+        return num_p
 
     def forward_train(self, image_weak, image_strong, target, **kwargs):
         logits_student_weak, feature_student_weak = self.student(image_weak)
@@ -48,19 +48,20 @@ class MixKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
-
-        f_s_weak = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_strong, target) + F.cross_entropy(logits_student_weak, target))
+        f_s_weak = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_s_strong = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
 
         f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
         f_t_strong = feature_teacher_strong["feats"][self.hint_layer]
 
-        mix_f_t_weak, lma = mix_feature(f_t_strong, f_t_weak, self.beta)
-        loss_feat_weak = F.mse_loss(f_s_weak, mix_f_t_weak) + F.mse_loss(f_s_weak, f_t_strong) * lma + F.mse_loss(f_s_weak, f_t_weak) * (1 - lma)
+        # mix_f_t_weak, lma = mix_feature(f_t_strong, f_t_weak, self.beta)
+        # loss_feat_weak = F.mse_loss(f_s_weak, mix_f_t_weak) + F.mse_loss(f_s_weak, f_t_strong) * lma + F.mse_loss(f_s_weak, f_t_weak) * (1 - lma)
+        loss_feat = F.mse_loss(f_s_weak, f_t_weak) + F.mse_loss(f_s_strong, f_t_strong) + \
+            F.mse_loss(f_s_weak, f_t_strong) + F.mse_loss(f_s_strong, f_t_weak)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": self.feat_loss_weight * loss_feat_weak
+            "loss_feat_weak": self.feat_loss_weight * loss_feat
         }
         return logits_student_strong, losses_dict
 
