@@ -101,7 +101,7 @@ class MVKD_CRD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
-            self.rec_module.parameters()) + + list(self.embed_s.parameters()) + + list(self.embed_t.parameters())
+            self.rec_module.parameters()) + list(self.embed_s.parameters()) + list(self.embed_t.parameters())
 
     def get_extra_parameters(self):
         params = (
