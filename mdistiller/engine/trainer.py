@@ -200,7 +200,7 @@ class CRDTrainer(BaseTrainer):
 
         # forward
         preds, losses_dict = self.distiller(
-            image=image, target=target, index=index, contrastive_index=contrastive_index
+            image=image, target=target, index=index, contrastive_index=contrastive_index, epoch=epoch
         )
 
         # backward
