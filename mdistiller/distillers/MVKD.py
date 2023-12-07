@@ -69,12 +69,12 @@ class MVKD(Distiller):
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4, 8), num_res_blocks=2, attn_resolutions=[4], in_channels=t_c,
-                                resolution=t_w, dropout=0.0)
-
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4, 8), num_res_blocks=2, attn_resolutions=[4, 8],
+                                in_channels=t_c, resolution=t_w, dropout=0.0)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.rec_module.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
+            self.rec_module.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -152,7 +152,7 @@ class MVKD(Distiller):
         total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
 
         # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
-        times = torch.linspace(-1., total_timesteps - 1, steps=sampling_timesteps+1)
+        times = torch.linspace(-1., total_timesteps - 1, steps=sampling_timesteps + 1)
         times = list(reversed(times.int().tolist()))
         time_pairs = list(zip(times[:-1], times[1:]))  # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
 
@@ -189,7 +189,6 @@ class MVKD(Distiller):
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
         return pred_noise, pred_f
-
 
     def predict_noise_from_start(self, x_t, t, x0):
         return (
