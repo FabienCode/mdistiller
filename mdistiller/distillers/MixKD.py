@@ -42,24 +42,28 @@ class MixKD(Distiller):
 
     def forward_train(self, image_weak, image_strong, target, **kwargs):
         logits_student_weak, feature_student_weak = self.student(image_weak)
+        logits_student_strong, feature_student_strong = self.student(image_strong)
         with torch.no_grad():
             logits_teacher_weak, feature_teacher_weak = self.teacher(image_weak)
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
-        f_s_weak = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
+        # f_s_weak = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
 
-        f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
-        f_t_strong = feature_teacher_strong["feats"][self.hint_layer]
-        s_t_weak = calculate_saliency(f_t_weak)
-        s_t_strong = calculate_saliency(f_t_strong)
-        mix_t_weak, mix_t_strong = mix_features(f_t_weak, f_t_strong, s_t_weak, s_t_strong)
+        # f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
+        # f_t_strong = feature_teacher_strong["feats"][self.hint_layer]
+        # s_t_weak = calculate_saliency(f_t_weak)
+        # s_t_strong = calculate_saliency(f_t_strong)
+        # mix_t_weak, mix_t_strong = mix_features(f_t_weak, f_t_strong, s_t_weak, s_t_strong)
 
-        loss_feat = F.mse_loss(f_s_weak, mix_t_weak) + F.mse_loss(f_s_weak, mix_t_strong)
+        # loss_feat = F.mse_loss(f_s_weak, mix_t_weak) + F.mse_loss(f_s_weak, mix_t_strong)
+        loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
+            logits_student_strong, logits_teacher_strong, 4
+        )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": self.feat_loss_weight * loss_feat
+            "loss_feat_weak": loss_kd
         }
         return logits_student_weak, losses_dict
 
