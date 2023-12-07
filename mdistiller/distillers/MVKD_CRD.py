@@ -10,10 +10,10 @@ from mdistiller.engine.mvkd_utils import Model
 from mdistiller.distillers.CRD import Embed, ContrastMemory, ContrastLoss
 
 
-class MVKDC_CRD(Distiller):
+class MVKD_CRD(Distiller):
 
     def __init__(self, student, teacher, cfg, num_data):
-        super(MVKDC_CRD, self).__init__(student, teacher)
+        super(MVKD_CRD, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.MVKD.LOSS.CE_WEIGHT
         self.feat_loss_weight = cfg.MVKD.LOSS.FEAT_WEIGHT
         self.hint_layer = cfg.MVKD.HINT_LAYER
