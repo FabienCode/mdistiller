@@ -116,8 +116,8 @@ class MVKD_CRD(Distiller):
         return num_p
 
     def crd_loss(self, f_s, f_t, idx, contrast_idx):
-        # f_s = self.embed_s(f_s)
-        # f_t = self.embed_t(f_t)
+        f_s = self.embed_s(f_s)
+        f_t = self.embed_t(f_t)
         out_s, out_t = self.contrast(f_s, f_t, idx, contrast_idx)
         s_loss = self.criterion_s(out_s)
         t_loss = self.criterion_t(out_t)
