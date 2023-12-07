@@ -64,7 +64,7 @@ def main(cfg, resume, opts):
             model_student = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
                 num_classes=num_classes
             )
-        if cfg.DISTILLER.TYPE == "CRD":
+        if cfg.DISTILLER.TYPE == "CRD" or cfg.DISTILLER.TYPE == "MVKD_CRD":
             distiller = distiller_dict[cfg.DISTILLER.TYPE](
                 model_student, model_teacher, cfg, num_data
             )
