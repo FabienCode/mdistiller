@@ -49,15 +49,16 @@ class MixKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        # f_s_weak = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
 
-        # f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
-        # f_t_strong = feature_teacher_strong["feats"][self.hint_layer]
-        # s_t_weak = calculate_saliency(f_t_weak)
-        # s_t_strong = calculate_saliency(f_t_strong)
-        # mix_t_weak, mix_t_strong = mix_features(f_t_weak, f_t_strong, s_t_weak, s_t_strong)
+        # saliency compute
+        # 选择target 对应的 logit
+        weak_target_logit = logits_teacher_weak.gather(1, target.unsqueeze(1)).squeeze(1)
+        f_t_w_tmp = feature_student_weak["feats"][self.hint_layer]
+        f_t_w_tmp.retain_grad()
+        weak_target_logit.backward(retain_graph=True)
+        f_t_w_grad = f_t_w_tmp.grad.data
+        f_t_w_saliency = torch.abs(f_t_w_grad).sum(dim=1, keepdim=True).squeeze()
 
-        # loss_feat = F.mse_loss(f_s_weak, mix_t_weak) + F.mse_loss(f_s_weak, mix_t_strong)
         loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
             logits_student_weak, logits_teacher_strong, 4
         )
