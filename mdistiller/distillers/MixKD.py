@@ -42,13 +42,13 @@ class MixKD(Distiller):
 
     def forward_train(self, image_weak, image_strong, target, **kwargs):
         logits_student_weak, feature_student_weak = self.student(image_weak)
-        # logits_student_strong, feature_student_strong = self.student(image_strong)
+        logits_student_strong, feature_student_strong = self.student(image_strong)
         with torch.no_grad():
             logits_teacher_weak, feature_teacher_weak = self.teacher(image_weak)
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         # f_s_weak = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
 
         # f_t_weak = feature_teacher_weak["feats"][self.hint_layer]
@@ -63,7 +63,7 @@ class MixKD(Distiller):
         )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": loss_kd
+            "loss_feat_weak": 0.5 * loss_kd
         }
         return logits_student_weak, losses_dict
 
