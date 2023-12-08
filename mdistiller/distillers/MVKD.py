@@ -69,8 +69,10 @@ class MVKD(Distiller):
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
-                                in_channels=t_c, resolution=t_w, dropout=0.0)
+        # self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
+        #                         in_channels=t_c, resolution=t_w, dropout=0.0)
+        self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
+                                in_channels=t_c*2, resolution=t_w, dropout=0.0)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -107,7 +109,7 @@ class MVKD(Distiller):
             loss_kd = mvkd_loss + fitnet_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-            rec_feature_t = self.rec_module(x_feature_t.float(), t)
+            rec_feature_t = self.rec_module(x_feature_t.float(), t, f_t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             # rec_noise = self.rec_module(x_feature_t.float(), t)
             # rec_loss = self.rec_weight * F.mse_loss(rec_noise, noise)
@@ -186,7 +188,7 @@ class MVKD(Distiller):
     def model_predictions(self, f, t):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
-        pred_f = self.rec_module(x_f, t)
+        pred_f = self.rec_module(x_f, t, f)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
