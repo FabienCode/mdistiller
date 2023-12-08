@@ -109,7 +109,7 @@ class MVKD(Distiller):
             loss_kd = mvkd_loss + fitnet_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-            rec_feature_t = self.rec_module(x_feature_t.float(), t, f_t)
+            rec_feature_t = self.rec_module(x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             # rec_noise = self.rec_module(x_feature_t.float(), t)
             # rec_loss = self.rec_weight * F.mse_loss(rec_noise, noise)
@@ -188,7 +188,7 @@ class MVKD(Distiller):
     def model_predictions(self, f, t):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
-        pred_f = self.rec_module(x_f, t, f)
+        pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
