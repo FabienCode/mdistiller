@@ -52,7 +52,7 @@ class MixKD(Distiller):
 
         # saliency compute
         # 选择target 对应的 logit
-        weak_target_logit = logits_teacher_weak.gather(1, target.unsqueeze(1)).squeeze(1)
+        weak_target_logit = logits_teacher_weak.max(1)[0]
         f_t_w_tmp = feature_student_weak["feats"][self.hint_layer]
         f_t_w_tmp.retain_grad()
         weak_target_logit.backward(retain_graph=True)
