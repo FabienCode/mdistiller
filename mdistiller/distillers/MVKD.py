@@ -113,8 +113,8 @@ class MVKD(Distiller):
                         diffusion_f_t += self.ddim_sample(f_t)
             diffusion_f_t /= self.diff_num
             mvkd_loss = self.mvkd_weight * F.mse_loss(f_s, diffusion_f_t)
-            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            loss_kd = mvkd_loss + fitnet_loss
+            # fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+            loss_kd = mvkd_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             if self.use_condition:
