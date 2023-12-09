@@ -25,6 +25,7 @@ class MVKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
+        self.class_num = cfg.MVKD.CLASS_NUM
 
         # build diffusion
         timesteps = 1000
@@ -69,8 +70,9 @@ class MVKD(Distiller):
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
+        self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
-                                in_channels=t_c, resolution=t_w, dropout=0.0)
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition, class_num=self.class_num)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
 
@@ -90,7 +92,7 @@ class MVKD(Distiller):
         cur_epoch = kwargs['epoch']
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
-            _, feature_teacher = self.teacher(image)
+            logits_teacher, feature_teacher = self.teacher(image)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
@@ -99,17 +101,26 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         if cur_epoch > self.first_rec_kd:
-            diffusion_f_t = self.ddim_sample(f_t)
+            if self.use_condition:
+                diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher)
+            else:
+                diffusion_f_t = self.ddim_sample(f_t)
             if self.diff_num > 1:
                 for i in range(self.diff_num - 1):
-                    diffusion_f_t += self.ddim_sample(f_t)
+                    if self.use_condition:
+                        diffusion_f_t += self.ddim_sample(f_t, conditional=logits_teacher)
+                    else:
+                        diffusion_f_t += self.ddim_sample(f_t)
             diffusion_f_t /= self.diff_num
             mvkd_loss = self.mvkd_weight * F.mse_loss(f_s, diffusion_f_t)
             fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             loss_kd = mvkd_loss + fitnet_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-            rec_feature_t = self.rec_module(x_feature_t.float(), t)
+            if self.use_condition:
+                rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, conditional=logits_teacher)
+            else:
+                rec_feature_t = self.rec_module(x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             # rec_noise = self.rec_module(x_feature_t.float(), t)
             # rec_loss = self.rec_weight * F.mse_loss(rec_noise, noise)
@@ -151,7 +162,7 @@ class MVKD(Distiller):
         return sqrt_alpha_cumprod_t * x_start + sqrt_one_minus_alpha_cumprod_t * noise
 
     @torch.no_grad()
-    def ddim_sample(self, feature):
+    def ddim_sample(self, feature, conditional=None):
         batch = feature.shape[0]
         total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
 
@@ -166,7 +177,10 @@ class MVKD(Distiller):
             time_cond = torch.full((batch,), time, dtype=torch.long).cuda()
             self_cond = x_start if self.self_condition else None
 
-            pred_noise, x_start = self.model_predictions(f.float(), time_cond)
+            if conditional is not None:
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, conditional)
+            else:
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond)
 
             if time_next < 0:
                 f = x_start
@@ -185,10 +199,13 @@ class MVKD(Distiller):
                 sigma * noise
         return f
 
-    def model_predictions(self, f, t):
+    def model_predictions(self, f, t, conditional=None):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
-        pred_f = self.rec_module(x_f, t)
+        if conditional is not None:
+            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
+        else:
+            pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
