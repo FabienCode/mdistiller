@@ -66,13 +66,10 @@ class MixKD(Distiller):
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
         saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, 1, 3)
         saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, 1, 3)
-        for i in range(heat_map_t_w.shape[1]):
-            tmp_b_w = saliency_t_w_b[:, i, :]
-            tmp_b_s = saliency_t_s_b[:, i, :]
-            f_s_w[:, :, tmp_b_w[1]:tmp_b_w[3], tmp_b_w[0]:tmp_b_w[2]] = \
-                f_s_s[:, :, tmp_b_s[1]:tmp_b_s[3], tmp_b_s[0]:tmp_b_s[2]]
-            f_s_s[:, :, tmp_b_s[1]:tmp_b_s[3], tmp_b_s[0]:tmp_b_s[2]] = \
-                f_s_w[:, :, tmp_b_w[1]:tmp_b_w[3], tmp_b_w[0]:tmp_b_w[2]]
+        for i in range(saliency_t_w_b.shape[1]):
+            saliency_tmp_w = saliency_t_w_b[:, i, :]
+            saliency_tmp_s = saliency_t_s_b[:, i, :]
+            f_t_w, f_t_s = aug_feat(f_t_w, f_t_s, saliency_tmp_w, saliency_tmp_s)
         # f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]] = \
         #     f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]]
         # f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]] = \
@@ -160,3 +157,15 @@ class SaliencyAreaDetection(nn.Module):
         b, _, h, w = wh_pred.shape
         offset_pred = self.offset_head(x)
         return center_heatmap_pred, wh_pred, offset_pred
+
+
+def aug_feat(feature_weak, feature_strong, region_w, region_s):
+    b, c, h, w = feature_weak.shape
+    for batch_idx in range(b):
+        w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx]
+        s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx]
+        w_ys, w_xs = torch.meshgrid(torch.arange(w_y1.int(), w_y2.int() + 1), torch.arange(w_x1.int(), w_x2.int() + 1), indexing='ij')
+        s_ys, s_xs = torch.meshgrid(torch.arange(s_y1.int(), s_y2.int() + 1), torch.arange(s_x1.int(), s_x.int() + 1), indexing='ij')
+        feature_weak[batch_idx, :, s_xs, s_ys] = feature_strong[batch_idx, :, s_xs, s_ys]
+        feature_strong[batch_idx, :, w_xs, w_ys] = feature_weak[batch_idx, :, w_xs, w_ys]
+    return feature_weak, feature_strong
