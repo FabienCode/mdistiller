@@ -55,10 +55,10 @@ class MixKD(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
 
-        f_s_w = feature_student_weak[self.hint_layer]
-        f_s_s = feature_student_strong[self.hint_layer]
-        f_t_w = feature_teacher_weak[self.hint_layer]
-        f_t_s = feature_teacher_strong[self.hint_layer]
+        f_s_w = feature_student_weak["feats"][self.hint_layer]
+        f_s_s = feature_student_strong["feats"][self.hint_layer]
+        f_t_w = feature_teacher_weak["feats"][self.hint_layer]
+        f_t_s = feature_teacher_strong["feats"][self.hint_layer]
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
