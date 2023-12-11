@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
+from mdistiller.engine.area_utils import get_import_region as saliency_bbox
+
 
 def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
@@ -62,8 +64,8 @@ class MixKD(Distiller):
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
-        saliency_t_w_b = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w)
-        saliency_t_s_b = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s)
+        saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, 1, 3)
+        saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, 1, 3)
         f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]] = \
             f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]]
         f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]] = \
@@ -106,27 +108,6 @@ def mix_features(f_a, f_b, s_a, s_b):
 #     return f_w, lma
 #
 #
-
-
-def saliency_bbox(heat_map, wh, offset):
-    b, c, h, w = heat_map.shape
-    max_val, max_idx = torch.max(heat_map[:, 1, :, :].view(b, -1), dim=-1)
-
-    max_pos_y = max_idx // w
-    max_pos_x = max_idx % w
-
-    center_x = max_pos_x + offset[:, 0, :, :]
-    center_y = max_pos_y + offset[:, 1, :, :]
-
-    center_x = center_x.clamp(min=0, max=w-1)
-    center_y = center_y.clamp(min=0, max=h-1)
-
-    x1 = center_x - wh[:, 0, :, :] / 2
-    y1 = center_y - wh[:, 1, :, :] / 2
-    x2 = center_x + wh[:, 0, :, :] / 2
-    y2 = center_y + wh[:, 1, :, :] / 2
-    return x1, y1, x2, y2
-
 
 
 class SaliencyAreaDetection(nn.Module):

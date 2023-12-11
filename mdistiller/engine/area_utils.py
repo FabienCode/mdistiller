@@ -43,7 +43,8 @@ class AreaDetection(nn.Module):
         sxp = self.softmax(heatmap_pred)
         return center_heatmap_pred, wh_pred, offset_pred
 
-def get_import_region(feature_map, center_heatmap_pred, wh_pred, offset_pred, k, kernel):
+
+def get_import_region(center_heatmap_pred, wh_pred, offset_pred, k, kernel):
     height, width = center_heatmap_pred.shape[2:]
 
     center_heatmap_pred = get_local_maximum(center_heatmap_pred, kernel=kernel)
