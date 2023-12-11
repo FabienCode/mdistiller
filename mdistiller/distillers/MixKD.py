@@ -58,7 +58,7 @@ class MixKD(Distiller):
         f_s_s = feature_student_strong["feats"][self.hint_layer]
         f_t_w = feature_teacher_weak["feats"][self.hint_layer]
         f_t_s = feature_teacher_strong["feats"][self.hint_layer]
-        loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
+        # loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
