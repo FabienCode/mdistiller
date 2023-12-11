@@ -65,8 +65,8 @@ class MixKD(Distiller):
         saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, 1, 3)
         saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, 1, 3)
         for i in range(saliency_t_w_b.shape[1]):
-            saliency_tmp_w = saliency_t_w_b[:, i, :]
-            saliency_tmp_s = saliency_t_s_b[:, i, :]
+            saliency_tmp_w = saliency_t_w_b[:, i, :].clone()
+            saliency_tmp_s = saliency_t_s_b[:, i, :].clone()
             f_t_w, f_t_s = aug_feat(f_t_w, f_t_s, saliency_tmp_w, saliency_tmp_s)
         # loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
         #     logits_student_weak, logits_teacher_strong, 4
