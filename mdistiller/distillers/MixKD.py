@@ -72,7 +72,7 @@ class MixKD(Distiller):
         #     logits_student_weak, logits_teacher_strong, 4
         # )
         loss_feat_aug = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
-        loss_feat = loss_feat_ori + loss_feat_aug
+        loss_feat = loss_feat_aug
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat_weak": loss_feat
