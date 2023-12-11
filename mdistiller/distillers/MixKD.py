@@ -16,7 +16,6 @@ def kd_loss(logits_student, logits_teacher, temperature):
 
 
 class MixKD(Distiller):
-    """Distilling the Knowledge in a Neural Network"""
 
     def __init__(self, student, teacher, cfg):
         super(MixKD, self).__init__(student, teacher)
@@ -32,8 +31,6 @@ class MixKD(Distiller):
         self.saliency_det = SaliencyAreaDetection(int(feat_t_shapes[self.hint_layer][1]),
                                                   int(feat_t_shapes[self.hint_layer][1]),
                                                   2, 100)
-        self.beta = 1.0
-        self.cutmix_prob = 0.5
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
@@ -164,6 +161,6 @@ def aug_feat(feature_weak, feature_strong, region_w, region_s):
         s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx]
         w_ys, w_xs = torch.meshgrid(torch.arange(w_y1.int(), w_y2.int() + 1), torch.arange(w_x1.int(), w_x2.int() + 1), indexing='ij')
         s_ys, s_xs = torch.meshgrid(torch.arange(s_y1.int(), s_y2.int() + 1), torch.arange(s_x1.int(), s_x2.int() + 1), indexing='ij')
-        feature_weak[batch_idx, :, s_xs, s_ys] = feature_strong[batch_idx, :, s_xs, s_ys]
-        feature_strong[batch_idx, :, w_xs, w_ys] = feature_weak[batch_idx, :, w_xs, w_ys]
+        feature_weak[batch_idx, :, s_xs, s_ys] = feature_strong[batch_idx, :, s_xs, s_ys].clone()
+        feature_strong[batch_idx, :, w_xs, w_ys] = feature_weak[batch_idx, :, w_xs, w_ys].clone()
     return feature_weak, feature_strong
