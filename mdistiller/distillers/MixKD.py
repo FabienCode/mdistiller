@@ -159,32 +159,32 @@ class SaliencyAreaDetection(nn.Module):
         return center_heatmap_pred, wh_pred, offset_pred
 
 
-# def aug_feat(feature_weak, feature_strong, region_w, region_s):
-#     b, c, h, w = feature_weak.shape
-#     for batch_idx in range(b):
-#         w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx].int()
-#         s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx].int()
-#         for channel in range(c):
-#             feature_weak[batch_idx, channel, s_x1:s_x2, s_y1:s_y2] = feature_strong[batch_idx, channel, s_x1:s_x2, s_y1:s_y2].clone()
-#             feature_strong[batch_idx, channel, w_x1:w_x2, w_y1:w_y2] = feature_weak[batch_idx, channel, w_x1:w_x2, w_y1:w_y2].clone()
-#     return feature_weak, feature_strong
-
-
 def aug_feat(feature_weak, feature_strong, region_w, region_s):
-    # 使用高效的张量操作而非循环
     b, c, h, w = feature_weak.shape
-    mask_w = torch.zeros(b, h, w, dtype=torch.bool)
-    mask_s = torch.zeros(b, h, w, dtype=torch.bool)
-
     for batch_idx in range(b):
         w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx].int()
         s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx].int()
-        mask_w[batch_idx, s_y1:s_y2, s_x1:s_x2] = True
-        mask_s[batch_idx, w_y1:w_y2, w_x1:w_x2] = True
-
-    # 交换区域
-    feature_weak_clone = feature_weak.clone()
-    feature_weak[mask_w] = feature_strong[mask_w]
-    feature_strong[mask_s] = feature_weak_clone[mask_s]
-
+        for channel in range(c):
+            feature_weak[batch_idx, channel, s_x1:s_x2, s_y1:s_y2] = feature_strong[batch_idx, channel, s_x1:s_x2, s_y1:s_y2].clone()
+            feature_strong[batch_idx, channel, w_x1:w_x2, w_y1:w_y2] = feature_weak[batch_idx, channel, w_x1:w_x2, w_y1:w_y2].clone()
     return feature_weak, feature_strong
+
+
+# def aug_feat(feature_weak, feature_strong, region_w, region_s):
+#     # 使用高效的张量操作而非循环
+#     b, c, h, w = feature_weak.shape
+#     mask_w = torch.zeros(b, h, w, dtype=torch.bool)
+#     mask_s = torch.zeros(b, h, w, dtype=torch.bool)
+#
+#     for batch_idx in range(b):
+#         w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx].int()
+#         s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx].int()
+#         mask_w[batch_idx, s_y1:s_y2, s_x1:s_x2] = True
+#         mask_s[batch_idx, w_y1:w_y2, w_x1:w_x2] = True
+#
+#     # 交换区域
+#     feature_weak_clone = feature_weak.clone()
+#     feature_weak[mask_w] = feature_strong[mask_w]
+#     feature_strong[mask_s] = feature_weak_clone[mask_s]
+#
+#     return feature_weak, feature_strong
