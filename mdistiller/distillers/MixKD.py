@@ -165,7 +165,7 @@ def aug_feat(feature_weak, feature_strong, region_w, region_s):
         w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx]
         s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx]
         w_ys, w_xs = torch.meshgrid(torch.arange(w_y1.int(), w_y2.int() + 1), torch.arange(w_x1.int(), w_x2.int() + 1), indexing='ij')
-        s_ys, s_xs = torch.meshgrid(torch.arange(s_y1.int(), s_y2.int() + 1), torch.arange(s_x1.int(), s_x.int() + 1), indexing='ij')
+        s_ys, s_xs = torch.meshgrid(torch.arange(s_y1.int(), s_y2.int() + 1), torch.arange(s_x1.int(), s_x2.int() + 1), indexing='ij')
         feature_weak[batch_idx, :, s_xs, s_ys] = feature_strong[batch_idx, :, s_xs, s_ys]
         feature_strong[batch_idx, :, w_xs, w_ys] = feature_weak[batch_idx, :, w_xs, w_ys]
     return feature_weak, feature_strong
