@@ -29,16 +29,19 @@ class MixKD(Distiller):
         )
         self.saliency_det = SaliencyAreaDetection(int(feat_t_shapes[self.hint_layer][1]),
                                                   int(feat_t_shapes[self.hint_layer][1]),
-                                                  2, 100, cfg.FITNET.LOGITS_THRESH)
+                                                  2, 100)
         self.beta = 1.0
         self.cutmix_prob = 0.5
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
+            list(self.saliency_det.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
+            num_p += p.numel()
+        for p in self.saliency_det.parameters():
             num_p += p.numel()
         return num_p
 
