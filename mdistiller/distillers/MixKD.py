@@ -19,9 +19,10 @@ class MixKD(Distiller):
 
     def __init__(self, student, teacher, cfg):
         super(MixKD, self).__init__(student, teacher)
-        self.ce_loss_weight = cfg.FITNET.LOSS.CE_WEIGHT
-        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
-        self.hint_layer = cfg.FITNET.HINT_LAYER
+        self.ce_loss_weight = cfg.MixKD.LOSS.CE_WEIGHT
+        self.feat_loss_weight_ori = cfg.MixKD.LOSS.ORI_FEAT_WEIGHT
+        self.feat_loss_weight_aug = cfg.MixKD.LOSS.AUG_FEAT_WEIGHT
+        self.hint_layer = cfg.MixKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
@@ -32,6 +33,8 @@ class MixKD(Distiller):
                                                   int(feat_t_shapes[self.hint_layer][1]),
                                                   2, 100)
 
+        self.kernel_size = cfg.MixKD.KERNEL_SIZE
+        self.topk_area = cfg.MixKD.TOPK_AREA
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
             list(self.saliency_det.parameters())
@@ -62,8 +65,8 @@ class MixKD(Distiller):
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
-        saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, 1, 3)
-        saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, 1, 3)
+        saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
+        saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
         f_t_w_aug = f_t_w.clone()
         f_t_s_aug = f_t_s.clone()
         for i in range(saliency_t_w_b.shape[1]):
@@ -74,7 +77,7 @@ class MixKD(Distiller):
         #     logits_student_weak, logits_teacher_strong, 4
         # )
         loss_feat_aug = F.mse_loss(f_s_w, f_t_w_aug) + F.mse_loss(f_s_w, f_t_s_aug)
-        loss_feat = loss_feat_aug + loss_feat_ori
+        loss_feat = self.feat_loss_weight_aug * loss_feat_aug + self.feat_loss_weight_ori * loss_feat_ori
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat_weak": loss_feat
