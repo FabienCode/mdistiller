@@ -157,8 +157,8 @@ class SaliencyAreaDetection(nn.Module):
 def aug_feat(feature_weak, feature_strong, region_w, region_s):
     b, c, h, w = feature_weak.shape
     for batch_idx in range(b):
-        w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx]
-        s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx]
+        w_x1, w_y1, w_x2, w_y2, _ = region_w[batch_idx].int()
+        s_x1, s_y1, s_x2, s_y2, _ = region_s[batch_idx].int()
         for channel in range(c):
             feature_weak[batch_idx, channel, s_x1:s_x2, s_y1:s_y2] = feature_strong[batch_idx, channel, s_x1:s_x2, s_y1:s_y2]
             feature_strong[batch_idx, channel, w_x1:w_x2, w_y1:w_y2] = feature_weak[batch_idx, channel, w_x1:w_x2, w_y1:w_y2]
