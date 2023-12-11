@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 
-
 def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
@@ -28,6 +27,9 @@ class MixKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
+        self.saliency_det = SaliencyAreaDetection(int(feat_t_shapes[self.hint_layer][1]),
+                                                  int(feat_t_shapes[self.hint_layer][1]),
+                                                  2, 100, cfg.FITNET.LOGITS_THRESH)
         self.beta = 1.0
         self.cutmix_prob = 0.5
 
@@ -50,14 +52,19 @@ class MixKD(Distiller):
         # losses
         loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
 
+        f_s_w = feature_student_weak[self.hint_layer]
+        f_s_s = feature_student_strong[self.hint_layer]
+        f_t_w = feature_teacher_weak[self.hint_layer]
+        f_t_s = feature_teacher_strong[self.hint_layer]
         # saliency compute
-        # 选择target 对应的 logit
-        weak_target_logit = logits_teacher_weak.max(1)[0]
-        f_t_w_tmp = feature_student_weak["feats"][self.hint_layer]
-        f_t_w_tmp.retain_grad()
-        weak_target_logit.backward(retain_graph=True)
-        f_t_w_grad = f_t_w_tmp.grad.data
-        f_t_w_saliency = torch.abs(f_t_w_grad).sum(dim=1, keepdim=True).squeeze()
+        heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
+        head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
+        saliency_t_w_b = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w)
+        saliency_t_s_b = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s)
+        f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]] = \
+            f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]]
+        f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]] = \
+            f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]]
 
         loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
             logits_student_weak, logits_teacher_strong, 4
@@ -96,20 +103,69 @@ def mix_features(f_a, f_b, s_a, s_b):
 #     return f_w, lma
 #
 #
-# def rand_bbox(size, lam):
-#     W = size[2]
-#     H = size[3]
-#     cut_rat = torch.sqrt(1. - lam)
-#     cut_w = torch.tensor(W, dtype=torch.float32).mul(cut_rat).type(torch.int)
-#     cut_h = torch.tensor(H, dtype=torch.float32).mul(cut_rat).type(torch.int)
-#
-#     # uniform
-#     cx = torch.randint(0, W, (1,)).item()
-#     cy = torch.randint(0, H, (1,)).item()
-#
-#     bbx1 = torch.clamp(cx - cut_w // 2, 0, W)
-#     bby1 = torch.clamp(cy - cut_h // 2, 0, H)
-#     bbx2 = torch.clamp(cx + cut_w // 2, 0, W)
-#     bby2 = torch.clamp(cy + cut_h // 2, 0, H)
-#
-#     return bbx1, bby1, bbx2, bby2
+
+
+def saliency_bbox(heat_map, wh, offset):
+    b, c, h, w = heat_map.shape[-2:]
+    max_val, max_idx = torch.max(heat_map.view(b, c, -1), dim=-1)
+
+    max_pos_y = max_idx // w
+    max_pos_x = max_idx % w
+
+    center_x = max_pos_x + offset[:, 0, :, :]
+    center_y = max_pos_y + offset[:, 1, :, :]
+
+    center_x = center_x.clamp(min=0, max=w-1)
+    center_y = center_y.clamp(min=0, max=h-1)
+
+    x1 = center_x - wh[:, 0, :, :] / 2
+    y1 = center_y - wh[:, 1, :, :] / 2
+    x2 = center_x + wh[:, 0, :, :] / 2
+    y2 = center_y + wh[:, 1, :, :] / 2
+    return x1, y1, x2, y2
+
+
+
+class SaliencyAreaDetection(nn.Module):
+    def __init__(self,
+                 in_channels=256,
+                 feat_channels=256,
+                 num_cls=2,
+                 cls=100,
+                 thresh=0.8):
+        super().__init__()
+        self.num_cls = num_cls
+        self.in_channels = in_channels
+        self.feat_channels = feat_channels
+
+        # AD
+        self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
+        self.offset_head = self._build_head(in_channels, feat_channels, 2)
+        self.wh_head = self._build_head(in_channels, feat_channels, 2)
+
+
+
+        self.softmax = nn.Softmax(dim=1)
+        # self.thresh_pred = nn.Linear(cls, 1)
+        # self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
+        self.thresh = thresh
+        self.sig = nn.Sigmoid()
+
+    # test
+    @staticmethod
+    def _build_head(in_channels, feat_channels, out_channels):
+        layer = nn.Sequential(
+            nn.Conv2d(in_channels, feat_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(feat_channels, out_channels, kernel_size=1),
+            nn.ReLU(inplace=True)
+        )
+        return layer
+
+    def forward(self, x):
+        heatmap_pred = self.heatmap_head(x)
+        center_heatmap_pred = heatmap_pred.sigmoid()
+        wh_pred = self.wh_head(x)
+        b, _, h, w = wh_pred.shape
+        offset_pred = self.offset_head(x)
+        return center_heatmap_pred, wh_pred, offset_pred

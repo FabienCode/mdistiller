@@ -190,14 +190,9 @@ class RegKD_pred(nn.Module):
 
         # AD
         self.heatmap_head = self._build_head(in_channels, feat_channels, num_cls)
-        self.offset_head = self._build_head(in_channels, feat_channels, 2)
         self.wh_head = self._build_head(in_channels, feat_channels, 2)
+        self.offset_head = self._build_head(in_channels, feat_channels, 2)
 
-        self.softmax = nn.Softmax(dim=1)
-        # self.thresh_pred = nn.Linear(cls, 1)
-        # self.gate = nn.Parameter(torch.tensor(-2.0), requires_grad=False)
-        self.thresh = thresh
-        self.sig = nn.Sigmoid()
 
     # test
     @staticmethod
@@ -210,19 +205,20 @@ class RegKD_pred(nn.Module):
         )
         return layer
 
-    def forward(self, x, logits):
+    def forward(self, x, logits=None):
         heatmap_pred = self.heatmap_head(x)
         center_heatmap_pred = heatmap_pred.sigmoid()
         wh_pred = self.wh_head(x)
         b, _, h, w = wh_pred.shape
         offset_pred = self.offset_head(x)
-        sxp = self.softmax(logits)
-        sorted_indices = torch.argsort(sxp, dim=1)
-        sorted_length = int(sxp.shape[1] * (1 - self.thresh))
-        top_indices = sorted_indices[:, : sorted_length]
-        mask = torch.zeros_like(sxp).scatter_(1, top_indices, 1)
+        # sxp = self.softmax(logits)
+        # sorted_indices = torch.argsort(sxp, dim=1)
+        # sorted_length = int(sxp.shape[1] * (1 - self.thresh))
+        # top_indices = sorted_indices[:, : sorted_length]
+        # mask = torch.zeros_like(sxp).scatter_(1, top_indices, 1)
         # mask = logits - thresh
         # mask[mask > 0] = 1
         # mask[mask <= 0] = 0
         # return center_heatmap_pred, wh_pred, offset_pred, pre_thresh, mask
-        return center_heatmap_pred, wh_pred, offset_pred, mask
+        # return center_heatmap_pred, wh_pred, offset_pred, mask
+        return center_heatmap_pred, wh_pred, offset_pred
