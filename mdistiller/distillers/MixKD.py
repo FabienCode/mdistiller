@@ -109,7 +109,7 @@ def mix_features(f_a, f_b, s_a, s_b):
 
 
 def saliency_bbox(heat_map, wh, offset):
-    b, c, h, w = heat_map.shape[-2:]
+    b, c, h, w = heat_map.shape
     max_val, max_idx = torch.max(heat_map.view(b, c, -1), dim=-1)
 
     max_pos_y = max_idx // w
