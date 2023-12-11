@@ -61,6 +61,7 @@ class MixKD(Distiller):
         f_s_s = feature_student_strong["feats"][self.hint_layer]
         f_t_w = feature_teacher_weak["feats"][self.hint_layer]
         f_t_s = feature_teacher_strong["feats"][self.hint_layer]
+        loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
@@ -70,17 +71,14 @@ class MixKD(Distiller):
             saliency_tmp_w = saliency_t_w_b[:, i, :]
             saliency_tmp_s = saliency_t_s_b[:, i, :]
             f_t_w, f_t_s = aug_feat(f_t_w, f_t_s, saliency_tmp_w, saliency_tmp_s)
-        # f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]] = \
-        #     f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]]
-        # f_t_s[:, :, saliency_t_s_b[1]:saliency_t_s_b[3], saliency_t_s_b[0]:saliency_t_s_b[2]] = \
-        #     f_t_w[:, :, saliency_t_w_b[1]:saliency_t_w_b[3], saliency_t_w_b[0]:saliency_t_w_b[2]]
-
-        loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
-            logits_student_weak, logits_teacher_strong, 4
-        )
+        # loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
+        #     logits_student_weak, logits_teacher_strong, 4
+        # )
+        loss_feat_aug = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
+        loss_feat = loss_feat_ori + loss_feat_aug
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": 0.5 * loss_kd
+            "loss_feat_weak": loss_feat
         }
         return logits_student_weak, losses_dict
 
