@@ -85,35 +85,6 @@ class MixKD(Distiller):
         return logits_student_weak, losses_dict
 
 
-def calculate_saliency(feature_map):
-    saliency = F.adaptive_avg_pool2d(feature_map, 1)
-    return saliency
-
-def mix_features(f_a, f_b, s_a, s_b):
-    weights_a = s_a / (s_a + s_b)
-    weights_b = s_b / (s_a + s_b)
-
-    w_a_expand = weights_a.expand_as(f_a)
-    w_b_expand = weights_b.expand_as(f_b)
-
-    mix_f_a = w_a_expand * f_a + (1 - w_a_expand) * f_b
-    mix_f_b = w_b_expand * f_b + (1 - w_b_expand) * f_a
-    return mix_f_a, mix_f_b
-
-# def mix_feature(x, y, alpha):
-#     if alpha > 0.:
-#         beta_distribution = torch.distributions.beta.Beta(alpha, alpha)
-#         lma = beta_distribution.sample()
-#     else:
-#         lam = 1.
-#
-#     bbx1, bby1, bbx2, bby2 = rand_bbox(f_w.size(), lma)
-#     f_w[:, :, bbx1:bbx2, bby1:bby2] = f_s[:, :, bbx1:bbx2, bby1:bby2]
-#     return f_w, lma
-#
-#
-
-
 class SaliencyAreaDetection(nn.Module):
     def __init__(self,
                  in_channels=256,
