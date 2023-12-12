@@ -255,7 +255,7 @@ def replace_bbox_values(image_source, image_target, bounding_boxes):
 
     # 使用高级索引将对应位置的值替换为目标图像相同位置的值
     mask_expanded = mask.unsqueeze(1).expand_as(image_source)  # 扩展维度以匹配源图像的维度
-    image_source[mask_expanded] = image_target[mask_expanded]
+    image_source[mask_expanded] = image_target[mask_expanded].clone()
 
     return image_source
 
