@@ -246,7 +246,8 @@ def replace_bbox_values(image_source, image_target, bounding_boxes):
     # 创建索引张量
     batch_idx = torch.arange(image_source.size(0)).unsqueeze(1)  # 生成 batch 索引
     grid_x, grid_y = torch.meshgrid(torch.arange(image_source.size(2)), torch.arange(image_source.size(3)))  # 生成网格坐标
-
+    grid_x = grid_x.cuda()
+    grid_y = grid_y.cuda()
     # 使用 torch.where 创建掩码
     mask_x = (grid_x >= x1) & (grid_x <= x2)
     mask_y = (grid_y >= y1) & (grid_y <= y2)
