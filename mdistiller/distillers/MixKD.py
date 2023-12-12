@@ -55,7 +55,7 @@ class MixKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
 
         f_s_w = feature_student_weak["feats"][self.hint_layer]
         f_s_s = feature_student_strong["feats"][self.hint_layer]
@@ -239,24 +239,24 @@ def transpose_and_gather_feat(feat, ind):
 
 
 def replace_bbox_values(image_source, image_target, bounding_boxes):
-    # 提取 bounding box 的坐标
+    # extract bounding box coordinates
     x1 = bounding_boxes[:, :, 0:1]
     y1 = bounding_boxes[:, :, 1:2]
     x2 = bounding_boxes[:, :, 2:3]
     y2 = bounding_boxes[:, :, 3:4]
 
-    # 创建索引张量
-    batch_idx = torch.arange(image_source.size(0)).unsqueeze(1)  # 生成 batch 索引
-    grid_x, grid_y = torch.meshgrid(torch.arange(image_source.size(2)), torch.arange(image_source.size(3)), indexing='ij')  # 生成网格坐标
+    # create index tensors for image_source
+    batch_idx = torch.arange(image_source.size(0)).unsqueeze(1)
+    grid_x, grid_y = torch.meshgrid(torch.arange(image_source.size(2)), torch.arange(image_source.size(3)), indexing='ij')  # create 2D grid
     grid_x = grid_x.cuda()
     grid_y = grid_y.cuda()
-    # 使用 torch.where 创建掩码
+    # use index tensors to mask image_source
     mask_x = (grid_x >= x1) & (grid_x <= x2)
     mask_y = (grid_y >= y1) & (grid_y <= y2)
     mask = mask_x & mask_y
 
-    # 使用高级索引将对应位置的值替换为目标图像相同位置的值
-    mask_expanded = mask.unsqueeze(1).expand_as(image_source)  # 扩展维度以匹配源图像的维度
+    # use index tensors to mask image_target
+    mask_expanded = mask.unsqueeze(1).expand_as(image_source)  # expand mask to cover all channels of image_source
     image_source[mask_expanded] = image_target[mask_expanded].clone()
 
     return image_source
