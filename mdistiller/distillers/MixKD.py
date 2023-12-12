@@ -35,6 +35,7 @@ class MixKD(Distiller):
 
         self.kernel_size = cfg.MixKD.KERNEL_SIZE
         self.topk_area = cfg.MixKD.TOPK_AREA
+
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + \
             list(self.saliency_det.parameters())
