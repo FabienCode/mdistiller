@@ -64,6 +64,7 @@ def get_import_region(center_heatmap_pred, wh_pred, offset_pred, k, kernel):
     batch_regions = torch.cat((batch_regions, batch_scores[..., None]), dim=-1)
     return batch_regions, batch_topk_clses
 
+
 def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
     areas, topk_cls = get_import_region(features, heatmap, wh_pred, offset_pred, k, kernel)
     # Initialize a list to hold the masks
@@ -97,6 +98,7 @@ def get_topk_from_heatmap(scores, k=20):
     topk_xs = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
+
 def gather_feat(feat, ind, mask=None):
     dim = feat.size(2)
     ind = ind.unsqueeze(2).repeat(1, 1, dim)
@@ -107,11 +109,13 @@ def gather_feat(feat, ind, mask=None):
         feat = feat.view(-1, dim)
     return feat
 
+
 def transpose_and_gather_feat(feat, ind):
     feat = feat.permute(0, 2, 3, 1).contiguous()
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = gather_feat(feat, ind)
     return feat
+
 
 def init_weights(m):
     if type(m) == nn.Conv2d:

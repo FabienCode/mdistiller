@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
-from mdistiller.engine.area_utils import get_import_region as saliency_bbox
+# from mdistiller.engine.area_utils import get_import_region as saliency_bbox
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -65,14 +65,16 @@ class MixKD(Distiller):
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
-        saliency_t_w_b, _ = saliency_bbox(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
-        saliency_t_s_b, _ = saliency_bbox(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
+        t_w_x1, t_w_y1, t_w_x2, t_w_y2 = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
+        t_s_x1, t_s_y1, t_s_x2, t_s_y2 = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
         f_t_w_aug = f_t_w.clone()
         f_t_s_aug = f_t_s.clone()
-        for i in range(saliency_t_w_b.shape[1]):
-            saliency_tmp_w = saliency_t_w_b[:, i, :]
-            saliency_tmp_s = saliency_t_s_b[:, i, :]
-            f_t_w_aug, f_t_s_aug = aug_feat(f_t_w_aug, f_t_s_aug, saliency_tmp_w, saliency_tmp_s)
+        f_t_w_aug[:, :, t_s_y1:t_s_y2, t_s_x1:t_s_x2] = f_t_s[:, :, t_s_y1:t_s_y2, t_s_x1:t_s_x2].clone()
+        f_t_s_aug[:, :, t_w_y1:t_w_y2, t_w_x1:t_w_x2] = f_t_w[:, :, t_w_y1:t_w_y2, t_w_x1:t_w_x2].clone()
+        # for i in range(saliency_t_w_b.shape[1]):
+        #     saliency_tmp_w = saliency_t_w_b[:, i, :]
+        #     saliency_tmp_s = saliency_t_s_b[:, i, :]
+        #     f_t_w_aug, f_t_s_aug = aug_feat(f_t_w_aug, f_t_s_aug, saliency_tmp_w, saliency_tmp_s)
         # loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
         #     logits_student_weak, logits_teacher_strong, 4
         # )
@@ -159,3 +161,77 @@ def aug_feat(feature_weak, feature_strong, region_w, region_s):
 #     feature_strong[mask_s] = feature_weak_clone[mask_s]
 #
 #     return feature_weak, feature_strong
+
+def get_saliency_region(center_heatmap_pred, wh_pred, offset_pred, k, kernel):
+    height, width = center_heatmap_pred.shape[2:]
+
+    center_heatmap_pred = get_local_maximum(center_heatmap_pred, kernel=kernel)
+    *batch_region, topk_ys, topk_xs = get_topk_from_heatmap(center_heatmap_pred, k=k)
+    batch_scores, batch_index, batch_topk_clses, = batch_region
+
+    wh = transpose_and_gather_feat(wh_pred, batch_index)
+    offset = transpose_and_gather_feat(offset_pred, batch_index)
+    topk_xs = topk_xs + offset[..., 0]
+    topk_ys = topk_ys + offset[..., 1]
+    tl_x = (topk_xs - wh[..., 0] / 2).clamp(min=0)
+    tl_y = (topk_ys - wh[..., 1] / 2).clamp(min=0)
+    br_x = (topk_xs + wh[..., 0] / 2).clamp(max=(width - 1))
+    br_y = (topk_ys + wh[..., 1] / 2).clamp(max=(height - 1))
+
+    # batch_regions = torch.stack([tl_x.int(), tl_y.int(), br_x.int(), br_y.int()], dim=2)
+    return tl_x.int(), tl_y.int(),  br_x.int(), br_y.int()
+
+
+def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
+    areas, topk_cls = get_saliency_region(features, heatmap, wh_pred, offset_pred, k, kernel)
+    # Initialize a list to hold the masks
+    masks = []
+    # Iterate over the images and areas
+    for i in range(areas.shape[0]):
+        tmp_mask = []
+        for j in range(k):
+            # Initialize a mask for this feature map
+            mask = torch.zeros_like(features[i][j])
+            x1, y1, x2, y2, _ = areas[i][j]
+            mask[int(y1):int(y2)+1, int(x1):int(x2)+1] = 1
+            tmp_mask.append(mask)
+        masks.append(torch.stack(tmp_mask))
+    return masks, areas[..., -1]
+
+
+def get_local_maximum(heat, kernel=3):
+    pad = (kernel - 1) // 2
+    hmax = F.max_pool2d(heat, kernel, stride=1, padding=pad)
+    keep = (hmax == heat).float()
+    return heat * keep
+
+
+def get_topk_from_heatmap(scores, k=20):
+    batch, _, height, width = scores.size()
+    topk_scores, topk_inds = torch.topk(scores.view(batch, -1), k)
+    # topk_clses = topk_inds // (height * width)
+    topk_clses = torch.div(topk_inds, height * width, rounding_mode='floor')
+    topk_inds = topk_inds % (height * width)
+    # topk_ys = topk_inds // width
+    topk_ys = torch.div(topk_inds, width, rounding_mode='floor')
+    topk_xs = (topk_inds % width).int().float()
+    return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
+
+
+def gather_feat(feat, ind, mask=None):
+    dim = feat.size(2)
+    ind = ind.unsqueeze(2).repeat(1, 1, dim)
+    feat = feat.gather(1, ind)
+    if mask is not None:
+        mask = mask.unsqueeze(2).expand_as(feat)
+        feat = feat[mask]
+        feat = feat.view(-1, dim)
+    return feat
+
+
+def transpose_and_gather_feat(feat, ind):
+    feat = feat.permute(0, 2, 3, 1).contiguous()
+    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = gather_feat(feat, ind)
+    return feat
+
