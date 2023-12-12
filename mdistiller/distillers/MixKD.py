@@ -65,12 +65,11 @@ class MixKD(Distiller):
         # saliency compute
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
-        t_w_x1, t_w_y1, t_w_x2, t_w_y2 = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
-        t_s_x1, t_s_y1, t_s_x2, t_s_y2 = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
-        f_t_w_aug = f_t_w.clone()
-        f_t_s_aug = f_t_s.clone()
-        f_t_w_aug[:, :, t_s_y1:t_s_y2, t_s_x1:t_s_x2] = f_t_s[:, :, t_s_y1:t_s_y2, t_s_x1:t_s_x2].clone()
-        f_t_s_aug[:, :, t_w_y1:t_w_y2, t_w_x1:t_w_x2] = f_t_w[:, :, t_w_y1:t_w_y2, t_w_x1:t_w_x2].clone()
+        weak_saliency = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
+        strong_saliency = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
+        f_t_w_aug = replace_bbox_values(f_t_w, f_t_s, strong_saliency)
+        f_t_s_aug = replace_bbox_values(f_t_s, f_t_w, weak_saliency)
+
         # for i in range(saliency_t_w_b.shape[1]):
         #     saliency_tmp_w = saliency_t_w_b[:, i, :]
         #     saliency_tmp_s = saliency_t_s_b[:, i, :]
@@ -178,8 +177,9 @@ def get_saliency_region(center_heatmap_pred, wh_pred, offset_pred, k, kernel):
     br_x = (topk_xs + wh[..., 0] / 2).clamp(max=(width - 1))
     br_y = (topk_ys + wh[..., 1] / 2).clamp(max=(height - 1))
 
-    # batch_regions = torch.stack([tl_x.int(), tl_y.int(), br_x.int(), br_y.int()], dim=2)
-    return tl_x.int(), tl_y.int(),  br_x.int(), br_y.int()
+    batch_regions = torch.stack([tl_x.int(), tl_y.int(), br_x.int(), br_y.int()], dim=2)
+    # return tl_x.int(), tl_y.int(),  br_x.int(), br_y.int()
+    return batch_regions
 
 
 def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
@@ -234,4 +234,27 @@ def transpose_and_gather_feat(feat, ind):
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = gather_feat(feat, ind)
     return feat
+
+
+def replace_bbox_values(image_source, image_target, bounding_boxes):
+    # 提取 bounding box 的坐标
+    x1 = bounding_boxes[:, :, 0:1]
+    y1 = bounding_boxes[:, :, 1:2]
+    x2 = bounding_boxes[:, :, 2:3]
+    y2 = bounding_boxes[:, :, 3:4]
+
+    # 创建索引张量
+    batch_idx = torch.arange(image_source.size(0)).unsqueeze(1)  # 生成 batch 索引
+    grid_x, grid_y = torch.meshgrid(torch.arange(image_source.size(2)), torch.arange(image_source.size(3)))  # 生成网格坐标
+
+    # 使用 torch.where 创建掩码
+    mask_x = (grid_x >= x1) & (grid_x <= x2)
+    mask_y = (grid_y >= y1) & (grid_y <= y2)
+    mask = mask_x & mask_y
+
+    # 使用高级索引将对应位置的值替换为目标图像相同位置的值
+    mask_expanded = mask.unsqueeze(1).expand_as(image_source)  # 扩展维度以匹配源图像的维度
+    image_source[mask_expanded] = image_target[mask_expanded]
+
+    return image_source
 
