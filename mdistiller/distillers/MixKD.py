@@ -63,12 +63,14 @@ class MixKD(Distiller):
         f_t_s = feature_teacher_strong["feats"][self.hint_layer]
         loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
         # saliency compute
+        f_t_w_tmp = f_t_w.clone()
+        f_t_s_tmp = f_t_s.clone()
         heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
         head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
         weak_saliency = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
         strong_saliency = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
-        f_t_w_aug = replace_bbox_values(f_t_w, f_t_s, strong_saliency)
-        f_t_s_aug = replace_bbox_values(f_t_s, f_t_w, weak_saliency)
+        f_t_w_aug = replace_bbox_values(f_t_w_tmp, f_t_s_tmp, strong_saliency)
+        f_t_s_aug = replace_bbox_values(f_t_s_tmp, f_t_w_tmp, weak_saliency)
 
         # for i in range(saliency_t_w_b.shape[1]):
         #     saliency_tmp_w = saliency_t_w_b[:, i, :]
