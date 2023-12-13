@@ -71,7 +71,7 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=1, attn_resolutions=[t_w],
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=1, attn_resolutions=[t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition, class_num=self.class_num)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
