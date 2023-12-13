@@ -115,7 +115,7 @@ class MVKD(Distiller):
                                             conditional=logits_teacher) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, rec_feature_t)
+            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             loss_kd = rec_loss + fitnet_loss
 
         losses_dict = {
