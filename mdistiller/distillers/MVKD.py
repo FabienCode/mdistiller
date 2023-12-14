@@ -9,6 +9,14 @@ from mdistiller.engine.diffusion_utiles import cosine_beta_schedule, default, ex
 from mdistiller.engine.mvkd_utils import Model
 
 
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
+
+
 class MVKD(Distiller):
     """FitNets: Hints for Thin Deep Nets"""
 
@@ -100,18 +108,13 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
 
+        b, c, h, w = f_t.shape
         if cur_epoch > self.first_rec_kd:
-            diffusion_f_t_s = []
+            mvkd_loss = 0.
             for i in range(self.diff_num):
-                diffusion_f_t_s.append(self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t))
-            # diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-            # if self.diff_num > 1:
-            #     for i in range(self.diff_num - 1):
-            #         diffusion_f_t += self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-            # diffusion_f_t /= self.diff_num
-            mvkd_loss = self.mvkd_weight * F.mse_loss(f_s, diffusion_f_t)
-            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            loss_kd = mvkd_loss + fitnet_loss
+                diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
+                mvkd_loss += kd_loss(logits_student, self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(8, -1)), 4)
+            loss_kd = mvkd_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
