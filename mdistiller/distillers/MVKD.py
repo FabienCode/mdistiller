@@ -13,7 +13,7 @@ def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
-    loss_kd *= temperature**2
+    loss_kd *= temperature ** 2
     return loss_kd
 
 
@@ -84,6 +84,9 @@ class MVKD(Distiller):
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
 
+        # at config
+        self.p = cfg.AT.P
+
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
             self.rec_module.parameters())
@@ -113,10 +116,11 @@ class MVKD(Distiller):
             mvkd_loss = 0.
             for i in range(self.diff_num):
                 diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-                with torch.no_grad():
-                    logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
-                    logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
-                mvkd_loss += kd_loss(logits_mv_s, logits_mv_t, 4)
+                # with torch.no_grad():
+                #     logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
+                #     logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
+                # mvkd_loss += kd_loss(logits_mv_s, logits_mv_t, 4)
+                mvkd_loss += single_stage_at_loss(f_s, diffusion_f_t, self.p)
                 # mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
             loss_kd = self.mvkd_weight * (mvkd_loss / b / self.diff_num)
@@ -126,8 +130,10 @@ class MVKD(Distiller):
                                             conditional=logits_teacher) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t) / b
-            # fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            loss_kd = rec_loss
+            fitnet_loss = self.feat_loss_weight * at_loss(
+                feature_student["feats"], feature_teacher["feats"], self.p
+            )
+            loss_kd = rec_loss + fitnet_loss
 
         losses_dict = {
             "loss_ce": loss_ce,
@@ -218,3 +224,19 @@ class MVKD(Distiller):
                 (extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t - x0) /
                 extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape)
         )
+
+
+def single_stage_at_loss(f_s, f_t, p):
+    def _at(feat, p):
+        return F.normalize(feat.pow(p).mean(1).reshape(feat.size(0), -1))
+
+    s_H, t_H = f_s.shape[2], f_t.shape[2]
+    if s_H > t_H:
+        f_s = F.adaptive_avg_pool2d(f_s, (t_H, t_H))
+    elif s_H < t_H:
+        f_t = F.adaptive_avg_pool2d(f_t, (s_H, s_H))
+    return (_at(f_s, p) - _at(f_t, p)).pow(2).mean()
+
+
+def at_loss(g_s, g_t, p):
+    return sum([single_stage_at_loss(f_s, f_t, p) for f_s, f_t in zip(g_s, g_t)])
