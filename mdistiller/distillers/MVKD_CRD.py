@@ -154,7 +154,7 @@ class MVKD_CRD(Distiller):
                                             conditional=logits_teacher) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-            fitnet_loss = self.feat_loss_weight * self.feat_loss_weight * self.crd_loss(
+            fitnet_loss = self.feat_loss_weight * self.crd_loss(
                 feature_student["pooled_feat"],
                 feature_teacher["pooled_feat"],
                 index,
