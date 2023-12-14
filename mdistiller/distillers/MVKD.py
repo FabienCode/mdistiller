@@ -113,19 +113,19 @@ class MVKD(Distiller):
             mvkd_loss = 0.
             for i in range(self.diff_num):
                 diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-                # with torch.no_grad():
-                #     logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
-                #     logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
-                # mvkd_loss += kd_loss(logits_mv_s, logits_mv_t, 4)
-                mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
+                with torch.no_grad():
+                    logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
+                    logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
+                mvkd_loss += kd_loss(logits_mv_s, logits_mv_t, 4)
+                # mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
-            loss_kd = self.mvkd_weight * (mvkd_loss / self.diff_num)
+            loss_kd = self.mvkd_weight * (mvkd_loss / b / self.diff_num)
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
                                             conditional=logits_teacher) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
-            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t) / b
             # fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             loss_kd = rec_loss
 
