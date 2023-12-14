@@ -78,9 +78,9 @@ class MVKD_CRD(Distiller):
 
         # CRD config
         self.init_crd_modules(
-            64,
-            64,
-            32,
+            feat_s_shapes[self.hint_layer][1],
+            feat_t_shapes[self.hint_layer][1],
+            int(feat_t_shapes[self.hint_layer][1] / 2),
             num_data,
             cfg.CRD.NCE.K,
             cfg.CRD.NCE.MOMENTUM,
