@@ -113,7 +113,10 @@ class MVKD(Distiller):
             mvkd_loss = 0.
             for i in range(self.diff_num):
                 diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-                mvkd_loss += kd_loss(logits_student, self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1)).detach(), 4)
+                with torch.no_grad():
+                    logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
+                    logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
+                mvkd_loss += kd_loss(logits_mv_s, logits_mv_t, 4)
             loss_kd = mvkd_loss
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
