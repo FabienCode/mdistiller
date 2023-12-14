@@ -27,6 +27,9 @@ class MVKD_CRD(Distiller):
         )
 
         # build diffusion
+        self.class_num = cfg.MVKD.CLASS_NUM
+
+        # build diffusion
         timesteps = 1000
         sampling_timesteps = cfg.MVKD.DIFFUSION.SAMPLE_STEP
         betas = cosine_beta_schedule(timesteps)
@@ -69,8 +72,9 @@ class MVKD_CRD(Distiller):
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4, 8), num_res_blocks=2, attn_resolutions=[4, 8],
-                                in_channels=t_c, resolution=t_w, dropout=0.0)
+        self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=1, attn_resolutions=[t_w],
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition, class_num=self.class_num)
 
         # CRD config
         self.init_crd_modules(
@@ -100,13 +104,12 @@ class MVKD_CRD(Distiller):
         self.criterion_t = ContrastLoss(num_data)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
+        return super().get_learnable_parameters() + list(
             self.rec_module.parameters()) + list(self.embed_s.parameters()) + list(self.embed_t.parameters())
 
     def get_extra_parameters(self):
         params = (
                 list(self.rec_module.parameters())
-                + list(self.conv_reg.parameters())
                 + list(self.embed_s.parameters())
                 + list(self.embed_t.parameters())
         )
@@ -127,35 +130,30 @@ class MVKD_CRD(Distiller):
         cur_epoch = kwargs['epoch']
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
-            _, feature_teacher = self.teacher(image)
+            logits_teacher, feature_teacher = self.teacher(image)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
 
-        # f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
-        # f_t = feature_teacher["feats"][self.hint_layer]
-        # f_s = self.embed_s(feature_student["pooled_feat"])
         f_t = feature_teacher["feats"][self.hint_layer]
-
+        b, c, h, w = f_t.shape
         if cur_epoch > self.first_rec_kd:
-            diffusion_f_t = self.ddim_sample(f_t)
-            if self.diff_num > 1:
-                for i in range(self.diff_num - 1):
-                    diffusion_f_t += self.ddim_sample(f_t)
-            diffusion_f_t /= self.diff_num
-            # mvkd_loss = self.mvkd_weight * F.mse_loss(f_s, diffusion_f_t)
-            loss_kd = self.feat_loss_weight * self.feat_loss_weight * self.crd_loss(
-                feature_student["pooled_feat"],
-                F.adaptive_avg_pool2d(diffusion_f_t, (1, 1)).squeeze(2).squeeze(2),
-                index,
-                contrastive_index,
-            )
+            loss_kd = 0.
+            for i in range(self.diff_num):
+                diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
+                loss_kd += self.rec_weight * self.crd_loss(
+                    feature_student["pooled_feat"],
+                    self.teacher.avgpool(diffusion_f_t).view(b, -1),
+                    index,
+                    contrastive_index,
+                )
+            loss_kd /= self.diff_num
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-            rec_feature_t = self.rec_module(x_feature_t.float(), t)
+            rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
+                                            conditional=logits_teacher) if self.use_condition else self.rec_module(
+                x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-            # rec_noise = self.rec_module(x_feature_t.float(), t)
-            # rec_loss = self.rec_weight * F.mse_loss(rec_noise, noise)
             fitnet_loss = self.feat_loss_weight * self.feat_loss_weight * self.crd_loss(
                 feature_student["pooled_feat"],
                 feature_teacher["pooled_feat"],
@@ -169,10 +167,6 @@ class MVKD_CRD(Distiller):
             "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
-
-    # def prepare_targets(self, feature):
-    #     d_feature, d_noise, d_t = self.prepare_diffusion_concat(feature)
-    #     return d_feature, d_noise, d_t
 
     def prepare_diffusion_concat(self, feature):
         t = torch.randint(0, self.num_timesteps, (1,)).cuda().long()
@@ -199,7 +193,7 @@ class MVKD_CRD(Distiller):
         return sqrt_alpha_cumprod_t * x_start + sqrt_one_minus_alpha_cumprod_t * noise
 
     @torch.no_grad()
-    def ddim_sample(self, feature):
+    def ddim_sample(self, feature, conditional=None):
         batch = feature.shape[0]
         total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
 
@@ -214,7 +208,10 @@ class MVKD_CRD(Distiller):
             time_cond = torch.full((batch,), time, dtype=torch.long).cuda()
             self_cond = x_start if self.self_condition else None
 
-            pred_noise, x_start = self.model_predictions(f.float(), time_cond)
+            if conditional is not None:
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, conditional)
+            else:
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond)
 
             if time_next < 0:
                 f = x_start
@@ -233,10 +230,13 @@ class MVKD_CRD(Distiller):
                 sigma * noise
         return f
 
-    def model_predictions(self, f, t):
+    def model_predictions(self, f, t, conditional=None):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
-        pred_f = self.rec_module(x_f, t)
+        if conditional is not None:
+            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
+        else:
+            pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
