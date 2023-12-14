@@ -101,11 +101,14 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         if cur_epoch > self.first_rec_kd:
-            diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-            if self.diff_num > 1:
-                for i in range(self.diff_num - 1):
-                    diffusion_f_t += self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
-            diffusion_f_t /= self.diff_num
+            diffusion_f_t_s = []
+            for i in range(self.diff_num):
+                diffusion_f_t_s.append(self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t))
+            # diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
+            # if self.diff_num > 1:
+            #     for i in range(self.diff_num - 1):
+            #         diffusion_f_t += self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
+            # diffusion_f_t /= self.diff_num
             mvkd_loss = self.mvkd_weight * F.mse_loss(f_s, diffusion_f_t)
             fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             loss_kd = mvkd_loss + fitnet_loss
