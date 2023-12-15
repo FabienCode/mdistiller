@@ -124,7 +124,7 @@ class MVKD(Distiller):
                 # mvkd_loss += single_stage_at_loss(f_s, diffusion_f_t, self.p)
                 mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
-            loss_kd = self.mvkd_weight * (mvkd_loss / self.diff_num)
+            loss_kd = self.mvkd_weight * (mvkd_loss / self.diff_num) + self.feat_loss_weight * F.mse_loss(f_s, f_t)
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
@@ -134,7 +134,7 @@ class MVKD(Distiller):
             # fitnet_loss = self.feat_loss_weight * at_loss(
             #     feature_student["feats"], feature_teacher["feats"], self.p
             # )
-            fitnet_loss = F.mse_loss(f_s, f_t)
+            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             loss_kd = rec_loss + fitnet_loss
 
         losses_dict = {
