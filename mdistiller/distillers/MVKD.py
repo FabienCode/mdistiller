@@ -112,8 +112,8 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         b, c, h, w = f_t.shape
-        if cur_epoch > self.first_rec_kd:
-        # if cur_epoch % 2 == 1:
+        # if cur_epoch > self.first_rec_kd:
+        if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
                 diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
