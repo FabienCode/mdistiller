@@ -90,8 +90,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
+        self.clip_model = CLIPModel.from_pretrained("./clip_models")
+        self.clip_processor = CLIPProcessor.from_pretrained("./clip_models")
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
