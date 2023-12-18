@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -90,8 +91,10 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("./clip_models/").cuda()
-        self.clip_processor = CLIPProcessor.from_pretrained("./clip_models/")
+        pro_dir = os.getcwd()
+        clip_dir = os.path.join(pro_dir, 'clip_models')
+        self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
+        self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
