@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
@@ -91,9 +92,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        pro_dir = os.getcwd()
-        clip_dir = os.path.join(pro_dir, 'clip_models')
-        self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
+        clip_dir = os.path.join(os.getcwd(), 'clip_models')
+        self.clip_model = CLIPModel.from_pretrained(Path(clip_dir)).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
 
     def get_learnable_parameters(self):
