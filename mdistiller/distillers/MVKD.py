@@ -90,8 +90,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", revision='0993c71e8ad62658387de2714a69f723ddfffacb')
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -118,7 +118,7 @@ class MVKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
 
         b, c, h, w = f_t.shape
-        temp_text = 'a photo of a '
+        temp_text = 'a feature map of a '
         code_tmp = []
         for i in range(b):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
