@@ -130,7 +130,7 @@ class MVKD(Distiller):
         # if cur_epoch > self.first_rec_kd:
         code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
         context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = context_embd + logits_teacher
+        diff_con = torch.concat((context_embd, logits_teacher), dim=-1)
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
