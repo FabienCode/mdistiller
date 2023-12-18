@@ -90,8 +90,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models").cuda()
-        self.clip_processor = CLIPProcessor.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models").cuda()
+        self.clip_model = CLIPModel.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models")
+        self.clip_processor = CLIPProcessor.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models")
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
