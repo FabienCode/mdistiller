@@ -93,7 +93,8 @@ class MVKD(Distiller):
 
         # CLIP model init
         clip_dir = os.path.join(os.getcwd(), 'clip_models')
-        self.clip_model = CLIPModel.from_pretrained(Path(clip_dir)).cuda()
+        clip_path = str(Path(clip_dir).resolve())
+        self.clip_model = CLIPModel.from_pretrained(clip_path).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
 
     def get_learnable_parameters(self):
