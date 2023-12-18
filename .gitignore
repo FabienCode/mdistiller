@@ -18,6 +18,7 @@ detectrons2/
 *.pdf
 
 mdistiller/models/transformer
+clip_models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
