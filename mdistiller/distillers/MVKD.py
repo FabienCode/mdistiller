@@ -90,8 +90,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models").cuda()
-        self.clip_processor = CLIPProcessor.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models")
+        self.clip_model = CLIPModel.from_pretrained("./clip_models/").cuda()
+        self.clip_processor = CLIPProcessor.from_pretrained("./clip_models/")
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -126,10 +126,11 @@ class MVKD(Distiller):
         # if cur_epoch > self.first_rec_kd:
         code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
         context_embd = self.clip_model.get_text_features(**code_inputs)
+        diff_con = context_embd + logits_teacher
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
-                diffusion_f_t = self.ddim_sample(f_t, conditional=context_embd) if self.use_condition else self.ddim_sample(f_t)
+                diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
                 # with torch.no_grad():
                 #     logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
                 #     logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
@@ -141,7 +142,7 @@ class MVKD(Distiller):
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                            conditional=context_embd) if self.use_condition else self.rec_module(
+                                            conditional=diff_con) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             # fitnet_loss = self.feat_loss_weight * at_loss(
