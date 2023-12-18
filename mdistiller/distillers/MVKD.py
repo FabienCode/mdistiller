@@ -128,13 +128,13 @@ class MVKD(Distiller):
         code_tmp = []
         for i in range(b):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
-        # if cur_epoch > self.first_rec_kd:
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_teacher), dim=-1)
         diff_con = context_embd
-        if cur_epoch % 2 == 1:
+        if cur_epoch > self.first_rec_kd:
+        # if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
                 diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
