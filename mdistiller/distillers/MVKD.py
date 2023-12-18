@@ -35,7 +35,7 @@ class MVKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
-        self.class_num = cfg.MVKD.CLASS_NUM
+        self.condition_dim = cfg.MVKD.CONDITION_DIM
 
         # build diffusion
         timesteps = 1000
@@ -82,7 +82,7 @@ class MVKD(Distiller):
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
-                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition, class_num=self.class_num)
+                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition, condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
 
@@ -129,7 +129,7 @@ class MVKD(Distiller):
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
-                diffusion_f_t = self.ddim_sample(f_t, conditional=logits_teacher) if self.use_condition else self.ddim_sample(f_t)
+                diffusion_f_t = self.ddim_sample(f_t, conditional=context_embd) if self.use_condition else self.ddim_sample(f_t)
                 # with torch.no_grad():
                 #     logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
                 #     logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
@@ -141,7 +141,7 @@ class MVKD(Distiller):
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                            conditional=logits_teacher) if self.use_condition else self.rec_module(
+                                            conditional=context_embd) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             # fitnet_loss = self.feat_loss_weight * at_loss(

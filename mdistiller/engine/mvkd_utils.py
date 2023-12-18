@@ -233,7 +233,7 @@ def make_attn(in_channels, attn_type="vanilla"):
 class Model(nn.Module):
     def __init__(self, *, ch, out_ch, ch_mult=(1, 2, 4, 8), num_res_blocks,
                  attn_resolutions, dropout=0.0, resamp_with_conv=True, in_channels,
-                 resolution, use_timestep=True, use_linear_attn=False, attn_type="vanilla", use_condition=False, class_num=100):
+                 resolution, use_timestep=True, use_linear_attn=False, attn_type="vanilla", use_condition=False, condition_dim=100):
         super().__init__()
         if use_linear_attn: attn_type = "linear"
         self.ch = ch
@@ -242,7 +242,7 @@ class Model(nn.Module):
         self.num_res_blocks = num_res_blocks
         self.resolution = resolution
         self.in_channels = in_channels
-        self.class_num = class_num
+        self.condition_dim = condition_dim
 
         self.use_timestep = use_timestep
         self.use_condition = use_condition
@@ -259,7 +259,7 @@ class Model(nn.Module):
         if self.use_condition:
             self.cemb = nn.Module()
             self.cemb.dense = nn.ModuleList([
-                torch.nn.Linear(self.class_num,
+                torch.nn.Linear(self.condition_dim,
                                 self.temb_ch),
                 torch.nn.Linear(self.temb_ch,
                                 self.temb_ch),
