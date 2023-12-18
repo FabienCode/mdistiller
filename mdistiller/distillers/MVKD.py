@@ -11,6 +11,7 @@ from mdistiller.engine.diffusion_utiles import cosine_beta_schedule, default, ex
 from mdistiller.engine.mvkd_utils import Model
 
 from transformers import CLIPProcessor, CLIPModel
+import numpy as np
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -84,7 +85,8 @@ class MVKD(Distiller):
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
-                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition, condition_dim=self.condition_dim)
+                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition,
+                                condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
 
@@ -110,18 +112,35 @@ class MVKD(Distiller):
             num_p += p.numel()
         return num_p
 
-    def forward_train(self, image, target, **kwargs):
-        device = image.device
-        cur_epoch = kwargs['epoch']
-        logits_student, feature_student = self.student(image)
+    def forward_train(self, image_weak, image_strong, target, **kwargs):
+        cur_epoch = kwargs.get("epoch")
+        device = image_weak.device
+        logits_student_weak, feature_student_weak = self.student(image_weak)
+        logits_student_strong, feature_student_strong = self.student(image_strong)
         with torch.no_grad():
-            logits_teacher, feature_teacher = self.teacher(image)
+            logits_teacher_weak, feature_teacher_weak = self.teacher(image_weak)
+            logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
+        batch_size, class_num = logits_student_strong.shape
 
-        f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
-        f_t = feature_teacher["feats"][self.hint_layer]
+        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        confidence = confidence.detach()
+        conf_thresh = np.percentile(
+            confidence.cpu().numpy().flatten(), 50
+        )
+        mask = confidence.le(conf_thresh).bool()
+
+        # losses
+        loss_ce = self.ce_loss_weight * (
+                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
+                                 logits_student_strong, logits_teacher_strong,
+                                 mask, self.feat_loss_weight)
+
+        f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
+        f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         b, c, h, w = f_t.shape
         temp_text = 'a feature map of a '
@@ -131,13 +150,14 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_teacher), dim=-1)
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # diff_con = context_embd
         if cur_epoch > self.first_rec_kd:
-        # if cur_epoch % 2 == 1:
+            # if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
-                diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
+                diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
+                    f_t)
                 # with torch.no_grad():
                 #     logits_mv_s = self.teacher.fc(self.teacher.avgpool(f_s).view(b, -1))
                 #     logits_mv_t = self.teacher.fc(self.teacher.avgpool(diffusion_f_t).view(b, -1))
@@ -161,8 +181,9 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
+            "loss_logits": loss_logits
         }
-        return logits_student, losses_dict
+        return logits_student_weak, losses_dict
 
     # def prepare_targets(self, feature):
     #     d_feature, d_noise, d_t = self.prepare_diffusion_concat(feature)
@@ -263,6 +284,23 @@ def single_stage_at_loss(f_s, f_t, p):
 
 def at_loss(g_s, g_t, p):
     return sum([single_stage_at_loss(f_s, f_t, p) for f_s, f_t in zip(g_s, g_t)])
+
+
+def multi_loss(logits_student_weak, logits_teacher_weak,
+               logits_student_strong, logits_teacher_strong,
+               mask, weight):
+    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean()))
+
+    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()))
+    return loss_kd_weak + loss_kd_strong
 
 
 CIFAR100_Labels = {

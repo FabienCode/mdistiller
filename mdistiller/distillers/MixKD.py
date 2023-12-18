@@ -56,7 +56,7 @@ class MixKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
 
         f_s_w = feature_student_weak["feats"][self.hint_layer]
         f_s_s = feature_student_strong["feats"][self.hint_layer]
@@ -82,6 +82,7 @@ class MixKD(Distiller):
         # )
         loss_feat_aug = F.mse_loss(f_s_w, f_t_w_aug) + F.mse_loss(f_s_w, f_t_s_aug)
         loss_feat = self.feat_loss_weight_aug * loss_feat_aug + self.feat_loss_weight_ori * loss_feat_ori
+
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat_weak": loss_feat
