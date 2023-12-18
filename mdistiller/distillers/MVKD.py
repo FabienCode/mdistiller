@@ -90,8 +90,8 @@ class MVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        self.clip_model = CLIPModel.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models")
-        self.clip_processor = CLIPProcessor.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models")
+        self.clip_model = CLIPModel.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models").cuda()
+        self.clip_processor = CLIPProcessor.from_pretrained("/home/fabien/Documents/project/2d/mdistiller/clip_models").cuda()
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -124,7 +124,6 @@ class MVKD(Distiller):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         # if cur_epoch > self.first_rec_kd:
         code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True)
-        code_inputs = code_inputs.cuda()
         context_embd = self.clip_model.get_text_features(**code_inputs.cuda())
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
