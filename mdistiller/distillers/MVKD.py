@@ -124,7 +124,8 @@ class MVKD(Distiller):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         # if cur_epoch > self.first_rec_kd:
         code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True)
-        context_embd = self.clip_model.get_text_features(**code_inputs)
+        code_inputs = code_inputs.cuda()
+        context_embd = self.clip_model.get_text_features(**code_inputs.cuda())
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             for i in range(self.diff_num):
