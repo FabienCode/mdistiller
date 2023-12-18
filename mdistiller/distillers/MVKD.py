@@ -106,6 +106,7 @@ class MVKD(Distiller):
         return num_p
 
     def forward_train(self, image, target, **kwargs):
+        device = image.device
         cur_epoch = kwargs['epoch']
         logits_student, feature_student = self.student(image)
         with torch.no_grad():
@@ -123,7 +124,7 @@ class MVKD(Distiller):
         for i in range(b):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         # if cur_epoch > self.first_rec_kd:
-        code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True)
+        code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
         context_embd = self.clip_model.get_text_features(**code_inputs)
         if cur_epoch % 2 == 1:
             mvkd_loss = 0.
