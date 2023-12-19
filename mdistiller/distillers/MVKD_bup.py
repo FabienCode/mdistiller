@@ -8,7 +8,7 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 import torch.nn.functional as F
 from mdistiller.engine.diffusion_utiles import cosine_beta_schedule, default, extract
-from mdistiller.engine.mvkd_utils import Model
+from mdistiller.engine.light_diffusion import LModel
 
 from transformers import CLIPProcessor, CLIPModel
 import numpy as np
@@ -84,11 +84,12 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
-                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition,
-                                condition_dim=self.condition_dim)
+        # self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
+        #                         in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition,
+        #                         condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
+        self.rec_module = LModel(in_channel=t_c, condition_dim=self.condition_dim)
 
         # at config
         self.p = cfg.AT.P
