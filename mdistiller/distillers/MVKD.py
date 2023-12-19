@@ -84,7 +84,7 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=2, attn_resolutions=[t_w],
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=1, attn_resolutions=[t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
@@ -158,13 +158,15 @@ class MVKD(Distiller):
         diff_con = context_embd
         # if cur_epoch > self.first_rec_kd:
         # if cur_epoch % 2 == 1:
-        mvkd_loss = 0.
-        for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
-                f_t)
-            mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t))
 
-        loss_kd_infer = self.mvkd_weight * (mvkd_loss / self.diff_num)
+        mvkd_loss = 0.
+        diffusion_f_t = 0.
+        for i in range(self.diff_num):
+            diffusion_f_t += self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
+                f_t)
+        mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t / self.diff_num))
+
+        loss_kd_infer = self.mvkd_weight * mvkd_loss
         # else:
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
         rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
