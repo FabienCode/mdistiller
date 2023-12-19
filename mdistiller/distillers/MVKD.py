@@ -157,28 +157,30 @@ class MVKD(Distiller):
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         diff_con = context_embd
         # if cur_epoch > self.first_rec_kd:
-        # if cur_epoch % 2 == 1:
+        if cur_epoch % 2 == 1:
 
-        mvkd_loss = 0.
-        diffusion_f_t = 0.
-        for i in range(self.diff_num):
-            diffusion_f_t += self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
-                f_t)
-        mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t / self.diff_num))
+            mvkd_loss = 0.
+            diffusion_f_t = 0.
+            for i in range(self.diff_num):
+                diffusion_f_t += self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
+                    f_t)
+            mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t / self.diff_num))
 
-        loss_kd_infer = self.mvkd_weight * mvkd_loss
-        # else:
-        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                        conditional=diff_con) if self.use_condition else self.rec_module(
-            x_feature_t.float(), t)
-        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-        loss_kd_train = rec_loss + fitnet_loss
+            # loss_kd_infer = self.mvkd_weight * mvkd_loss
+            loss_kd = self.mvkd_weight * mvkd_loss
+        else:
+            x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
+            rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
+                                            conditional=diff_con) if self.use_condition else self.rec_module(
+                x_feature_t.float(), t)
+            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+            # loss_kd_train = rec_loss + fitnet_loss
+            loss_kd = rec_loss + fitnet_loss
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_kd_infer + loss_kd_train,
+            "loss_kd": loss_kd,
             "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
