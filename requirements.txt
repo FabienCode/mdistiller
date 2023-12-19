@@ -5,3 +5,6 @@ yacs
 wandb
 tqdm
 tensorboardX
+einops
+transformers
+opencv-python
