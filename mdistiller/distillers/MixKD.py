@@ -74,34 +74,34 @@ class MixKD(Distiller):
                                  logits_student_strong, logits_teacher_strong,
                                  mask, self.ce_loss_weight)
 
-        f_s_w = feature_student_weak["feats"][self.hint_layer]
-        f_s_s = feature_student_strong["feats"][self.hint_layer]
-        f_t_w = feature_teacher_weak["feats"][self.hint_layer]
-        f_t_s = feature_teacher_strong["feats"][self.hint_layer]
-        loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
-        # saliency compute
-        f_t_w_tmp = f_t_w.clone()
-        f_t_s_tmp = f_t_s.clone()
-        heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
-        head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
-        weak_saliency = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
-        strong_saliency = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
-        f_t_w_aug = replace_bbox_values(f_t_w_tmp, f_t_s_tmp, strong_saliency)
-        f_t_s_aug = replace_bbox_values(f_t_s_tmp, f_t_w_tmp, weak_saliency)
-
-        # for i in range(saliency_t_w_b.shape[1]):
-        #     saliency_tmp_w = saliency_t_w_b[:, i, :]
-        #     saliency_tmp_s = saliency_t_s_b[:, i, :]
-        #     f_t_w_aug, f_t_s_aug = aug_feat(f_t_w_aug, f_t_s_aug, saliency_tmp_w, saliency_tmp_s)
-        # loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
-        #     logits_student_weak, logits_teacher_strong, 4
-        # )
-        loss_feat_aug = F.mse_loss(f_s_w, f_t_w_aug) + F.mse_loss(f_s_w, f_t_s_aug)
-        loss_feat = self.feat_loss_weight_aug * loss_feat_aug + self.feat_loss_weight_ori * loss_feat_ori
+        # f_s_w = feature_student_weak["feats"][self.hint_layer]
+        # f_s_s = feature_student_strong["feats"][self.hint_layer]
+        # f_t_w = feature_teacher_weak["feats"][self.hint_layer]
+        # f_t_s = feature_teacher_strong["feats"][self.hint_layer]
+        # loss_feat_ori = F.mse_loss(f_s_w, f_t_w) + F.mse_loss(f_s_w, f_t_s)
+        # # saliency compute
+        # f_t_w_tmp = f_t_w.clone()
+        # f_t_s_tmp = f_t_s.clone()
+        # heat_map_t_w, wh_t_w, offset_t_w = self.saliency_det(f_t_w)
+        # head_map_t_s, wh_t_s, offset_t_s = self.saliency_det(f_t_s)
+        # weak_saliency = get_saliency_region(heat_map_t_w, wh_t_w, offset_t_w, self.topk_area, self.kernel_size)
+        # strong_saliency = get_saliency_region(head_map_t_s, wh_t_s, offset_t_s, self.topk_area, self.kernel_size)
+        # f_t_w_aug = replace_bbox_values(f_t_w_tmp, f_t_s_tmp, strong_saliency)
+        # f_t_s_aug = replace_bbox_values(f_t_s_tmp, f_t_w_tmp, weak_saliency)
+        #
+        # # for i in range(saliency_t_w_b.shape[1]):
+        # #     saliency_tmp_w = saliency_t_w_b[:, i, :]
+        # #     saliency_tmp_s = saliency_t_s_b[:, i, :]
+        # #     f_t_w_aug, f_t_s_aug = aug_feat(f_t_w_aug, f_t_s_aug, saliency_tmp_w, saliency_tmp_s)
+        # # loss_kd = kd_loss(logits_student_weak, logits_teacher_weak, 4) + kd_loss(
+        # #     logits_student_weak, logits_teacher_strong, 4
+        # # )
+        # loss_feat_aug = F.mse_loss(f_s_w, f_t_w_aug) + F.mse_loss(f_s_w, f_t_s_aug)
+        # loss_feat = self.feat_loss_weight_aug * loss_feat_aug + self.feat_loss_weight_ori * loss_feat_ori
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": loss_feat,
+            # "loss_feat_weak": loss_feat,
             "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
