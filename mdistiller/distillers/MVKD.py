@@ -137,7 +137,7 @@ class MVKD(Distiller):
                     F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
                                  logits_student_strong, logits_teacher_strong,
-                                 mask, self.feat_loss_weight)
+                                 mask, self.ce_loss_weight)
 
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]

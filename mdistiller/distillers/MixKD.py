@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
+import numpy as np
 # from mdistiller.engine.area_utils import get_import_region as saliency_bbox
 
 
@@ -56,7 +57,22 @@ class MixKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        batch_size, class_num = logits_student_strong.shape
+
+        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        confidence = confidence.detach()
+        conf_thresh = np.percentile(
+            confidence.cpu().numpy().flatten(), 50
+        )
+        mask = confidence.le(conf_thresh).bool()
+
+        # losses
+        loss_ce = self.ce_loss_weight * (
+                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
+                                 logits_student_strong, logits_teacher_strong,
+                                 mask, self.ce_loss_weight)
 
         f_s_w = feature_student_weak["feats"][self.hint_layer]
         f_s_s = feature_student_strong["feats"][self.hint_layer]
@@ -85,7 +101,8 @@ class MixKD(Distiller):
 
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat_weak": loss_feat
+            "loss_feat_weak": loss_feat,
+            "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
 
@@ -262,4 +279,20 @@ def replace_bbox_values(image_source, image_target, bounding_boxes):
     image_source[mask_expanded] = image_target[mask_expanded].clone()
 
     return image_source
+
+def multi_loss(logits_student_weak, logits_teacher_weak,
+               logits_student_strong, logits_teacher_strong,
+               mask, weight):
+    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean()) +
+                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean()))
+
+    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()) +
+                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()))
+    return loss_kd_weak + loss_kd_strong
 
