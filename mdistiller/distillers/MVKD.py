@@ -89,6 +89,10 @@ class MVKD(Distiller):
                                 condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
+        self.proj = nn.Sequential(
+            nn.Conv2d(t_c, t_c, 1),
+            nn.BatchNorm2d(t_c)
+        )
 
         # at config
         self.p = cfg.AT.P
@@ -102,7 +106,7 @@ class MVKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
-            self.rec_module.parameters())
+            self.rec_module.parameters()) + list(self.proj.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -158,7 +162,7 @@ class MVKD(Distiller):
         for i in range(self.diff_num):
             diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
                 f_t)
-            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
+            mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t))
 
         loss_kd_infer = self.mvkd_weight * (mvkd_loss / self.diff_num)
         # else:
