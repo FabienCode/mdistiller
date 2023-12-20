@@ -84,8 +84,8 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=1, attn_resolutions=[t_w],
-                                in_channels=t_c, resolution=t_w, dropout=0.1, use_condition=self.use_condition,
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
@@ -156,27 +156,27 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         diff_con = context_embd
-        if cur_epoch > self.first_rec_kd:
+        # if cur_epoch > self.first_rec_kd:
         # if cur_epoch % 2 == 1:
-            mvkd_loss = 0.
-            diffusion_f_t = 0.
-            for i in range(self.diff_num):
-                diffusion_f_t += self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
-                    f_t)
-            mvkd_loss += F.mse_loss(f_s, self.proj(diffusion_f_t / self.diff_num))
+        mvkd_loss = 0.
+        # diffusion_f_t = 0.
+        for i in range(self.diff_num):
+            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
+                f_t)
+            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
-            # loss_kd_infer = self.mvkd_weight * mvkd_loss
-            loss_kd = self.mvkd_weight * mvkd_loss
-        else:
-            x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-            rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                            conditional=diff_con) if self.use_condition else self.rec_module(
-                x_feature_t.float(), t)
-            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-            fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            # loss_kd_train = rec_loss + fitnet_loss
-            loss_kd = rec_loss + fitnet_loss
-
+        loss_kd_infer = self.mvkd_weight * mvkd_loss
+        # loss_kd = self.mvkd_weight * mvkd_loss
+        # else:
+        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
+                                        conditional=diff_con) if self.use_condition else self.rec_module(
+            x_feature_t.float(), t)
+        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+        loss_kd_train = rec_loss + fitnet_loss
+        # loss_kd = rec_loss + fitnet_loss
+        loss_kd = loss_kd_train + loss_kd_infer
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
