@@ -147,7 +147,7 @@ class MVKD(Distiller):
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         b, c, h, w = f_t.shape
-        temp_text = 'a feature map of '
+        temp_text = 'A reconstructed feature map of '
         code_tmp = []
         for i in range(b):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
