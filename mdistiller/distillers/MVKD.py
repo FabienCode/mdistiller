@@ -89,10 +89,10 @@ class MVKD(Distiller):
                                 condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
-        self.proj = nn.Sequential(
-            nn.Conv2d(t_c, t_c, 1),
-            nn.BatchNorm2d(t_c)
-        )
+        # self.proj = nn.Sequential(
+        #     nn.Conv2d(t_c, t_c, 1),
+        #     nn.BatchNorm2d(t_c)
+        # )
 
         # at config
         self.p = cfg.AT.P
@@ -106,7 +106,7 @@ class MVKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
-            self.rec_module.parameters()) + list(self.proj.parameters())
+            self.rec_module.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
@@ -143,9 +143,11 @@ class MVKD(Distiller):
                                  logits_student_strong, logits_teacher_strong,
                                  mask, self.ce_loss_weight)
 
+        # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
+        # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A reconstructed feature map of '
         code_tmp = []
@@ -156,8 +158,7 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         diff_con = context_embd
-        # if cur_epoch > self.first_rec_kd:
-        # if cur_epoch % 2 == 1:
+
         mvkd_loss = 0.
         # diffusion_f_t = 0.
         for i in range(self.diff_num):
@@ -165,7 +166,7 @@ class MVKD(Distiller):
                 f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
-        loss_kd_infer = self.mvkd_weight * mvkd_loss / self.diff_num
+        loss_kd_infer = self.mvkd_weight * mvkd_loss
         # loss_kd = self.mvkd_weight * mvkd_loss
         # else:
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
@@ -176,6 +177,7 @@ class MVKD(Distiller):
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
         # loss_kd = rec_loss + fitnet_loss
+
         loss_kd = loss_kd_train + loss_kd_infer
         losses_dict = {
             "loss_ce": loss_ce,
