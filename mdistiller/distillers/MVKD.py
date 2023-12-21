@@ -153,7 +153,8 @@ class MVKD(Distiller):
         code_tmp = []
         for i in range(b):
             article = determine_article(CIFAR100_Labels[target[i].item()])
-            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + article.capitalize() + ' .')
+            code_tmp.append(temp_text + article.capitalize() + " " + CIFAR100_Labels[target[i].item()] + '.')
+            # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
