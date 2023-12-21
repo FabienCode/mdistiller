@@ -153,8 +153,12 @@ class MVKD(Distiller):
         code_tmp = []
         for i in range(b):
             article = determine_article(CIFAR100_Labels[target[i].item()])
+            color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
+            size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
+
+            # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + article.capitalize() + " " + CIFAR100_Labels[target[i].item()] + '.')
-            code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
+            code_tmp.append(temp_text + article + " " + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + '.')
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
@@ -334,3 +338,6 @@ CIFAR100_Labels = {
     90: "train", 91: "trout", 92: "tulip", 93: "turtle", 94: "wardrobe",
     95: "whale", 96: "willow_tree", 97: "wolf", 98: "woman", 99: "worm"
 }
+
+COLORS = ["red", "green", "blue", "yellow", "purple", "orange", "black", "white", "grey", "pink"]
+SIZES = ["small", "large", "tiny", "big", "huge"]
