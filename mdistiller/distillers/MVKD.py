@@ -152,7 +152,8 @@ class MVKD(Distiller):
         temp_text = 'A reconstructed feature map of '
         code_tmp = []
         for i in range(b):
-            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + ' from different views.')
+            article = determine_article(CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + article.capitalize() + ' .')
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
@@ -302,6 +303,12 @@ def multi_loss(logits_student_weak, logits_teacher_weak,
                       weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()) +
                       weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()))
     return loss_kd_weak + loss_kd_strong
+
+
+def determine_article(word):
+    """根据单词的首字母确定使用 'a' 还是 'an'。"""
+    vowels = "aeiou"
+    return "an" if word[0].lower() in vowels else "a"
 
 
 CIFAR100_Labels = {
