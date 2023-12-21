@@ -149,7 +149,7 @@ class MVKD(Distiller):
 
         # MVKD loss
         b, c, h, w = f_t.shape
-        temp_text = 'A diffusion feature map of '
+        temp_text = 'A multi-view feature map of '
         code_tmp = []
         for i in range(b):
             article = determine_article(CIFAR100_Labels[target[i].item()])
