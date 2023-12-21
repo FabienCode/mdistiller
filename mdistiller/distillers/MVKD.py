@@ -149,7 +149,7 @@ class MVKD(Distiller):
 
         # MVKD loss
         b, c, h, w = f_t.shape
-        temp_text = 'A reconstructed feature map of '
+        temp_text = 'A reconstructed multi-view feature map of '
         code_tmp = []
         for i in range(b):
             code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
