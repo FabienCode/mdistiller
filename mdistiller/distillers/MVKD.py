@@ -126,24 +126,24 @@ class MVKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        batch_size, class_num = logits_student_strong.shape
+        # batch_size, class_num = logits_student_strong.shape
+        #
+        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        # confidence = confidence.detach()
+        # conf_thresh = np.percentile(
+        #     confidence.cpu().numpy().flatten(), 50
+        # )
+        # mask = confidence.le(conf_thresh).bool()
+        #
+        # # losses
+        # loss_ce = self.ce_loss_weight * (
+        #             F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
+        #                          logits_student_strong, logits_teacher_strong,
+        #                          mask, self.ce_loss_weight)
 
-        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        confidence = confidence.detach()
-        conf_thresh = np.percentile(
-            confidence.cpu().numpy().flatten(), 50
-        )
-        mask = confidence.le(conf_thresh).bool()
-
-        # losses
-        loss_ce = self.ce_loss_weight * (
-                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
-                                 logits_student_strong, logits_teacher_strong,
-                                 mask, self.ce_loss_weight)
-
-        # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
+        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
@@ -188,7 +188,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_logits": loss_logits
+            # "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
 
