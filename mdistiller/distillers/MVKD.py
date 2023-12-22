@@ -162,8 +162,8 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
-        diff_con = context_embd
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
+        # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
         if cur_epoch % 2 == 1:
@@ -182,7 +182,7 @@ class MVKD(Distiller):
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
                                             conditional=diff_con) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
-            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, noise)
+            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             # loss_kd_train = rec_loss + fitnet_loss
             loss_kd = rec_loss + fitnet_loss
