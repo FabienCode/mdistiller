@@ -182,7 +182,7 @@ class MVKD(Distiller):
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
                                             conditional=diff_con) if self.use_condition else self.rec_module(
                 x_feature_t.float(), t)
-            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+            rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, noise)
             fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
             # loss_kd_train = rec_loss + fitnet_loss
             loss_kd = rec_loss + fitnet_loss
