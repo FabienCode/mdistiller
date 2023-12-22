@@ -174,8 +174,8 @@ class MVKD(Distiller):
                 mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
             # loss_kd_infer = self.mvkd_weight * mvkd_loss
-            loss_kd = self.mvkd_weight * mvkd_loss
-            # + F.mse_loss(f_s, f_t)
+            loss_kd = self.mvkd_weight * mvkd_loss + self.feat_loss_weight * F.mse_loss(f_s, f_t)
+            #
         else:
             x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
             rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
