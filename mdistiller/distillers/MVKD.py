@@ -126,30 +126,30 @@ class MVKD(Distiller):
             logits_teacher_strong, feature_teacher_strong = self.teacher(image_strong)
 
         # losses
-        # batch_size, class_num = logits_student_strong.shape
-        #
-        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        # confidence = confidence.detach()
-        # conf_thresh = np.percentile(
-        #     confidence.cpu().numpy().flatten(), 50
-        # )
-        # mask = confidence.le(conf_thresh).bool()
-        #
-        # # losses
-        # loss_ce = self.ce_loss_weight * (
-        #             F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
-        #                          logits_student_strong, logits_teacher_strong,
-        #                          mask, self.ce_loss_weight)
+        batch_size, class_num = logits_student_strong.shape
 
-        loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
+        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        confidence = confidence.detach()
+        conf_thresh = np.percentile(
+            confidence.cpu().numpy().flatten(), 50
+        )
+        mask = confidence.le(conf_thresh).bool()
+
+        # losses
+        loss_ce = self.ce_loss_weight * (
+                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
+                                 logits_student_strong, logits_teacher_strong,
+                                 mask, self.ce_loss_weight)
+
+        # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         # MVKD loss
         b, c, h, w = f_t.shape
-        temp_text = 'A multi-view feature map of '
+        temp_text = 'A reconstructed feature map of '
         code_tmp = []
         for i in range(b):
             article = determine_article(CIFAR100_Labels[target[i].item()])
@@ -158,12 +158,12 @@ class MVKD(Distiller):
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
-            code_tmp.append(temp_text + article + " " + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + '.')
+            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + '.')
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
-        # diff_con = context_embd
+        # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
+        diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
         if cur_epoch % 2 == 1:
@@ -190,7 +190,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_logits": loss_logits
+            "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
 
