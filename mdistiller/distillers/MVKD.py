@@ -184,9 +184,9 @@ class MVKD(Distiller):
                 x_feature_t.float(), t)
             rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
             fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            loss_kd_train = rec_loss + fitnet_loss
-            # loss_kd = rec_loss + fitnet_loss
-            # loss_kd = loss_kd_train + loss_kd_infer
+            # loss_kd_train = rec_loss + fitnet_loss
+            loss_kd = rec_loss + fitnet_loss
+        # loss_kd = loss_kd_train + loss_kd_infer
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
