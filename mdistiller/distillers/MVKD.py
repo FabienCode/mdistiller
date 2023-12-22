@@ -162,7 +162,7 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, feature_teacher_weak["pooled_feat"]), dim=-1)
+        diff_con = torch.concat((context_embd, feature_teacher_strong["pooled_feat"]), dim=-1)
         # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
