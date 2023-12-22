@@ -165,8 +165,8 @@ class MVKD(Distiller):
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         diff_con = context_embd
 
-        # if cur_epoch > self.first_rec_kd:
-        if cur_epoch % 2 == 1:
+        if cur_epoch > self.first_rec_kd:
+        # if cur_epoch % 2 == 1:
             mvkd_loss = 0.
             # diffusion_f_t = 0.
             for i in range(self.diff_num):
