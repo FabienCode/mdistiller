@@ -8,7 +8,7 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 import torch.nn.functional as F
 from mdistiller.engine.diffusion_utiles import cosine_beta_schedule, default, extract
-from mdistiller.engine.light_diffusion import DiffusionModel
+from mdistiller.engine.light_diffusion import DiffusionModel, AutoEncoder
 
 from transformers import CLIPProcessor, CLIPModel
 import numpy as np
@@ -34,9 +34,6 @@ class MVKD(Distiller):
         self.mvkd_weight = cfg.MVKD.LOSS.INFER_WEIGHT
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
-        )
-        self.conv_reg = ConvReg(
-            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
         self.condition_dim = cfg.MVKD.CONDITION_DIM
 
@@ -91,8 +88,12 @@ class MVKD(Distiller):
         #     nn.Conv2d(t_c, t_c, 1),
         #     nn.BatchNorm2d(t_c)
         # )
-
-        # at config
+        latent_dim = t_c
+        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
+        # self.conv_reg = ConvReg(
+        #     feat_s_shapes[self.hint_layer], latent_dim
+        # )
+        self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
         self.p = cfg.AT.P
 
         # CLIP model init
@@ -144,6 +145,9 @@ class MVKD(Distiller):
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
+        hidden_f_t, rec_f_t = self.ae(f_t)
+        ae_loss = F.mse_loss(f_t, rec_f_t)
+        f_t = hidden_f_t.detach()
 
         # MVKD loss
         if self.use_condition:
@@ -162,7 +166,7 @@ class MVKD(Distiller):
                 code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
                 context_embd = self.clip_model.get_text_features(**code_inputs)
             diff_con = torch.concat((context_embd, logits_teacher_weak), dim=-1)
-        # diff_con = context_embd
+            # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
         # if cur_epoch % 2 == 1:
@@ -189,7 +193,8 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_logits": loss_logits
+            "loss_logits": loss_logits,
+            "loss_ae": ae_loss,
         }
         return logits_student_weak, losses_dict
 
