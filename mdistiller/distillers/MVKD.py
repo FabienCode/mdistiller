@@ -82,9 +82,11 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = DiffusionModel(channels_in=t_c, kernel_size=3, use_conditional=self.use_condition, condition_dim=self.condition_dim)
-        latent_channels = t_c
+
+        latent_channels = t_c // 2
         self.ae = AutoEncoder(channels=t_c, latent_channels=latent_channels)
+        self.rec_module = DiffusionModel(channels_in=latent_channels, kernel_size=3, use_conditional=self.use_condition,
+                                         condition_dim=self.condition_dim)
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         # )
