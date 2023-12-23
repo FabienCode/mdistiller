@@ -162,7 +162,7 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, feature_teacher_strong["pooled_feat"]), dim=-1)
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
@@ -298,17 +298,9 @@ def at_loss(g_s, g_t, p):
 def multi_loss(logits_student_weak, logits_teacher_weak,
                logits_student_strong, logits_teacher_strong,
                mask, weight):
-    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()) +
-                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean()) +
-                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean()) +
-                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()) +
-                    weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean()))
+    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
 
-    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()) +
-                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean()) +
-                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean()) +
-                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()) +
-                      weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean()))
+    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
     return loss_kd_weak + loss_kd_strong
 
 
