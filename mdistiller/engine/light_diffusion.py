@@ -33,6 +33,7 @@ class DiffusionModel(nn.Module):
         self.time_embedding = nn.Embedding(1280, channels_in)
         self.use_condition = use_conditional
         self.condition_dim = condition_dim
+        self.channels_in = channels_in
 
         if kernel_size == 3:
             self.pred = nn.Sequential(
@@ -72,7 +73,7 @@ class DiffusionModel(nn.Module):
             cemb = self.cemb.dense[0](conditional)
             cemb = nonlinearity(cemb)
             cemb = self.cemb.dense[1](cemb)
-            embd = temb.expand((cemb.shape[0], cemb.shape[1])) + cemb
+            embd = temb + cemb[..., None, None]
         else:
             embd = temb
         feat = feat + embd
