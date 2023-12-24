@@ -8,7 +8,7 @@ from ._base import Distiller
 from ._common import ConvReg, get_feat_shapes
 import torch.nn.functional as F
 from mdistiller.engine.diffusion_utiles import cosine_beta_schedule, default, extract
-from mdistiller.engine.light_diffusion import DiffusionModel, AutoEncoder
+from mdistiller.engine.mvkd_utils import Model
 
 from transformers import CLIPProcessor, CLIPModel
 import numpy as np
@@ -35,7 +35,9 @@ class MVKD(Distiller):
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
-
+        self.conv_reg = ConvReg(
+            feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
+        )
         self.condition_dim = cfg.MVKD.CONDITION_DIM
 
         # build diffusion
@@ -82,15 +84,9 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-
-        latent_channels = t_c // 2
-        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_channels)
-        self.rec_module = DiffusionModel(channels_in=latent_channels, kernel_size=3, use_conditional=self.use_condition,
-                                         condition_dim=self.condition_dim)
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
-        # )
-        self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_channels, 1)
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
+                                condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
         #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
         # self.proj = nn.Sequential(
@@ -150,13 +146,10 @@ class MVKD(Distiller):
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
-        hidden_f_t, rec_f_t = self.ae(f_t)
-        ae_loss = F.mse_loss(f_t, rec_f_t)
-        f_t = hidden_f_t
 
         # MVKD loss
         b, c, h, w = f_t.shape
-        temp_text = 'A reconstructed feature map of '
+        temp_text = 'New reconstructed feature map of '
         code_tmp = []
         for i in range(b):
             article = determine_article(CIFAR100_Labels[target[i].item()])
@@ -186,7 +179,7 @@ class MVKD(Distiller):
             #
         # else:
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x_feature_t.float(), t=t,
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
                                         conditional=diff_con) if self.use_condition else self.rec_module(
             x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
@@ -197,8 +190,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_logits": loss_logits,
-            "loss_ae": ae_loss,
+            "loss_logits": loss_logits
         }
         return logits_student_weak, losses_dict
 
@@ -272,7 +264,7 @@ class MVKD(Distiller):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
         if conditional is not None:
-            pred_f = self.rec_module(x_f, t=t, conditional=conditional)
+            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
         else:
             pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
