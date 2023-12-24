@@ -176,7 +176,7 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         shape_token = self.shape_token.expand(b, -1)
         color_token = self.color_token.expand(b, -1)
-        diff_con = torch.concat((context_embd, shape_token, color_token), dim=-1)
+        diff_con = torch.concat((context_embd, shape_token, color_token, logits_teacher_strong), dim=-1)
         # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
