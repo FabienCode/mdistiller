@@ -84,7 +84,7 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=2, attn_resolutions=[t_w],
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
@@ -103,6 +103,9 @@ class MVKD(Distiller):
         # clip_path = str(Path(clip_dir).resolve())
         self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
+
+        self.color_token = nn.Parameter(torch.zeros(1, t_c))
+        self.shape_token = nn.Parameter(torch.zeros(1, t_c))
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -151,18 +154,28 @@ class MVKD(Distiller):
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
         code_tmp = []
+        # for i in range(b):
+        #     article = determine_article(CIFAR100_Labels[target[i].item()])
+        #     color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
+        #     size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
+        #
+        #     # A reconstructed feature map of a medium-sized, red turtle
+        #     # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
+        #     code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+        # with torch.no_grad():
+        #     code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
+        #     context_embd = self.clip_model.get_text_features(**code_inputs)
         for i in range(b):
-            article = determine_article(CIFAR100_Labels[target[i].item()])
-            color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
-            size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
-            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_teacher_weak), dim=-1)
+        shape_token = self.shape_token.expand(b, -1)
+        color_token = self.color_token.expand(b, -1)
+        diff_con = torch.concat((context_embd, shape_token, color_token), dim=-1)
         # diff_con = context_embd
 
         # if cur_epoch > self.first_rec_kd:
