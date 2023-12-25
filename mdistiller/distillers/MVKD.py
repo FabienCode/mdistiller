@@ -141,7 +141,7 @@ class MVKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * (
-                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+                F.cross_entropy(logits_student_weak, target))
         # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
         #                          logits_student_strong, logits_teacher_strong,
         #                          mask, self.ce_loss_weight)
