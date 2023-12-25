@@ -165,22 +165,8 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_teacher_strong), dim=-1)
-        # for i in range(b):
-        #
-        #     # A reconstructed feature map of a medium-sized, red turtle
-        #     # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
-        #     code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
-        # with torch.no_grad():
-        #     code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
-        #     context_embd = self.clip_model.get_text_features(**code_inputs)
-        # shape_token = self.shape_token.expand(b, -1)
-        # color_token = self.color_token.expand(b, -1)
-        # diff_con = torch.concat((context_embd, shape_token, color_token, logits_teacher_strong), dim=-1)
-        # diff_con = context_embd
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
 
-        # if cur_epoch > self.first_rec_kd:
-        # if cur_epoch % 2 == 1:
         mvkd_loss = 0.
         # diffusion_f_t = 0.
         for i in range(self.diff_num):
