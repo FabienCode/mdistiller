@@ -312,21 +312,21 @@ def at_loss(g_s, g_t, p):
 def multi_loss(logits_student_weak, logits_teacher_weak,
                logits_student_strong, logits_teacher_strong,
                mask, weight):
-    # loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
-
     loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+
+    # loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
 
     loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
 
-    loss_cc = (weight * ((cc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+    loss_cc_strong = (weight * ((cc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_cc = loss_cc_weak + loss_cc_strong
 
-    loss_bc = (weight * ((bc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+    loss_bc_strong = (weight * ((bc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_bc = loss_bc_weak + loss_bc_strong
 
-    return loss_kd_weak + loss_kd_strong + loss_cc + loss_bc
+    return loss_kd_weak + loss_kd_strong + loss_cc_weak + loss_bc_weak
 
 
 def determine_article(word):
