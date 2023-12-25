@@ -141,7 +141,7 @@ class MVKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * (
-                    F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
                                  logits_student_strong, logits_teacher_strong,
                                  mask, self.ce_loss_weight)
@@ -190,7 +190,7 @@ class MVKD(Distiller):
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
         # loss_kd = self.mvkd_weight * mvkd_loss + self.feat_loss_weight * F.mse_loss(f_s, f_t)
-            #
+        #
         # else:
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
         rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
@@ -323,7 +323,20 @@ def multi_loss(logits_student_weak, logits_teacher_weak,
                                 (kd_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
                                 (kd_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
                                 (kd_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
-    return loss_kd_weak + loss_kd_strong
+
+    loss_cc = (weight * ((cc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean() +
+                         (cc_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean() +
+                         (cc_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
+                         (cc_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
+                         (cc_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
+
+    loss_bc = (weight * ((bc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean() +
+                         (bc_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean() +
+                         (bc_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
+                         (bc_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
+                         (bc_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
+
+    return loss_kd_weak + loss_kd_strong + loss_cc + loss_bc
 
 
 def determine_article(word):
@@ -357,3 +370,29 @@ CIFAR100_Labels = {
 
 COLORS = ["red", "green", "blue", "yellow", "purple", "orange", "black", "white", "grey", "pink"]
 SIZES = ["small", "large", "tiny", "big", "huge"]
+
+
+def cc_loss(logits_student, logits_teacher, temperature, reduce=True):
+    batch_size, class_num = logits_teacher.shape
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    student_matrix = torch.mm(pred_student.transpose(1, 0), pred_student)
+    teacher_matrix = torch.mm(pred_teacher.transpose(1, 0), pred_teacher)
+    if reduce:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2).sum() / class_num
+    else:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2) / class_num
+    return consistency_loss
+
+
+def bc_loss(logits_student, logits_teacher, temperature, reduce=True):
+    batch_size, class_num = logits_teacher.shape
+    pred_student = F.softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    student_matrix = torch.mm(pred_student, pred_student.transpose(1, 0))
+    teacher_matrix = torch.mm(pred_teacher, pred_teacher.transpose(1, 0))
+    if reduce:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2).sum() / batch_size
+    else:
+        consistency_loss = ((teacher_matrix - student_matrix) ** 2) / batch_size
+    return consistency_loss
