@@ -12,6 +12,7 @@ from mdistiller.engine.mvkd_utils import Model
 
 from transformers import CLIPProcessor, CLIPModel, ViltProcessor, ViltForQuestionAnswering
 import numpy as np
+from mdistiller.engine.light_diffusion import DiffusionModel, AutoEncoder
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -87,12 +88,12 @@ class MVKD(Distiller):
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
-        # self.rec_module = Model(ch=t_c*2, out_ch=t_c, ch_mult=(1, 2, 4), num_res_blocks=1, attn_resolutions=[4, 8],
-        #                         in_channels=t_c*2, resolution=t_w, dropout=0.0)
-        # self.proj = nn.Sequential(
-        #     nn.Conv2d(t_c, t_c, 1),
-        #     nn.BatchNorm2d(t_c)
+        latent_dim = t_c
+        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
+        # self.conv_reg = ConvReg(
+        #     feat_s_shapes[self.hint_layer], latent_dim
         # )
+        self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
 
         # at config
         self.p = cfg.AT.P
@@ -150,6 +151,10 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
+        hidden_f_t, rec_f_t = self.ae(f_t)
+        loss_ae = F.mse_loss(f_t, rec_f_t)
+        f_t = hidden_f_t
+
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
@@ -189,6 +194,7 @@ class MVKD(Distiller):
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
             # "loss_logits": loss_logits
+            "loss_ae": loss_ae,
         }
         return logits_student_weak, losses_dict
 
