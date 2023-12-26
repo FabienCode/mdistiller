@@ -131,17 +131,17 @@ class MVKD(Distiller):
         # losses
         batch_size, class_num = logits_student_strong.shape
 
-        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        confidence = confidence.detach()
-        conf_thresh = np.percentile(
-            confidence.cpu().numpy().flatten(), 50
-        )
-        mask = confidence.le(conf_thresh).bool()
+        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        # confidence = confidence.detach()
+        # conf_thresh = np.percentile(
+        #     confidence.cpu().numpy().flatten(), 50
+        # )
+        # mask = confidence.le(conf_thresh).bool()
 
         # losses
         loss_ce = self.ce_loss_weight * (
-                F.cross_entropy(logits_student_weak, target))
+                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
         # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
         #                          logits_student_strong, logits_teacher_strong,
         #                          mask, self.ce_loss_weight)
