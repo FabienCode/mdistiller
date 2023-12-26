@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-1,1-1-1-1,1-3,240-120"
-  PROJECT: "mvkd_56_20_v1"
+  TAG: "vx-1-1"
+  PROJECT: "mvkd_110_32_v1"
 DISTILLER:
   TYPE: "MVKD"
   TEACHER: "resnet110"
