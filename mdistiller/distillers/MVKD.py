@@ -172,13 +172,20 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
 
+        # add noise to
+        perturbation_strength = 0.5
+        perturbation = torch.randn_like(diff_con) * perturbation_strength
+        perturbed_diff_con = diff_con + perturbation
+
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
+            diffusion_f_t = self.ddim_sample(f_t, conditional=perturbed_diff_con) if self.use_condition else self.ddim_sample(
                 f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
+
+        # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
         rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
                                         conditional=diff_con) if self.use_condition else self.rec_module(
