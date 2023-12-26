@@ -45,12 +45,12 @@ class DiffusionModel(nn.Module):
         else:
             self.pred = nn.Sequential(
                 nn.Conv2d(channels_in, channels_in * 4, 1),
-                nn.BatchNorm2d(channels_in * 4),
+                nn.BatchNorm1d(channels_in * 4),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(channels_in * 4, channels_in, 1),
-                nn.BatchNorm2d(channels_in),
+                nn.BatchNorm1d(channels_in),
                 nn.Conv2d(channels_in, channels_in * 4, 1),
-                nn.BatchNorm2d(channels_in * 4),
+                nn.BatchNorm1d(channels_in * 4),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(channels_in * 4, channels_in, 1)
             )
