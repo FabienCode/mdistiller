@@ -100,14 +100,9 @@ class LMVKD(Distiller):
         self.p = cfg.AT.P
 
         # CLIP model init
-        # clip_dir = os.path.join(os.getcwd(), "../", 'clip_models')
         clip_dir = os.path.join(os.getcwd(), 'clip_models')
-        # clip_path = str(Path(clip_dir).resolve())
         self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
-
-        self.color_token = nn.Parameter(torch.zeros(1, t_c))
-        self.shape_token = nn.Parameter(torch.zeros(1, t_c))
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -133,13 +128,6 @@ class LMVKD(Distiller):
         # losses
         batch_size, class_num = logits_student_strong.shape
 
-        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        # confidence = confidence.detach()
-        # conf_thresh = np.percentile(
-        #     confidence.cpu().numpy().flatten(), 50
-        # )
-        # mask = confidence.le(conf_thresh).bool()
 
         # losses
         loss_ce = self.ce_loss_weight * (
@@ -152,9 +140,6 @@ class LMVKD(Distiller):
         # f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
         #
-        # hidden_f_t, rec_f_t = self.ae(f_t)
-        # loss_ae = F.mse_loss(f_t, rec_f_t)
-        # f_t = hidden_f_t
 
         # MVKD loss
         b, c, h, w = f_t.shape
