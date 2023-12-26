@@ -31,7 +31,7 @@ from .MVKD import MVKD
 from .demo import KD_strong
 from .MixKD import MixKD
 from .MVKD_CRD import MVKD_CRD
-from LogitsMVKD import LMVKD
+from .LogitsMVKD import LMVKD
 
 distiller_dict = {
     "NONE": Vanilla,
