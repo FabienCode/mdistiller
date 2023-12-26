@@ -44,23 +44,23 @@ class DiffusionModel(nn.Module):
             )
         else:
             self.pred = nn.Sequential(
-                nn.Conv2d(channels_in, channels_in * 4, 1),
+                nn.Linear(channels_in, channels_in * 4),
                 nn.BatchNorm1d(channels_in * 4),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(channels_in * 4, channels_in, 1),
+                nn.Linear(channels_in * 4, channels_in),
                 nn.BatchNorm1d(channels_in),
-                nn.Conv2d(channels_in, channels_in * 4, 1),
+                nn.Linear(channels_in, channels_in * 4),
                 nn.BatchNorm1d(channels_in * 4),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(channels_in * 4, channels_in, 1)
+                nn.Linear(channels_in * 4, channels_in)
             )
         if self.use_condition:
             self.cemb = nn.Module()
             self.cemb.dense = nn.ModuleList([
-                torch.nn.Linear(self.condition_dim,
-                                self.channels_in),
-                torch.nn.Linear(self.channels_in,
-                                self.channels_in),
+                nn.Linear(self.condition_dim,
+                          self.channels_in),
+                nn.Linear(self.channels_in,
+                          self.channels_in),
             ])
 
     def forward(self, noisy_image, t, conditional=None):
@@ -172,6 +172,7 @@ class Bottleneck(nn.Module):
     def forward(self, x):
         out = self.block(x)
         return out + x
+
 
 def nonlinearity(x):
     # swish
