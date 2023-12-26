@@ -128,7 +128,6 @@ class LMVKD(Distiller):
         # losses
         batch_size, class_num = logits_student_strong.shape
 
-
         # losses
         loss_ce = self.ce_loss_weight * (
                 F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
