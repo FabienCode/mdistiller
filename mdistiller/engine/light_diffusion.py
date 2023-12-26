@@ -67,13 +67,14 @@ class DiffusionModel(nn.Module):
         if t.dtype != torch.long:
             t = t.type(torch.long)
         feat = noisy_image
-        temb = self.time_embedding(t)[..., None, None]
+        # temb = self.time_embedding(t)[..., None, None]
+        temb = self.time_embedding(t)
         if self.use_condition:
             assert conditional is not None
             cemb = self.cemb.dense[0](conditional)
             cemb = nonlinearity(cemb)
             cemb = self.cemb.dense[1](cemb)
-            embd = temb + cemb[..., None, None]
+            embd = temb + cemb
         else:
             embd = temb
         feat = feat + embd

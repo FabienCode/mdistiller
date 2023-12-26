@@ -31,6 +31,7 @@ from .MVKD import MVKD
 from .demo import KD_strong
 from .MixKD import MixKD
 from .MVKD_CRD import MVKD_CRD
+from LogitsMVKD import LMVKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -66,4 +67,5 @@ distiller_dict = {
     "KD_strong": KD_strong,
     "MixKD": MixKD,
     "MVKD_CRD": MVKD_CRD,
+    "LMVKD": LMVKD,
 }

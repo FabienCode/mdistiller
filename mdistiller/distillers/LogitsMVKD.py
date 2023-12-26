@@ -23,11 +23,11 @@ def kd_loss(logits_student, logits_teacher, temperature):
     return loss_kd
 
 
-class MVKD(Distiller):
+class LMVKD(Distiller):
     """FitNets: Hints for Thin Deep Nets"""
 
     def __init__(self, student, teacher, cfg):
-        super(MVKD, self).__init__(student, teacher)
+        super(LMVKD, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.MVKD.LOSS.CE_WEIGHT
         self.feat_loss_weight = cfg.MVKD.LOSS.FEAT_WEIGHT
         self.hint_layer = cfg.MVKD.HINT_LAYER
@@ -85,14 +85,15 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
-                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
-                                condition_dim=self.condition_dim)
+        # self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
+        #                         in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
+        #                         condition_dim=self.condition_dim)
         latent_dim = t_c
         self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], latent_dim
         # )
+        self.rec_module = DiffusionModel(latent_dim, kernel_size=1, use_conditional=True, condition_dim=612)
         self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
 
         # at config
