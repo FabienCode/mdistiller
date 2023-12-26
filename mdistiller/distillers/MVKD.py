@@ -166,8 +166,8 @@ class MVKD(Distiller):
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
         diff_con_1 = torch.concat((context_embd, logits_student_weak), dim=-1)
-        diff_con_2 = torch.concat((context_embd, logits_student_strong), dim=-1)
-        diff_con = (diff_con_1 + diff_con_2) / 2
+        # diff_con_2 = torch.concat((context_embd, logits_student_strong), dim=-1)
+        diff_con = diff_con_1
 
         mvkd_loss = 0.
         diffusion_f_t = 0.
