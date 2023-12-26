@@ -279,7 +279,7 @@ class LMVKD(Distiller):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
         if conditional is not None:
-            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
+            pred_f = self.rec_module(x_f, t=t, conditional=conditional)
         else:
             pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
