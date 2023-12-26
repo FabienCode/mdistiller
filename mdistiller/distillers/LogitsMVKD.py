@@ -149,12 +149,12 @@ class LMVKD(Distiller):
         #                          mask, self.ce_loss_weight)
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
-        f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
+        # f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
-
-        hidden_f_t, rec_f_t = self.ae(f_t)
-        loss_ae = F.mse_loss(f_t, rec_f_t)
-        f_t = hidden_f_t
+        #
+        # hidden_f_t, rec_f_t = self.ae(f_t)
+        # loss_ae = F.mse_loss(f_t, rec_f_t)
+        # f_t = hidden_f_t
 
         # MVKD loss
         b, c, h, w = f_t.shape
@@ -173,30 +173,21 @@ class LMVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
 
-        # add noise to
-        # perturbation_strength = 0.5
-        # perturbation = torch.randn_like(diff_con) * perturbation_strength
-        # perturbed_diff_con = diff_con + perturbation
-
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            perturbation_strength = 0.5
-            perturbation = torch.randn_like(diff_con) * perturbation_strength
-            perturbed_diff_con = diff_con + perturbation
-            diffusion_f_t = self.ddim_sample(f_t, conditional=perturbed_diff_con) if self.use_condition else self.ddim_sample(
-                f_t)
-            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
+            diffusion_logits_teacher_weak = self.ddim_sample(logits_teacher_weak,
+                                                             conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
+            mvkd_loss += kd_loss(logits_student_weak, diffusion_logits_teacher_weak, 4)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
-        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                        conditional=diff_con) if self.use_condition else self.rec_module(
-            x_feature_t.float(), t)
-        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-        loss_kd_train = rec_loss + fitnet_loss
+        x_logits_teacher_weak, noise, t = self.prepare_diffusion_concat(logits_teacher_weak)
+        rec_x_logits_student_weak = self.rec_module(x_logits_teacher_weak.float(), t=t, conditional=diff_con) \
+            if self.use_condition else self.rec_module(x_logits_teacher_weak.float(), t)
+        rec_loss = self.rec_weight * F.mse_loss(rec_x_logits_student_weak, logits_teacher_weak)
+        kd_loss_ori = kd_loss(logits_student_weak, logits_teacher_weak, 4)
+        loss_kd_train = rec_loss + kd_loss_ori
 
         # fully kd loss
         loss_kd = loss_kd_train + loss_kd_infer
@@ -204,8 +195,6 @@ class LMVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_logits": loss_logits
-            "loss_ae": loss_ae,
         }
         return logits_student_weak, losses_dict
 
