@@ -93,7 +93,7 @@ class LMVKD(Distiller):
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], latent_dim
         # )
-        self.rec_module = DiffusionModel(latent_dim, kernel_size=1, use_conditional=True, condition_dim=612)
+        self.rec_module = DiffusionModel(100, kernel_size=1, use_conditional=True, condition_dim=612)
         self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
 
         # at config
