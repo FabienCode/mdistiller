@@ -105,8 +105,6 @@ class MVKD(Distiller):
         self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
 
-        self.color_token = nn.Parameter(torch.zeros(1, t_c))
-        self.shape_token = nn.Parameter(torch.zeros(1, t_c))
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -132,20 +130,9 @@ class MVKD(Distiller):
         # losses
         batch_size, class_num = logits_student_strong.shape
 
-        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        # confidence = confidence.detach()
-        # conf_thresh = np.percentile(
-        #     confidence.cpu().numpy().flatten(), 50
-        # )
-        # mask = confidence.le(conf_thresh).bool()
-
         # losses
         loss_ce = self.ce_loss_weight * (
                 F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
-        #                          logits_student_strong, logits_teacher_strong,
-        #                          mask, self.ce_loss_weight)
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
@@ -170,7 +157,7 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
+        diff_con = torch.concat((context_embd, (logits_student_weak + logits_student_strong) / 2), dim=-1)
 
         # add noise to
         # perturbation_strength = 0.5
@@ -179,10 +166,10 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            perturbation_strength = 0.01
-            perturbation = torch.randn_like(diff_con) * perturbation_strength
-            perturbed_diff_con = diff_con + perturbation
-            diffusion_f_t = self.ddim_sample(f_t, conditional=perturbed_diff_con) if self.use_condition else self.ddim_sample(
+            # perturbation_strength = 0.01
+            # perturbation = torch.randn_like(diff_con) * perturbation_strength
+            # perturbed_diff_con = diff_con + perturbation
+            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
                 f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
