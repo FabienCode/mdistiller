@@ -185,7 +185,6 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_ae": loss_ae,
         }
         return logits_student_weak, losses_dict
 
