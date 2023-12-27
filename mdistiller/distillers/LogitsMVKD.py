@@ -164,7 +164,7 @@ class LMVKD(Distiller):
             loss_ce += F.cross_entropy(diffusion_logits_teacher_weak, target)
             mvkd_loss += kd_loss(logits_student_weak, diffusion_logits_teacher_weak, 4)
 
-        loss_kd_infer = self.mvkd_weight * mvkd_loss / self.diff_num
+        loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
         x_logits_teacher_weak, noise, t = self.prepare_diffusion_concat(logits_teacher_weak)
