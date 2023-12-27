@@ -138,9 +138,9 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
-        hidden_f_t, rec_f_t = self.ae(f_t)
-        loss_ae = F.mse_loss(f_t, rec_f_t)
-        f_t = hidden_f_t
+        # hidden_f_t, rec_f_t = self.ae(f_t)
+        # loss_ae = F.mse_loss(f_t, rec_f_t)
+        # f_t = hidden_f_t
 
         # MVKD loss
         b, c, h, w = f_t.shape
@@ -157,12 +157,7 @@ class MVKD(Distiller):
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, (logits_student_weak + logits_student_strong) / 2), dim=-1)
-
-        # add noise to
-        # perturbation_strength = 0.5
-        # perturbation = torch.randn_like(diff_con) * perturbation_strength
-        # perturbed_diff_con = diff_con + perturbation
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
@@ -190,8 +185,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_logits": loss_logits
-            "loss_ae": loss_ae,
+            # "loss_ae": loss_ae,
         }
         return logits_student_weak, losses_dict
 
