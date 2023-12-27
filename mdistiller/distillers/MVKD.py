@@ -138,9 +138,9 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
-        # hidden_f_t, rec_f_t = self.ae(f_t)
-        # loss_ae = F.mse_loss(f_t, rec_f_t)
-        # f_t = hidden_f_t
+        hidden_f_t, rec_f_t = self.ae(f_t)
+        loss_ae = F.mse_loss(f_t, rec_f_t)
+        f_t = hidden_f_t
 
         # MVKD loss
         b, c, h, w = f_t.shape
@@ -185,7 +185,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_ae": loss_ae,
+            "loss_ae": loss_ae,
         }
         return logits_student_weak, losses_dict
 
