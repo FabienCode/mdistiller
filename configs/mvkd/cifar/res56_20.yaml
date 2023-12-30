@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-1,1-1-1-1,1-3,240-120"
+  TAG: "vx-1-1"
   PROJECT: "mvkd_56_20_v1"
 DISTILLER:
   TYPE: "MVKD"
