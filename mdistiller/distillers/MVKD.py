@@ -137,7 +137,7 @@ class MVKD(Distiller):
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         hidden_f_t, rec_f_t = self.ae(f_t)
-        loss_ae = self.rec_weight * F.mse_loss(f_t, rec_f_t)
+        loss_ae = self.mvkd_weight * F.mse_loss(f_t, rec_f_t)
         f_t = hidden_f_t
 
         # MVKD loss
