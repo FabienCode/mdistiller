@@ -89,14 +89,11 @@ class MVKD(Distiller):
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         latent_dim = t_c
-        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
+        # self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
         # self.conv_reg = ConvReg(
         #     feat_s_shapes[self.hint_layer], latent_dim
         # )
         self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
-
-        # at config
-        self.p = cfg.AT.P
 
         # CLIP model init
         # clip_dir = os.path.join(os.getcwd(), "../", 'clip_models')
@@ -104,7 +101,6 @@ class MVKD(Distiller):
         # clip_path = str(Path(clip_dir).resolve())
         self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
-
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -153,8 +149,8 @@ class MVKD(Distiller):
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
-            # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
-            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+            # code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
