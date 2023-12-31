@@ -144,14 +144,14 @@ class MVKD(Distiller):
             size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
-            # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
-            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+            # code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
-        # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
+        pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
+        diff_con = torch.concat((context_embd, pooled_f_t), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
