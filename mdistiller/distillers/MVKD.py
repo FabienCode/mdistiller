@@ -104,15 +104,13 @@ class MVKD(Distiller):
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
-            self.rec_module.parameters()) + list(self.ae.parameters())
+            self.rec_module.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
         for p in self.conv_reg.parameters():
             num_p += p.numel()
         for p in self.rec_module.parameters():
-            num_p += p.numel()
-        for p in self.ae.parameters():
             num_p += p.numel()
         return num_p
 
