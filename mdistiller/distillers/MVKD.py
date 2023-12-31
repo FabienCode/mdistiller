@@ -88,12 +88,12 @@ class MVKD(Distiller):
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
-        latent_dim = t_c
-        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], latent_dim
-        # )
-        self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
+        # latent_dim = t_c
+        # self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
+        # # self.conv_reg = ConvReg(
+        # #     feat_s_shapes[self.hint_layer], latent_dim
+        # # )
+        # self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
 
         # CLIP model init
         # clip_dir = os.path.join(os.getcwd(), "../", 'clip_models')
@@ -136,29 +136,24 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
-        hidden_f_t, rec_f_t = self.ae(f_t)
-        loss_ae = self.mvkd_weight * F.mse_loss(f_t, rec_f_t)
-        f_t = hidden_f_t
-
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
         code_tmp = []
         for i in range(b):
-            article = determine_article(CIFAR100_Labels[target[i].item()])
+            # article = determine_article(CIFAR100_Labels[target[i].item()])
             color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
             size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
-            # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
             code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
             # code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
-        pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, pooled_f_t), dim=-1)
+        # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
+        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
@@ -183,7 +178,6 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_ae": loss_ae
         }
         return logits_student_weak, losses_dict
 
