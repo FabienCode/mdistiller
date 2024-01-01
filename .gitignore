@@ -17,6 +17,7 @@ tmp*.py
 detectrons2/
 *.pdf
 
+best_weights/
 mdistiller/models/transformer
 clip_models/
 
