@@ -85,7 +85,7 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 1), num_res_blocks=2, attn_resolutions=[t_w // 2, t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # latent_dim = t_c
@@ -134,6 +134,10 @@ class MVKD(Distiller):
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
+        # MKD loss
+        loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
+                              logits_student_strong, logits_teacher_strong,
+                              target, self.feat_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
@@ -176,6 +180,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
+            "loss_mkd": loss_mkd,
         }
         return logits_student_weak, losses_dict
 
