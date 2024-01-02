@@ -302,7 +302,7 @@ def multi_loss(logits_student_weak, logits_teacher_weak,
 
     loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
 
-    return loss_kd_weak + loss_kd_strong
+    return loss_kd_weak + loss_kd_strong + loss_cc_weak + loss_bc_weak
 
 
 def determine_article(word):
