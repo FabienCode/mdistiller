@@ -154,8 +154,8 @@ class MVKD(Distiller):
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
-        # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, logits_teacher_weak), dim=-1)
+        pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
+        diff_con = torch.concat((context_embd, pooled_f_t), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
@@ -297,6 +297,10 @@ def multi_loss(logits_student_weak, logits_teacher_weak,
     loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
 
     loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+
+    loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+
+    loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
 
     return loss_kd_weak + loss_kd_strong
 
