@@ -169,7 +169,7 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
+        diff_con = torch.concat((context_embd, logits_teacher_weak), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
