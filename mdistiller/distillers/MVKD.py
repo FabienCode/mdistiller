@@ -135,9 +135,23 @@ class MVKD(Distiller):
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         # MKD loss
+        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+        confidence = confidence.detach()
+        conf_thresh = np.percentile(
+            confidence.cpu().numpy().flatten(), 50
+        )
+        mask = confidence.le(conf_thresh).bool()
+
+        class_confidence = torch.sum(pred_teacher_weak, dim=0)
+        class_confidence = class_confidence.detach()
+        class_confidence_thresh = np.percentile(
+            class_confidence.cpu().numpy().flatten(), 50
+        )
+        class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
         loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
                               logits_student_strong, logits_teacher_strong,
-                              target, self.feat_loss_weight)
+                              mask, class_conf_mask, self.feat_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
@@ -287,31 +301,30 @@ def at_loss(g_s, g_t, p):
 
 def multi_loss(logits_student_weak, logits_teacher_weak,
                logits_student_strong, logits_teacher_strong,
-               mask, weight):
+               mask, class_conf_mask, weight):
     loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
 
-    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean() +
-                                (kd_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean() +
-                                (kd_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
-                                (kd_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
-                                (kd_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
-    # loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 2)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 3)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 5)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 6))))
 
-    # loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 2) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 3) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 5) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 6) * class_conf_mask).mean()))
 
-    # loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
-    #
-    # loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
-
-    loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
-                              (cc_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
-                              (cc_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
-                              (cc_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
-                              (cc_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
+    loss_cc_strong = (weight * ((cc_loss(logits_student_strong, logits_teacher_strong, 4)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 2)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 3)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 5)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 6))))
 
     loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
                               (bc_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
@@ -319,7 +332,13 @@ def multi_loss(logits_student_weak, logits_teacher_weak,
                               (bc_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
                               (bc_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
 
-    return loss_kd_weak + loss_kd_strong + loss_cc_weak + loss_bc_weak
+    loss_bc_strong = (weight * ((bc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
+
+    return loss_kd_weak + loss_kd_strong
 
 
 def determine_article(word):
