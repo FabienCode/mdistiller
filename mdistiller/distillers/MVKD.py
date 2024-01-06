@@ -151,7 +151,7 @@ class MVKD(Distiller):
         class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
         loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
                               logits_student_strong, logits_teacher_strong,
-                              mask, class_conf_mask, self.feat_loss_weight)
+                              mask, class_conf_mask, 9 * self.ce_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
