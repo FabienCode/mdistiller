@@ -148,7 +148,7 @@ class MVKD(Distiller):
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
-            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + ".")
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
