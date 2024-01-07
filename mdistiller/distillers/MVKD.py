@@ -85,8 +85,8 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=1, attn_resolutions=[t_w // 2, t_w],
-                                in_channels=t_c * 2, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w // 2, t_w],
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # latent_dim = t_c
         # self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
@@ -127,31 +127,16 @@ class MVKD(Distiller):
         batch_size, class_num = logits_student_strong.shape
 
         # losses
-        loss_ce = self.ce_loss_weight * (
-                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         # MKD loss
-        pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        confidence = confidence.detach()
-        conf_thresh = np.percentile(
-            confidence.cpu().numpy().flatten(), 50
-        )
-        mask = confidence.le(conf_thresh).bool()
-
-        class_confidence = torch.sum(pred_teacher_weak, dim=0)
-        class_confidence = class_confidence.detach()
-        class_confidence_thresh = np.percentile(
-            class_confidence.cpu().numpy().flatten(), 50
-        )
-        class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
         loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
                               logits_student_strong, logits_teacher_strong,
-                              mask, class_conf_mask, 9 * self.ce_loss_weight)
+                              9 * self.ce_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
@@ -162,8 +147,8 @@ class MVKD(Distiller):
             size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
-            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
-            # code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
+            # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+            code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()])
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
@@ -173,17 +158,14 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(
-                f_t)
+            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                        conditional=diff_con) if self.use_condition else self.rec_module(
-            x_feature_t.float(), t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
@@ -300,8 +282,21 @@ def at_loss(g_s, g_t, p):
 
 
 def multi_loss(logits_student_weak, logits_teacher_weak,
-               logits_student_strong, logits_teacher_strong,
-               mask, class_conf_mask, weight):
+               logits_student_strong, logits_teacher_strong, weight):
+    pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+    confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+    confidence = confidence.detach()
+    conf_thresh = np.percentile(
+        confidence.cpu().numpy().flatten(), 50
+    )
+    mask = confidence.le(conf_thresh).bool()
+
+    class_confidence = torch.sum(pred_teacher_weak, dim=0)
+    class_confidence = class_confidence.detach()
+    class_confidence_thresh = np.percentile(
+        class_confidence.cpu().numpy().flatten(), 50
+    )
+    class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
     loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
                               (kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +

@@ -343,10 +343,9 @@ class Model(nn.Module):
 
     def forward(self, x, t=None, context=None, conditional=None):
         # assert x.shape[2] == x.shape[3] == self.resolution
-        if conditional is not None:
+        if context is not None:
             # assume aligned context, cat along channel axis
-            cond = conditional.reshape(conditional.shape[0], -1, 1, 1)
-            x = torch.cat((x, cond), dim=1)
+            x = torch.cat((x, context), dim=1)
         if self.use_timestep:
             # timestep embedding
             assert t is not None
@@ -356,12 +355,12 @@ class Model(nn.Module):
             temb = self.temb.dense[1](temb)
         else:
             temb = None
-        # if self.use_condition:
-        #     assert conditional is not None
-        #     cemb = self.cemb.dense[0](conditional)
-        #     cemb = nonlinearity(cemb)
-        #     cemb = self.cemb.dense[1](cemb)
-        #     temb = temb.expand((cemb.shape[0], cemb.shape[1])) + cemb
+        if self.use_condition:
+            assert conditional is not None
+            cemb = self.cemb.dense[0](conditional)
+            cemb = nonlinearity(cemb)
+            cemb = self.cemb.dense[1](cemb)
+            temb = temb.expand((cemb.shape[0], cemb.shape[1])) + cemb
 
         # downsampling
         hs = [self.conv_in(x)]
