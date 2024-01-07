@@ -139,15 +139,16 @@ class MVKD(Distiller):
                               self.ce_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
-        temp_text = 'A new reconstructed feature map of '
-        code_tmp = []
-        for i in range(b):
-            # article = determine_article(CIFAR100_Labels[target[i].item()])
-            color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
-            size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
-
-            # A reconstructed feature map of a medium-sized, red turtle
-            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + ".")
+        # temp_text = 'A new reconstructed feature map of '
+        code_tmp = ['A new reconstructed feature map.'] * b
+        # code_tmp = []
+        # for i in range(b):
+        #     # article = determine_article(CIFAR100_Labels[target[i].item()])
+        #     color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
+        #     size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
+        #
+        #     # A reconstructed feature map of a medium-sized, red turtle
+        #     code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + ".")
             # code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + ".")
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
