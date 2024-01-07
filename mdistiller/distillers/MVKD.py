@@ -136,7 +136,7 @@ class MVKD(Distiller):
         # MKD loss
         loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
                               logits_student_strong, logits_teacher_strong,
-                              9 * self.ce_loss_weight)
+                              self.ce_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
