@@ -343,7 +343,7 @@ class Model(nn.Module):
 
     def forward(self, x, t=None, context=None, conditional=None):
         # assert x.shape[2] == x.shape[3] == self.resolution
-        if context is not None:
+        if conditional is not None:
             # assume aligned context, cat along channel axis
             cond = conditional.reshape(conditional.shape[0], -1, 1, 1)
             x = torch.cat((x, cond), dim=1)
