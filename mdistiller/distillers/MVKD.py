@@ -158,14 +158,14 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
+            diffusion_f_t = self.ddim_sample(f_t, f_s, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=f_s, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
@@ -209,7 +209,7 @@ class MVKD(Distiller):
         return sqrt_alpha_cumprod_t * x_start + sqrt_one_minus_alpha_cumprod_t * noise
 
     @torch.no_grad()
-    def ddim_sample(self, feature, conditional=None):
+    def ddim_sample(self, feature, s_feature, conditional=None):
         batch = feature.shape[0]
         total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
 
@@ -225,7 +225,7 @@ class MVKD(Distiller):
             self_cond = x_start if self.self_condition else None
 
             if conditional is not None:
-                pred_noise, x_start = self.model_predictions(f.float(), time_cond, conditional)
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, s_feature, conditional)
             else:
                 pred_noise, x_start = self.model_predictions(f.float(), time_cond)
 
@@ -246,11 +246,11 @@ class MVKD(Distiller):
                 sigma * noise
         return f
 
-    def model_predictions(self, f, t, conditional=None):
+    def model_predictions(self, f, t, context=None, conditional=None):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
         if conditional is not None:
-            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
+            pred_f = self.rec_module(x=x_f, t=t, context=context, conditional=conditional)
         else:
             pred_f = self.rec_module(x_f, t)
         pred_f = (pred_f * 2 - 1.) * self.scale
