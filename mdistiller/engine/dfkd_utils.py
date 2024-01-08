@@ -67,8 +67,8 @@ class Architect(object):
         self.network_weight_decay = args.DFKD.weight_decay
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.module.augment_parameters,
-                                          lr=args.arch_learning_rate, betas=(0.5, 0.999),
-                                          weight_decay=args.arch_weight_decay)
+                                          lr=args.DFKD.arch_learning_rate, betas=(0.5, 0.999),
+                                          weight_decay=args.DFKD.arch_weight_decay)
 
     def _compute_unrolled_model(self, input, target, eta, network_optimizer):
         loss = self.model._loss(input, target)
