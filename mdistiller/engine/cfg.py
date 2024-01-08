@@ -241,3 +241,11 @@ CFG.MixKD.LOSS.CE_WEIGHT = 1.0
 CFG.MixKD.LOSS.ORI_FEAT_WEIGHT = 1.0
 CFG.MixKD.LOSS.AUG_FEAT_WEIGHT = 1.0
 
+
+# DFKD config
+CFG.DFKD = CN()
+CFG.DFKD.momentum = 0.9
+CFG.DFKD.weight_decay = 1e-4
+CFG.DFKD.arch_learning_rate = 3e-4
+CFG.DFKD.arch_weight_decay = 1e-3
+

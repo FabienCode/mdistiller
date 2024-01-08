@@ -63,8 +63,8 @@ def _concat(xs):
 class Architect(object):
 
     def __init__(self, model, args):
-        self.network_momentum = args.momentum
-        self.network_weight_decay = args.weight_decay
+        self.network_momentum = args.DFKD.momentum
+        self.network_weight_decay = args.DFKD.weight_decay
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.augment_parameters(),
                                           lr=args.arch_learning_rate, betas=(0.5, 0.999),
