@@ -7,7 +7,7 @@ from ._common import ConvReg, get_feat_shapes
 
 from mdistiller.engine.dfkd_primitives import sub_policies
 import random
-from mdistiller.engine.dfkd_utils import MixedAugment
+from mdistiller.engine.dfkd_utils import MixedAugment, QFunc
 from torch.autograd import Variable
 
 

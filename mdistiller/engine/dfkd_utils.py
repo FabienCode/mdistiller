@@ -164,3 +164,28 @@ class Architect(object):
             p.data.add_(R, v)
 
         return [(x - y).div_(2 * R) for x, y in zip(grads_p, grads_n)]
+
+
+class QFunc(torch.nn.Module):
+    '''Control variate for RELAX'''
+
+    def __init__(self, num_latents, hidden_size=100):
+        super(QFunc, self).__init__()
+        self.h1 = torch.nn.Linear(num_latents, hidden_size)
+        self.nonlin = torch.nn.Tanh()
+        self.out = torch.nn.Linear(hidden_size, 1)
+
+    def forward(self, p, w):
+        # the multiplication by 2 and subtraction is from toy.py...
+        # it doesn't change the bias of the estimator, I guess
+        # print(p, w)
+        z = torch.cat([p, w.unsqueeze(dim=-1)], dim=-1)
+        z = z.reshape(-1)
+        # print(z)
+        z = self.h1(z * 2. - 1.)
+        # print(z)
+        z = self.nonlin(z)
+        # print(z)
+        z = self.out(z)
+        # print(z)
+        return z
