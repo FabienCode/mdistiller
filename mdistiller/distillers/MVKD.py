@@ -86,7 +86,7 @@ class MVKD(Distiller):
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
         self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w // 2, t_w],
-                                in_channels=t_c*2, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
+                                in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
         # latent_dim = t_c
         # self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
@@ -160,14 +160,14 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, f_s, conditional=None) if self.use_condition else self.ddim_sample(f_t)
+            diffusion_f_t = self.ddim_sample(f_t, None, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=f_s, conditional=None) if self.use_condition else self.rec_module(x_feature_t.float(), t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
