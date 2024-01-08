@@ -60,9 +60,10 @@ class DFKD(Distiller):
     def _initialize_augment_parameters(self):
         num_sub_policies = len(self.sub_policies)
         num_ops = len(self.sub_policies[0])
-        self.probabilities = Variable(0.5*torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
-        self.magnitudes = Variable(0.5*torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
-        self.ops_weights = Variable(1e-3*torch.ones(num_sub_policies).cuda(), requires_grad=True)
+        self.probabilities = Variable(0.5 * torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
+        self.ops_weights = Variable(1e-3 * torch.ones(num_sub_policies).cuda(), requires_grad=True)
+        self.q_func = [QFunc(num_sub_policies * (num_ops + 1)).cuda()]
+        self.magnitudes = Variable(0.5 * torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
         # self.ops_weights = Variable(1.0/num_sub_policies*torch.ones(num_sub_policies).cuda(), requires_grad=True)
         # self.ops_weights = Variable(1e-3 * torch.randn(num_sub_policies).cuda(), requires_grad=True)
 
