@@ -141,7 +141,7 @@ class MVKD(Distiller):
         # MVKD loss
         b, c, h, w = f_t.shape
         # temp_text = 'A new reconstructed feature map of '
-        code_tmp = ['A new view reconstruction of the feature map.'] * b
+        code_tmp = ['A feature map reconstructed from a new view.'] * b
         # code_tmp = []
         # for i in range(b):
         #     # article = determine_article(CIFAR100_Labels[target[i].item()])
