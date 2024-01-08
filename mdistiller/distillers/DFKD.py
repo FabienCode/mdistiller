@@ -30,7 +30,7 @@ class DFKD(Distiller):
         self.sub_policies = random.sample(sub_policies, 105)
         self.mix_augment = MixedAugment(sub_policies)
         self.augmenting = True
-        self._initialize_augment_parameters()
+        self.augment_parameters = self._initialize_augment_parameters()
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -73,6 +73,7 @@ class DFKD(Distiller):
             self.ops_weights
         ]
         self._augment_parameters += [*self.q_func[0].parameters()]
+        return self._augment_parameters
 
     def augment_parameters(self):
         return self._augment_parameters
