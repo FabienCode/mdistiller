@@ -229,7 +229,7 @@ class MVKD(Distiller):
             if conditional is not None:
                 pred_noise, x_start = self.model_predictions(f.float(), time_cond, s_feature, conditional)
             else:
-                pred_noise, x_start = self.model_predictions(f.float(), time_cond)
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, s_feature)
 
             if time_next < 0:
                 f = x_start
