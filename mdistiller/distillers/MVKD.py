@@ -254,7 +254,7 @@ class MVKD(Distiller):
         if conditional is not None:
             pred_f = self.rec_module(x=x_f, t=t, context=context, conditional=conditional)
         else:
-            pred_f = self.rec_module(x_f, t)
+            pred_f = self.rec_module(x_f, t, context=context)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
