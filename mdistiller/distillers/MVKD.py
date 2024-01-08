@@ -127,17 +127,17 @@ class MVKD(Distiller):
         batch_size, class_num = logits_student_strong.shape
 
         # losses
-        # loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_strong, target))
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
+        # loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_strong, target))
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_strong["feats"][self.hint_layer])
         f_t = feature_teacher_strong["feats"][self.hint_layer]
 
         # MKD loss
-        loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
-                              logits_student_strong, logits_teacher_strong,
-                              self.ce_loss_weight)
+        # loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
+        #                       logits_student_strong, logits_teacher_strong,
+        #                       self.ce_loss_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         # temp_text = 'A new reconstructed feature map of '
@@ -178,7 +178,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            "loss_mkd": loss_mkd,
+            # "loss_mkd": loss_mkd,
         }
         return logits_student_weak, losses_dict
 
