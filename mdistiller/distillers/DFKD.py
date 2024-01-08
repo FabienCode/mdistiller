@@ -70,3 +70,58 @@ class DFKD(Distiller):
             self.magnitudes,
             self.ops_weights
         ]
+        self._augment_parameters += [*self.q_func[0].parameters()]
+
+    def augment_parameters(self):
+        return self._augment_parameters
+
+    def sample(self):
+        # probabilities_dist = torch.distributions.RelaxedBernoulli(
+        #     self.temperature, self.probabilities)
+        # sample_probabilities = probabilities_dist.rsample()
+        # sample_probabilities = sample_probabilities.clamp(0.0, 1.0)
+        # self.sample_probabilities = sample_probabilities
+        # self.sample_probabilities_index = sample_probabilities >= 0.5
+        # self.sample_probabilities = \
+        #     self.sample_probabilities_index.float() - sample_probabilities.detach() + sample_probabilities
+        EPS = 1e-6
+        num_sub_policies = len(self.sub_policies)
+        num_ops = len(self.sub_policies[0])
+        probabilities_logits = torch.log(self.probabilities.clamp(0.0+EPS, 1.0-EPS)) - torch.log1p(-self.probabilities.clamp(0.0+EPS, 1.0-EPS))
+        probabilities_u = torch.rand(num_sub_policies, num_ops).cuda()
+        probabilities_v = torch.rand(num_sub_policies, num_ops).cuda()
+        probabilities_u = probabilities_u.clamp(EPS, 1.0)
+        probabilities_v = probabilities_v.clamp(EPS, 1.0)
+        probabilities_z = probabilities_logits + torch.log(probabilities_u) - torch.log1p(-probabilities_u)
+        probabilities_b = probabilities_z.gt(0.0).type_as(probabilities_z)
+        def _get_probabilities_z_tilde(logits, b, v):
+            theta = torch.sigmoid(logits)
+            v_prime = v * (b - 1.) * (theta - 1.) + b * (v * theta + 1. - theta)
+            z_tilde = logits + torch.log(v_prime) - torch.log1p(-v_prime)
+            return z_tilde
+        probabilities_z_tilde = _get_probabilities_z_tilde(probabilities_logits, probabilities_b, probabilities_v)
+        self.probabilities_logits = probabilities_logits
+        self.probabilities_b = probabilities_b
+        self.probabilities_sig_z = torch.sigmoid(probabilities_z/self.temperature)
+        self.probabilities_sig_z_tilde = torch.sigmoid(probabilities_z_tilde/self.temperature)
+
+        ops_weights_p = torch.nn.functional.softmax(self.ops_weights, dim=-1)
+        ops_weights_logits = torch.log(ops_weights_p)
+        ops_weights_u = torch.rand(num_sub_policies).cuda()
+        ops_weights_v = torch.rand(num_sub_policies).cuda()
+        ops_weights_u = ops_weights_u.clamp(EPS, 1.0)
+        ops_weights_v = ops_weights_v.clamp(EPS, 1.0)
+        ops_weights_z = ops_weights_logits - torch.log(-torch.log(ops_weights_u))
+        ops_weights_b = torch.argmax(ops_weights_z, dim=-1)
+        def _get_ops_weights_z_tilde(logits, b, v):
+            theta = torch.exp(logits)
+            z_tilde = -torch.log(-torch.log(v)/theta-torch.log(v[b]))
+            z_tilde = z_tilde.scatter(dim=-1, index=b, src=-torch.log(-torch.log(v[b])))
+            # v_prime = v * (b - 1.) * (theta - 1.) + b * (v * theta + 1. - theta)
+            # z_tilde = logits + torch.log(v_prime) - torch.log1p(-v_prime)
+            return z_tilde
+        ops_weights_z_tilde = _get_ops_weights_z_tilde(ops_weights_logits, ops_weights_b, ops_weights_v)
+        self.ops_weights_logits = ops_weights_logits
+        self.ops_weights_b = ops_weights_b
+        self.ops_weights_softmax_z = torch.nn.functional.softmax(ops_weights_z/self.temperature, dim=-1)
+        self.ops_weights_softmax_z_tilde = torch.nn.functional.softmax(ops_weights_z_tilde/self.temperature, dim=-1)

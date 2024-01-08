@@ -17,6 +17,7 @@ from .utils import (
     log_msg,
 )
 import numpy as np
+from mdistiller.engine.dfkd_utils import Architect
 
 
 class BaseTrainer(object):
@@ -225,6 +226,7 @@ class CRDTrainer(BaseTrainer):
         )
         return msg
 
+
 def mvkd_adjust_learning_rate(epoch, cfg, optimizer):
     steps = np.sum(epoch > np.asarray(cfg.SOLVER.LR_DECAY_STAGES))
     if 3 > steps > 0:
@@ -238,6 +240,7 @@ def mvkd_adjust_learning_rate(epoch, cfg, optimizer):
             param_group["lr"] = new_lr
         return new_lr
     return cfg.SOLVER.LR
+
 
 class DoubleLRTrainer(BaseTrainer):
     def train_epoch(self, epoch):
@@ -302,8 +305,6 @@ class DoubleLRTrainer(BaseTrainer):
             )
 
 
-
-
 class AugTrainer(BaseTrainer):
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
@@ -326,6 +327,47 @@ class AugTrainer(BaseTrainer):
         train_meters["training_time"].update(time.time() - train_start_time)
         # collect info
         batch_size = image_weak.size(0)
+        acc1, acc5 = accuracy(preds, target, topk=(1, 5))
+        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["top1"].update(acc1[0], batch_size)
+        train_meters["top5"].update(acc5[0], batch_size)
+        # print info
+        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
+            epoch,
+            train_meters["data_time"].avg,
+            train_meters["training_time"].avg,
+            train_meters["losses"].avg,
+            train_meters["top1"].avg,
+            train_meters["top5"].avg,
+        )
+        return msg
+
+
+class DFKDTrainer(BaseTrainer):
+    def __init__(self, experiment_name, distiller, train_loader, val_loader, cfg):
+        super().__init__(experiment_name, distiller, train_loader, val_loader, cfg)
+        self.architect = Architect(self.distiller, cfg)
+
+    def train_iter(self, data, epoch, train_meters):
+        self.optimizer.zero_grad()
+        train_start_time = time.time()
+        image, target, index = data
+        train_meters["data_time"].update(time.time() - train_start_time)
+        image = image.float()
+        image = image.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
+        index = index.cuda(non_blocking=True)
+
+        # forward
+        preds, losses_dict = self.distiller(image=image, target=target, epoch=epoch)
+
+        # backward
+        loss = sum([l.mean() for l in losses_dict.values()])
+        loss.backward()
+        self.optimizer.step()
+        train_meters["training_time"].update(time.time() - train_start_time)
+        # collect info
+        batch_size = image.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
