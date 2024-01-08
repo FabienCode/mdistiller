@@ -7,7 +7,8 @@ from ._common import ConvReg, get_feat_shapes
 
 from mdistiller.engine.dfkd_primitives import sub_policies
 import random
-
+from mdistiller.engine.dfkd_utils import MixedAugment
+from torch.autograd import Variable
 
 class DFKD(Distiller):
     """Differentiable Feature Augmentaion for Knowledge Distillation."""
@@ -23,7 +24,11 @@ class DFKD(Distiller):
         self.conv_reg = ConvReg(
             feat_s_shapes[self.hint_layer], feat_t_shapes[self.hint_layer]
         )
+
+        # DFKD submodule
         self.sub_policies = random.sample(sub_policies, 105)
+        self.mix_augment = MixedAugment(sub_policies)
+        self.augmenting = True
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -49,3 +54,18 @@ class DFKD(Distiller):
             "loss_kd": loss_feat,
         }
         return logits_student, losses_dict
+
+    def _initialize_augment_parameters(self):
+        num_sub_policies = len(self.sub_policies)
+        num_ops = len(self.sub_policies[0])
+        self.probabilities = Variable(0.5*torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
+        self.magnitudes = Variable(0.5*torch.ones(num_sub_policies, num_ops).cuda(), requires_grad=True)
+        self.ops_weights = Variable(1e-3*torch.ones(num_sub_policies).cuda(), requires_grad=True)
+        # self.ops_weights = Variable(1.0/num_sub_policies*torch.ones(num_sub_policies).cuda(), requires_grad=True)
+        # self.ops_weights = Variable(1e-3 * torch.randn(num_sub_policies).cuda(), requires_grad=True)
+
+        self._augment_parameters = [
+            self.probabilities,
+            self.magnitudes,
+            self.ops_weights
+        ]
