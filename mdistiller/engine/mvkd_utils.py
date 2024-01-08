@@ -355,8 +355,8 @@ class Model(nn.Module):
             temb = self.temb.dense[1](temb)
         else:
             temb = None
-        if self.use_condition:
-            assert conditional is not None
+        if self.use_condition and conditional is not None:
+            # assert conditional is not None
             cemb = self.cemb.dense[0](conditional)
             cemb = nonlinearity(cemb)
             cemb = self.cemb.dense[1](cemb)

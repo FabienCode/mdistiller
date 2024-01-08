@@ -160,14 +160,14 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, f_s, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
+            diffusion_f_t = self.ddim_sample(f_t, f_s, conditional=None) if self.use_condition else self.ddim_sample(f_t)
             mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=f_s, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=f_s, conditional=None) if self.use_condition else self.rec_module(x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
