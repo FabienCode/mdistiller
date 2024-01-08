@@ -32,6 +32,7 @@ from .demo import KD_strong
 from .MixKD import MixKD
 from .MVKD_CRD import MVKD_CRD
 from .LogitsMVKD import LMVKD
+from .DFKD import DFKD
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -68,4 +69,5 @@ distiller_dict = {
     "MixKD": MixKD,
     "MVKD_CRD": MVKD_CRD,
     "LMVKD": LMVKD,
+    "DFKD": DFKD,
 }
