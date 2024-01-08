@@ -66,7 +66,7 @@ class Architect(object):
         self.network_momentum = args.DFKD.momentum
         self.network_weight_decay = args.DFKD.weight_decay
         self.model = model
-        self.optimizer = torch.optim.Adam(self.model.module.augment_parameters(),
+        self.optimizer = torch.optim.Adam(self.model.module.augment_parameters,
                                           lr=args.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.arch_weight_decay)
 
