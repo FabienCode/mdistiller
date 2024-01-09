@@ -43,9 +43,7 @@ class DFKD(Distiller):
         return num_p
 
     def forward_train(self, image, target, **kwargs):
-        logits_student, feature_student = self.student(image)
-        with torch.no_grad():
-            _, feature_teacher = self.teacher(image)
+        logits_student, feature_student, logits_teacher, feature_teacher = self.forward_feat(image)
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
@@ -57,6 +55,13 @@ class DFKD(Distiller):
             "loss_kd": loss_feat,
         }
         return logits_student, losses_dict
+
+    def forward_feat(self, image):
+        logits_student, feature_student = self.student(image)
+        with torch.no_grad():
+            logits_teacher, feature_teacher = self.teacher(image)
+        return logits_student, feature_student, logits_teacher, feature_teacher
+
 
     def _initialize_augment_parameters(self):
         num_sub_policies = len(self.sub_policies)
