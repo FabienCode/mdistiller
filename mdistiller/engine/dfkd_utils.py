@@ -72,16 +72,17 @@ class Architect(object):
                                           weight_decay=args.DFKD.arch_weight_decay)
 
     def _compute_unrolled_model(self, image, target, eta, network_optimizer):
-        pred, loss_dict = self.model.module.forward_train(image, target)
-        loss = sum(loss_dict.values())
-        # loss = F.cross_entropy(l_s, target)
+        l_s, f_s, l_t, f_t = self.model.module.forward_feat(image)
+        loss = F.cross_entropy(l_s, target)
         theta = _concat(self.model.parameters()).data.detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(
                 self.network_momentum)
         except:
             moment = torch.zeros_like(theta)
-        dtheta = _concat(torch.autograd.grad(loss, self.model.parameters())).data.detach() + self.network_weight_decay * theta
+        grad = torch.autograd.grad(loss, self.model.parameters(), allow_unused=True)
+        filtered_grad_tuple = tuple(item for item in grad if item is not None)
+        dtheta = _concat(filtered_grad_tuple).data.detach() + self.network_weight_decay * theta
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
         return unrolled_model
 
