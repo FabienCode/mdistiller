@@ -71,8 +71,8 @@ class Architect(object):
                                           lr=args.DFKD.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.DFKD.arch_weight_decay)
 
-    def _compute_unrolled_model(self, input, target, eta, network_optimizer):
-        l_s, f_s, l_t, f_t = self.model.module.forward_feat(input)
+    def _compute_unrolled_model(self, image, target, eta, network_optimizer):
+        l_s, f_s, l_t, f_t = self.model.module.forward_feat(image)
         loss_ce = F.cross_entropy(l_s, target)
         theta = _concat(self.model.parameters()).data.detach()
         try:
@@ -89,7 +89,7 @@ class Architect(object):
         self._backward_step_unrolled(image, target, eta, network_optimizer)
         self.optimizer.step()
 
-    def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
+    def _backward_step_unrolled(self, input_train, target_train, eta, network_optimizer):
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
         unrolled_model.set_augmenting(False)
         unrolled_loss = unrolled_model._loss(input_valid, target_valid)
