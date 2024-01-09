@@ -34,7 +34,8 @@ class DFKD(Distiller):
         self.temperature = 0.5
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
+            self.mix_augment.parameters()) + self.augment_parameters
 
     def get_extra_parameters(self):
         num_p = 0
@@ -61,7 +62,6 @@ class DFKD(Distiller):
         with torch.no_grad():
             logits_teacher, feature_teacher = self.teacher(image)
         return logits_student, feature_student, logits_teacher, feature_teacher
-
 
     def _initialize_augment_parameters(self):
         num_sub_policies = len(self.sub_policies)
@@ -96,7 +96,8 @@ class DFKD(Distiller):
         EPS = 1e-6
         num_sub_policies = len(self.sub_policies)
         num_ops = len(self.sub_policies[0])
-        probabilities_logits = torch.log(self.probabilities.clamp(0.0+EPS, 1.0-EPS)) - torch.log1p(-self.probabilities.clamp(0.0+EPS, 1.0-EPS))
+        probabilities_logits = torch.log(self.probabilities.clamp(0.0 + EPS, 1.0 - EPS)) - torch.log1p(
+            -self.probabilities.clamp(0.0 + EPS, 1.0 - EPS))
         probabilities_u = torch.rand(num_sub_policies, num_ops).cuda()
         probabilities_v = torch.rand(num_sub_policies, num_ops).cuda()
         probabilities_u = probabilities_u.clamp(EPS, 1.0)
@@ -113,8 +114,8 @@ class DFKD(Distiller):
         probabilities_z_tilde = _get_probabilities_z_tilde(probabilities_logits, probabilities_b, probabilities_v)
         self.probabilities_logits = probabilities_logits
         self.probabilities_b = probabilities_b
-        self.probabilities_sig_z = torch.sigmoid(probabilities_z/self.temperature)
-        self.probabilities_sig_z_tilde = torch.sigmoid(probabilities_z_tilde/self.temperature)
+        self.probabilities_sig_z = torch.sigmoid(probabilities_z / self.temperature)
+        self.probabilities_sig_z_tilde = torch.sigmoid(probabilities_z_tilde / self.temperature)
 
         ops_weights_p = torch.nn.functional.softmax(self.ops_weights, dim=-1)
         ops_weights_logits = torch.log(ops_weights_p)
@@ -127,16 +128,17 @@ class DFKD(Distiller):
 
         def _get_ops_weights_z_tilde(logits, b, v):
             theta = torch.exp(logits)
-            z_tilde = -torch.log(-torch.log(v)/theta-torch.log(v[b]))
+            z_tilde = -torch.log(-torch.log(v) / theta - torch.log(v[b]))
             z_tilde = z_tilde.scatter(dim=-1, index=b, src=-torch.log(-torch.log(v[b])))
             # v_prime = v * (b - 1.) * (theta - 1.) + b * (v * theta + 1. - theta)
             # z_tilde = logits + torch.log(v_prime) - torch.log1p(-v_prime)
             return z_tilde
+
         ops_weights_z_tilde = _get_ops_weights_z_tilde(ops_weights_logits, ops_weights_b, ops_weights_v)
         self.ops_weights_logits = ops_weights_logits
         self.ops_weights_b = ops_weights_b
-        self.ops_weights_softmax_z = torch.nn.functional.softmax(ops_weights_z/self.temperature, dim=-1)
-        self.ops_weights_softmax_z_tilde = torch.nn.functional.softmax(ops_weights_z_tilde/self.temperature, dim=-1)
+        self.ops_weights_softmax_z = torch.nn.functional.softmax(ops_weights_z / self.temperature, dim=-1)
+        self.ops_weights_softmax_z_tilde = torch.nn.functional.softmax(ops_weights_z_tilde / self.temperature, dim=-1)
 
     def set_augmenting(self, value):
         assert value in [False, True]
