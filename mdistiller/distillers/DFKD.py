@@ -31,6 +31,7 @@ class DFKD(Distiller):
         self.mix_augment = MixedAugment(sub_policies)
         self.augmenting = True
         self.augment_parameters = self._initialize_augment_parameters()
+        self.temperature = 0.5
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())

@@ -378,7 +378,7 @@ class DFKDTrainer(BaseTrainer):
         # train loops
         self.distiller.train()
         # DFKD add
-        self.distiller.sample()
+        self.distiller.module.sample()
         for idx, data in enumerate(self.train_loader):
             msg = self.train_iter(data, epoch, train_meters)
             pbar.set_description(log_msg(msg, "TRAIN"))
