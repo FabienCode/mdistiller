@@ -434,7 +434,7 @@ class DFKDTrainer(BaseTrainer):
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
-        self.architect.step(image, target, self.optimizer, unrolled=True)
+        self.architect.step(image, target, 0.01, self.optimizer, unrolled=True)
 
         self.optimizer.zero_grad()
         # forward
