@@ -128,25 +128,33 @@ class MVKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        # loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_strong, target))
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
         # MKD loss
-        # loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
-        #                       logits_student_strong, logits_teacher_strong,
-        #                       self.ce_loss_weight)
+        loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
+                              logits_student_strong, logits_teacher_strong,
+                              0.1)
         # MVKD loss
+
+        # train process
+        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
+        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+        loss_kd_train = rec_loss + fitnet_loss
+
+        # Multi feature process
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
         # code_tmp = ['A new reconstructed feature map.'] * b
         code_tmp = []
         for i in range(b):
             # article = determine_article(CIFAR100_Labels[target[i].item()])
-            color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
-            size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
+            # color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
+            # size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + ".")
@@ -156,7 +164,7 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
@@ -165,20 +173,13 @@ class MVKD(Distiller):
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
-        # train process
-        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
-        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-        loss_kd_train = rec_loss + fitnet_loss
-
         # fully kd loss
         loss_kd = loss_kd_train + loss_kd_infer
 
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_mkd": loss_mkd,
+            "loss_mkd": loss_mkd,
         }
         return logits_student_weak, losses_dict
 

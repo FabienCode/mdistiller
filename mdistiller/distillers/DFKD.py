@@ -12,7 +12,7 @@ from torch.autograd import Variable
 
 
 class DFKD(Distiller):
-    """Differentiable Feature Augmentaion for Knowledge Distillation."""
+    """Differentiable Feature Augmentation for Knowledge Distillation."""
 
     def __init__(self, student, teacher, cfg):
         super(DFKD, self).__init__(student, teacher)
