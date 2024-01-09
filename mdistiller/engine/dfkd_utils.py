@@ -98,9 +98,10 @@ class Architect(object):
 
         params, offset = {}, 0
         for k, v in self.model.named_parameters():
-            v_length = np.prod(v.size())
-            params[k] = theta[offset: offset + v_length].view(v.size())
-            offset += v_length
+            if 'teacher' not in k and 'mix_augment' not in k:
+                v_length = np.prod(v.size())
+                params[k] = theta[offset: offset + v_length].view(v.size())
+                offset += v_length
 
         assert offset == len(theta)
         model_dict.update(params)
