@@ -81,7 +81,7 @@ class Architect(object):
 
         unrolled_loss.backward()
         dalpha = []
-        vector = [v.grad.data.detach() for k, v in unrolled_model.parameters() if 'teacher' not in k]
+        vector = [v.grad.data.detach() for k, v in unrolled_model.named_parameters() if 'teacher' not in k]
         implicit_grads = self._hessian_vector_product(vector, input_train, target_train)
         for ig in implicit_grads:
             dalpha += [-ig]
