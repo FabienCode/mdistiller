@@ -34,7 +34,7 @@ class DFKD(Distiller):
         self.temperature = 0.5
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + self.augment_parameters
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.mix_augment.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
