@@ -74,8 +74,10 @@ class Architect(object):
 
     def _backward_step_unrolled(self, input_train, target_train, eta, network_optimizer):
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
-        unrolled_model.set_augmenting(False)
-        unrolled_loss = unrolled_model._loss(input_valid, target_valid)
+        unrolled_model.module.set_augmenting(False)
+        # unrolled_loss = unrolled_model._loss(input_valid, target_valid)
+        pred, loss_dict = unrolled_model.module.forward_train(input_train, target_train)
+        unrolled_loss = sum(loss_dict.values())
 
         unrolled_loss.backward()
         dalpha = []
