@@ -72,8 +72,9 @@ class Architect(object):
                                           weight_decay=args.DFKD.arch_weight_decay)
 
     def _compute_unrolled_model(self, image, target, eta, network_optimizer):
-        l_s, f_s, l_t, f_t = self.model.module.forward_feat(image)
-        loss = F.cross_entropy(l_s, target)
+        pred, loss_dict = self.model.module.forward_train(image, target)
+        loss = sum(loss_dict.values())
+        # loss = F.cross_entropy(l_s, target)
         theta = _concat(self.model.parameters()).data.detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(
