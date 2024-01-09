@@ -126,8 +126,9 @@ class Architect(object):
 
         for p, v in zip(self.model.module.get_learnable_parameters(), vector):
             p.data.sub_(2 * R, v)
-        loss = self.model._loss(input, target)
-        grads_n = self.model.relax(loss)
+        pred, loss_dict = self.model.module.forward_train(input, target)
+        loss = sum(loss_dict.values())
+        grads_n = self.model.module.relax(loss)
         m_grads_n = torch.autograd.grad(loss, [self.model.module.augment_parameters[2]], retain_graph=True, allow_unused=True)[0]
         if m_grads_n is None:
             m_grads_n = torch.zeros_like(self.model.module.augment_parameters[2])
