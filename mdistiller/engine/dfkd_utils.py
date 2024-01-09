@@ -11,30 +11,15 @@ class DifferentiableAugment(nn.Module):
         super(DifferentiableAugment, self).__init__()
         self.sub_policy = sub_policy
 
-    def forward(self, origin_images, trans_images, probability, probability_index, magnitude):
-        index = sum(p_i.item() << i for i, p_i in enumerate(probability_index))
-        com_image = 0
+    def forward(self, origin_images, probability_b, magnitude):
         images = origin_images
         adds = 0
-
-        for selection in range(2 ** len(self.sub_policy)):
-            trans_probability = 1
-            for i in range(len(self.sub_policy)):
-                if selection & (1 << i):
-                    trans_probability = trans_probability * probability[i]
-                    if selection == index:
-                        images = images - magnitude[i]
-                        adds = adds + magnitude[i]
-                else:
-                    trans_probability = trans_probability * (1 - probability[i])
-            if selection == index:
-                images = images.detach() + adds
-                com_image = com_image + trans_probability * images
-            else:
-                com_image = com_image + trans_probability
-
-        # com_image = probability * trans_images + (1 - probability) * origin_images
-        return com_image
+        for i in range(len(self.sub_policy)):
+            if probability_b[i].item() != 0.0:
+                images = images - magnitude[i]
+                adds = adds + magnitude[i]
+        images = images.detach() + adds
+        return images
 
 
 class MixedAugment(nn.Module):
@@ -50,11 +35,8 @@ class MixedAugment(nn.Module):
             ops = DifferentiableAugment(sub_policy)
             self._ops.append(ops)
 
-    def forward(self, origin_images, trans_images_list, probabilities, probabilities_index, magnitudes, weights, weights_index):
-        trans_images = trans_images_list
-        return sum(w * op(origin_images, trans_images, p, p_i, m) if weights_index.item() == i else w
-                   for i, (p, p_i, m, w, op) in
-                   enumerate(zip(probabilities, probabilities_index, magnitudes, weights, self._ops)))
+    def forward(self, origin_images, probabilities_b, magnitudes, weights_b):
+        return self._ops[weights_b.item()](origin_images, probabilities_b[weights_b.item()], magnitudes[weights_b.item()])
 
 
 def _concat(xs):
@@ -72,17 +54,16 @@ class Architect(object):
                                           weight_decay=args.DFKD.arch_weight_decay)
 
     def _compute_unrolled_model(self, image, target, eta, network_optimizer):
-        l_s, f_s, l_t, f_t = self.model.module.forward_feat(image)
-        loss = F.cross_entropy(l_s, target)
-        theta = _concat(self.model.module.student.parameters()).data.detach()
+        pred, loss_dict = self.model.module.forward_train(image, target)
+        loss = sum(loss_dict.values())
+        theta = _concat(self.model.parameters()).data.detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(
                 self.network_momentum)
         except:
             moment = torch.zeros_like(theta)
-        grad = torch.autograd.grad(loss, self.model.module.student.parameters(), allow_unused=True)
-        filtered_grad_tuple = tuple(item for item in grad if item is not None)
-        dtheta = _concat(filtered_grad_tuple).data.detach() + self.network_weight_decay * theta
+        grad = torch.autograd.grad(loss, self.model.parameters(), allow_unused=True)
+        dtheta = _concat(grad).data.detach() + self.network_weight_decay * theta
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
         return unrolled_model
 

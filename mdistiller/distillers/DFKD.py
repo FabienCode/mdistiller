@@ -50,7 +50,8 @@ class DFKD(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
-        loss_feat = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+        aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+        loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_feat,
