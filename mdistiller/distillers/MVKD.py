@@ -138,15 +138,6 @@ class MVKD(Distiller):
                               logits_student_strong, logits_teacher_strong,
                               1.0)
         # MVKD loss
-
-        # train process
-        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
-        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
-        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
-        loss_kd_train = rec_loss + fitnet_loss
-
-        # Multi feature process
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
         # code_tmp = ['A new reconstructed feature map.'] * b
@@ -165,6 +156,14 @@ class MVKD(Distiller):
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
         diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
+        # train process
+        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
+        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+        fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
+        loss_kd_train = rec_loss + fitnet_loss
+
+        # Multi feature process
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
