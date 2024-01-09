@@ -74,13 +74,13 @@ class Architect(object):
     def _compute_unrolled_model(self, image, target, eta, network_optimizer):
         l_s, f_s, l_t, f_t = self.model.module.forward_feat(image)
         loss = F.cross_entropy(l_s, target)
-        theta = _concat(self.model.parameters()).data.detach()
+        theta = _concat(self.model.module.student.parameters()).data.detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(
                 self.network_momentum)
         except:
             moment = torch.zeros_like(theta)
-        grad = torch.autograd.grad(loss, self.model.parameters(), allow_unused=True)
+        grad = torch.autograd.grad(loss, self.model.module.student.parameters(), allow_unused=True)
         filtered_grad_tuple = tuple(item for item in grad if item is not None)
         dtheta = _concat(filtered_grad_tuple).data.detach() + self.network_weight_decay * theta
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
