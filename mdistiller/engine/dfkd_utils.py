@@ -49,7 +49,7 @@ class Architect(object):
         self.network_momentum = args.DFKD.momentum
         self.network_weight_decay = args.DFKD.weight_decay
         self.model = model
-        self.optimizer = torch.optim.Adam(self.model.module.augment_parameters,
+        self.optimizer = torch.optim.Adam(self.model.module.augment_parameters(),
                                           lr=args.DFKD.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.DFKD.arch_weight_decay)
 
@@ -75,7 +75,6 @@ class Architect(object):
     def _backward_step_unrolled(self, input_train, target_train, eta, network_optimizer):
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
         unrolled_model.module.set_augmenting(False)
-        # unrolled_loss = unrolled_model._loss(input_valid, target_valid)
         pred, loss_dict = unrolled_model.module.forward_train(input_train, target_train)
         unrolled_loss = sum(loss_dict.values())
 
@@ -86,7 +85,7 @@ class Architect(object):
         for ig in implicit_grads:
             dalpha += [-ig]
 
-        for v, g in zip(self.model.module.augment_parameters, dalpha):
+        for v, g in zip(self.model.module.augment_parameters(), dalpha):
             if v.grad is None:
                 if not (g is None):
                     v.grad = Variable(g.data)
@@ -95,7 +94,7 @@ class Architect(object):
                     v.grad.data.copy_(g.data)
 
     def _construct_model_from_theta(self, theta):
-        model_new = self.model
+        model_new = self.model.module.new()
         model_dict = self.model.state_dict()
 
         params, offset = {}, 0
@@ -121,7 +120,7 @@ class Architect(object):
         grads_p = self.model.module.relax(loss)
         m_grads_p = torch.autograd.grad(loss, [self.model.module.augment_parameters()[2]], retain_graph=True, allow_unused=True)[0]
         if m_grads_p is None:
-            m_grads_p = torch.zeros_like(self.model.module.augment_parameters[2])
+            m_grads_p = torch.zeros_like(self.model.module.augment_parameters()[2])
         grads_p.insert(2, m_grads_p)
 
         for p, v in zip(self.model.module.get_learnable_parameters(), vector):
@@ -129,9 +128,9 @@ class Architect(object):
         pred, loss_dict = self.model.module.forward_train(input, target)
         loss = sum(loss_dict.values())
         grads_n = self.model.module.relax(loss)
-        m_grads_n = torch.autograd.grad(loss, [self.model.module.augment_parameters[2]], retain_graph=True, allow_unused=True)[0]
+        m_grads_n = torch.autograd.grad(loss, [self.model.module.augment_parameters()[2]], retain_graph=True, allow_unused=True)[0]
         if m_grads_n is None:
-            m_grads_n = torch.zeros_like(self.model.module.augment_parameters[2])
+            m_grads_n = torch.zeros_like(self.model.module.augment_parameters()[2])
         grads_n.insert(2, m_grads_n)
         # for x in grads_n:
         #     print(x.shape)

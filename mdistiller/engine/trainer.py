@@ -16,6 +16,7 @@ from .utils import (
     load_checkpoint,
     log_msg,
 )
+import copy
 import numpy as np
 from mdistiller.engine.dfkd_utils import Architect
 
@@ -434,7 +435,8 @@ class DFKDTrainer(BaseTrainer):
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
-        self.architect.step(image, target, 0.01, self.optimizer, unrolled=True)
+        arc_optimizer = copy.deepcopy(self.optimizer)
+        self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True)
 
         self.optimizer.zero_grad()
         # forward
@@ -460,4 +462,5 @@ class DFKDTrainer(BaseTrainer):
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
+        self.distiller.module.sample()
         return msg
