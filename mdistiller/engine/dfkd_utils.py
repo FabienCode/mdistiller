@@ -71,7 +71,7 @@ class Architect(object):
                                           weight_decay=args.DFKD.arch_weight_decay)
 
     def _compute_unrolled_model(self, input, target, eta, network_optimizer):
-        loss = self.model._loss(input, target)
+        _, loss_dict = self.model._loss(input, target)
         theta = _concat(self.model.parameters()).data.detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer'] for v in self.model.parameters()).mul_(
@@ -82,7 +82,7 @@ class Architect(object):
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
         return unrolled_model
 
-    def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled=True):
+    def step(self, image, target, eta, network_optimizer, unrolled=True):
         self.optimizer.zero_grad()
         if unrolled:
             self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta, network_optimizer)

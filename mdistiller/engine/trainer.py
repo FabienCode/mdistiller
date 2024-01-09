@@ -427,8 +427,6 @@ class DFKDTrainer(BaseTrainer):
             )
 
     def train_iter(self, data, epoch, train_meters):
-        self.architect.step(data, epoch, self.optimizer, unrolled=True)
-        self.optimizer.zero_grad()
         train_start_time = time.time()
         image, target, index = data
         train_meters["data_time"].update(time.time() - train_start_time)
@@ -436,7 +434,9 @@ class DFKDTrainer(BaseTrainer):
         image = image.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
+        self.architect.step(image, target, self.optimizer, unrolled=True)
 
+        self.optimizer.zero_grad()
         # forward
         preds, losses_dict = self.distiller(image=image, target=target, epoch=epoch)
 
