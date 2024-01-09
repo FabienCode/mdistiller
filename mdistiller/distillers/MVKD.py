@@ -33,6 +33,7 @@ class MVKD(Distiller):
         self.hint_layer = cfg.MVKD.HINT_LAYER
         self.rec_weight = cfg.MVKD.LOSS.REC_WEIGHT
         self.mvkd_weight = cfg.MVKD.LOSS.INFER_WEIGHT
+        self.mlkd_weight = cfg.MVKD.LOSS.MLKD_WEIGHT
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
