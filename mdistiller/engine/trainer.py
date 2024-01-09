@@ -377,6 +377,8 @@ class DFKDTrainer(BaseTrainer):
 
         # train loops
         self.distiller.train()
+        # DFKD add
+        self.distiller.sample()
         for idx, data in enumerate(self.train_loader):
             msg = self.train_iter(data, epoch, train_meters)
             pbar.set_description(log_msg(msg, "TRAIN"))
@@ -425,6 +427,7 @@ class DFKDTrainer(BaseTrainer):
             )
 
     def train_iter(self, data, epoch, train_meters):
+        self.architect.step(data, epoch, self.optimizer, unrolled=True)
         self.optimizer.zero_grad()
         train_start_time = time.time()
         image, target, index = data

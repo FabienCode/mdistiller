@@ -97,11 +97,13 @@ class DFKD(Distiller):
         probabilities_v = probabilities_v.clamp(EPS, 1.0)
         probabilities_z = probabilities_logits + torch.log(probabilities_u) - torch.log1p(-probabilities_u)
         probabilities_b = probabilities_z.gt(0.0).type_as(probabilities_z)
+
         def _get_probabilities_z_tilde(logits, b, v):
             theta = torch.sigmoid(logits)
             v_prime = v * (b - 1.) * (theta - 1.) + b * (v * theta + 1. - theta)
             z_tilde = logits + torch.log(v_prime) - torch.log1p(-v_prime)
             return z_tilde
+
         probabilities_z_tilde = _get_probabilities_z_tilde(probabilities_logits, probabilities_b, probabilities_v)
         self.probabilities_logits = probabilities_logits
         self.probabilities_b = probabilities_b
@@ -116,6 +118,7 @@ class DFKD(Distiller):
         ops_weights_v = ops_weights_v.clamp(EPS, 1.0)
         ops_weights_z = ops_weights_logits - torch.log(-torch.log(ops_weights_u))
         ops_weights_b = torch.argmax(ops_weights_z, dim=-1)
+
         def _get_ops_weights_z_tilde(logits, b, v):
             theta = torch.exp(logits)
             z_tilde = -torch.log(-torch.log(v)/theta-torch.log(v[b]))
@@ -128,3 +131,7 @@ class DFKD(Distiller):
         self.ops_weights_b = ops_weights_b
         self.ops_weights_softmax_z = torch.nn.functional.softmax(ops_weights_z/self.temperature, dim=-1)
         self.ops_weights_softmax_z_tilde = torch.nn.functional.softmax(ops_weights_z_tilde/self.temperature, dim=-1)
+
+    def set_augmenting(self, value):
+        assert value in [False, True]
+        self.augmenting = value
