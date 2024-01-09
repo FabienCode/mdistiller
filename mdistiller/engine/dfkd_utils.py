@@ -118,7 +118,7 @@ class Architect(object):
         pred, loss_dict = self.model.module.forward_train(input, target)
         loss = sum(loss_dict.values())
         # grads_p = torch.autograd.grad(loss, self.model.augment_parameters(), retain_graph=True, allow_unused=True)
-        grads_p = self.model.relax(loss)
+        grads_p = self.model.module.relax(loss)
         m_grads_p = torch.autograd.grad(loss, [self.model.module.augment_parameters()[2]], retain_graph=True, allow_unused=True)[0]
         if m_grads_p is None:
             m_grads_p = torch.zeros_like(self.model.module.augment_parameters[2])
