@@ -81,7 +81,7 @@ class Architect(object):
 
         unrolled_loss.backward()
         dalpha = []
-        vector = [v.grad.data.detach() for v in unrolled_model.parameters()]
+        vector = [v.grad.data.detach() for k, v in unrolled_model.parameters()]
         implicit_grads = self._hessian_vector_product(vector, input_train, target_train)
         for ig in implicit_grads:
             dalpha += [-ig]
@@ -100,7 +100,7 @@ class Architect(object):
 
         params, offset = {}, 0
         for k, v in self.model.named_parameters():
-            if 'teacher' not in k and 'mix_augment' not in k:
+            if 'teacher' not in k:
                 v_length = np.prod(v.size())
                 params[k] = theta[offset: offset + v_length].view(v.size())
                 offset += v_length
