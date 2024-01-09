@@ -112,7 +112,7 @@ class Architect(object):
                     v.grad.data.copy_(g.data)
 
     def _construct_model_from_theta(self, theta):
-        model_new = self.model.new()
+        model_new = self.model
         model_dict = self.model.state_dict()
 
         params, offset = {}, 0
