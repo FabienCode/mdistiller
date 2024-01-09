@@ -136,7 +136,7 @@ class MVKD(Distiller):
         # MKD loss
         loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
                               logits_student_strong, logits_teacher_strong,
-                              0.1)
+                              1.0)
         # MVKD loss
 
         # train process
