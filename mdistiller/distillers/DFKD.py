@@ -146,3 +146,30 @@ class DFKD(Distiller):
     def set_augmenting(self, value):
         assert value in [False, True]
         self.augmenting = value
+
+    def relax(self, f_b):
+        f_z = self.q_func[0](self.probabilities_sig_z, self.ops_weights_softmax_z)
+        f_z_tilde = self.q_func[0](self.probabilities_sig_z_tilde, self.ops_weights_softmax_z_tilde)
+        probabilities_log_prob = torch.distributions.Bernoulli(logits=self.probabilities_logits).log_prob(self.probabilities_b)
+        ops_weights_log_prob = torch.distributions.Categorical(logits=self.ops_weights_logits).log_prob(self.ops_weights_b)
+        log_prob = probabilities_log_prob + ops_weights_log_prob
+        d_log_prob_list = torch.autograd.grad(
+            [log_prob], [self.probabilities, self.ops_weights], grad_outputs=torch.ones_like(log_prob),
+            retain_graph=True)
+        d_f_z_list = torch.autograd.grad(
+            [f_z], [self.probabilities, self.ops_weights], grad_outputs=torch.ones_like(f_z),
+            create_graph=True, retain_graph=True)
+        d_f_z_tilde_list = torch.autograd.grad(
+            [f_z_tilde], [self.probabilities, self.ops_weights], grad_outputs=torch.ones_like(f_z_tilde),
+            create_graph=True, retain_graph=True)
+        diff = f_b - f_z_tilde
+        d_logits_list = [diff * d_log_prob + d_f_z - d_f_z_tilde for
+                    (d_log_prob, d_f_z, d_f_z_tilde) in zip(d_log_prob_list, d_f_z_list, d_f_z_tilde_list)]
+        # print([d_logits.shape for d_logits in d_logits_list])
+        var_loss_list = ([d_logits ** 2 for d_logits in d_logits_list])
+        # print([var_loss.shape for var_loss in var_loss_list])
+        var_loss = torch.cat([var_loss_list[0], var_loss_list[1].unsqueeze(dim=-1)], dim=-1).mean()
+        # var_loss.backward()
+        d_q_func = torch.autograd.grad(var_loss, self.q_func[0].parameters(), retain_graph=True)
+        d_logits_list = d_logits_list +list( d_q_func )
+        return [d_logits.detach() for d_logits in d_logits_list]
