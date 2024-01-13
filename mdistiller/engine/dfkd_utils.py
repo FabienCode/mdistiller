@@ -64,7 +64,7 @@ class Architect(object):
             moment = torch.zeros_like(theta)
         grad = torch.autograd.grad(loss, self.model.module.get_learnable_parameters())
         dtheta = _concat(grad).data.detach() + self.network_weight_decay * theta
-        unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
+        unrolled_model = self._construct_model_from_theta(theta.sub(moment + dtheta, eta))
         return unrolled_model
 
     def step(self, image, target, eta, network_optimizer, unrolled=True):
