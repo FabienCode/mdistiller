@@ -151,7 +151,7 @@ class MVKD(Distiller):
 
             # A reconstructed feature map of a medium-sized, red turtle
             # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + ".")
-            if self.student.fc.out_features == 100:
+            if self.teacher.fc.out_features == 100:
                 code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + ".")
             else:
                 code_tmp.append(temp_text + Imagenet_Labels[target[i].item()] + ".")
