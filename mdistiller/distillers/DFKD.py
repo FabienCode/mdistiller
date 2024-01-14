@@ -119,10 +119,10 @@ class DFKD(Distiller):
             return z_tilde
 
         probabilities_z_tilde = _get_probabilities_z_tilde(probabilities_logits, probabilities_b, probabilities_v)
-        probabilities_logits[torch.isnan(probabilities_logits)] = 0
-        probabilities_b[torch.isnan(probabilities_b)] = 0
-        self.probabilities_logits = probabilities_logits[torch.isnan(probabilities_logits)] = 0.
-        self.probabilities_b = probabilities_b[torch.isnan(probabilities_b)] = 0.
+        probabilities_logits[torch.isnan(probabilities_logits)] = 0.
+        probabilities_b[torch.isnan(probabilities_b)] = 0.
+        self.probabilities_logits = probabilities_logits
+        self.probabilities_b = probabilities_b
         # self.probabilities_logits = probabilities_logits
         # self.probabilities_b = probabilities_b
         self.probabilities_sig_z = torch.sigmoid(probabilities_z / self.temperature)
