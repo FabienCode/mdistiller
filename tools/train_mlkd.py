@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 
 cudnn.benchmark = True
 
-from mdistiller.models import cifar_model_dict, imagenet_model_dict
+from mdistiller.models import cifar_model_dict, imagenet_model_dict, tiny_imagenet_model_dict
 from mdistiller.distillers import distiller_dict
 from mdistiller.dataset import get_dataset_strong
 from mdistiller.engine.utils import load_checkpoint, log_msg
@@ -42,11 +42,14 @@ def main(cfg, resume, opts):
     if cfg.DISTILLER.TYPE == "NONE":
         if cfg.DATASET.TYPE == "imagenet":
             model_student = imagenet_model_dict[cfg.DISTILLER.STUDENT](pretrained=False)
+        elif cfg.DATASET.TYPE == "tiny_imagenet":
+            model_student = tiny_imagenet_model_dict[cfg.DISTILLER.STUDENT][0](num_classes=num_classes)
         else:
             model_student = cifar_model_dict[cfg.DISTILLER.STUDENT][0](
                 num_classes=num_classes
             )
         distiller = distiller_dict[cfg.DISTILLER.TYPE](model_student)
+
     # distillation
     else:
         print(log_msg("Loading teacher model", "INFO"))
@@ -54,7 +57,8 @@ def main(cfg, resume, opts):
             model_teacher = imagenet_model_dict[cfg.DISTILLER.TEACHER](pretrained=True)
             model_student = imagenet_model_dict[cfg.DISTILLER.STUDENT](pretrained=False)
         else:
-            net, pretrain_model_path = cifar_model_dict[cfg.DISTILLER.TEACHER]
+            model_dict = tiny_imagenet_model_dict if cfg.DATASET.TYPE == "tiny_imagenet" else cifar_model_dict
+            net, pretrain_model_path = model_dict[cfg.DISTILLER.TEACHER]
             assert (
                 pretrain_model_path is not None
             ), "no pretrain model for teacher {}".format(cfg.DISTILLER.TEACHER)
