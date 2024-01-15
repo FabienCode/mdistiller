@@ -436,7 +436,8 @@ class DFKDTrainer(BaseTrainer):
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
         arc_optimizer = copy.deepcopy(self.optimizer)
-        self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True)
+        if epoch <= 50:
+            self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True)
 
         self.optimizer.zero_grad()
         # forward
