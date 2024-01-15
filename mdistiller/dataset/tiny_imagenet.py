@@ -4,6 +4,7 @@ from torchvision import datasets
 from torchvision import transforms
 import numpy as np
 import random
+from PIL import ImageOps, ImageEnhance, ImageDraw, Image
 
 data_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../../data/tiny-imagenet-200"
