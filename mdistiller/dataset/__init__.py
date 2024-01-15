@@ -36,6 +36,21 @@ def get_dataset(cfg):
                 num_workers=cfg.DATASET.NUM_WORKERS,
             )
         num_classes = 1000
+    elif cfg.DATASET.TYPE == "tiny_imagenet":
+        if cfg.DISTILLER.TYPE == "CRD" or cfg.DISTILLER.TYPE == "MVKD_CRD":
+            train_loader, val_loader, num_data = get_tinyimagenet_dataloader_sample(
+                batch_size=cfg.SOLVER.BATCH_SIZE,
+                val_batch_size=cfg.DATASET.TEST.BATCH_SIZE,
+                num_workers=cfg.DATASET.NUM_WORKERS,
+                k=cfg.CRD.NCE.K,
+            )
+        else:
+            train_loader, val_loader, num_data = get_tinyimagenet_dataloader(
+                batch_size=cfg.SOLVER.BATCH_SIZE,
+                val_batch_size=cfg.DATASET.TEST.BATCH_SIZE,
+                num_workers=cfg.DATASET.NUM_WORKERS,
+            )
+        num_classes = 200
     else:
         raise NotImplementedError(cfg.DATASET.TYPE)
 
