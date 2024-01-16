@@ -249,4 +249,9 @@ CFG.DFKD.momentum = 0.9
 CFG.DFKD.weight_decay = 1e-4
 CFG.DFKD.arch_learning_rate = 3e-4
 CFG.DFKD.arch_weight_decay = 1e-3
+CFG.DFKD.TEMPERATURE = 4.0
+CFG.DFKD.LOSS = CN()
+CFG.DFKD.LOSS.CE_WEIGHT = 1.0
+CFG.DFKD.LOSS.KD_WEIGHT = 1.0
+CFG.DFKD.LOSS.FEAT_WEIGHT = 1.0
 

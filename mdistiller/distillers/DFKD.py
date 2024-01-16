@@ -14,14 +14,23 @@ from mdistiller.dataset import get_dataset
 from mdistiller.engine.utils import load_checkpoint, log_msg
 # from mdistiller.distillers import distiller_dict
 
+
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
+
+
 class DFKD(Distiller):
     """Differentiable Feature Augmentation for Knowledge Distillation."""
 
     def __init__(self, student, teacher, cfg):
         super(DFKD, self).__init__(student, teacher)
         self.cfg = cfg
-        self.ce_loss_weight = cfg.FITNET.LOSS.CE_WEIGHT
-        self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
+        self.ce_loss_weight = cfg.DFKD.LOSS.CE_WEIGHT
+        self.feat_loss_weight = cfg.DFKD.LOSS.FEAT_WEIGHT
         self.hint_layer = cfg.FITNET.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
@@ -37,6 +46,10 @@ class DFKD(Distiller):
         # self.augment_parameters = self._initialize_augment_parameters()
         self._initialize_augment_parameters()
         self.temperature = 0.5
+
+        # DFKD config
+        self.dfkd_t = cfg.DFKD.TEMPERATURE
+        self.kd_loss_weight = cfg.LOSS.KD_WEIGHT
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
@@ -54,14 +67,23 @@ class DFKD(Distiller):
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         f_s = self.conv_reg(feature_student["feats"][self.hint_layer])
         f_t = feature_teacher["feats"][self.hint_layer]
+        b, c, h, w = f_t.shape
         if self.augmenting:
             aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
             aug_f_t = f_t
+        share_classifier = self.teacher.fc
+        with torch.no_grad():
+            share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
+            share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
+        loss_kd = self.kd_loss_weight * kd_loss(
+            share_f_s, share_f_t, self.temperature
+        )
         loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_feat,
+            "loss_feat": loss_feat,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
