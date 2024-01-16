@@ -31,7 +31,7 @@ class DFKD(Distiller):
         self.cfg = cfg
         self.ce_loss_weight = cfg.DFKD.LOSS.CE_WEIGHT
         self.feat_loss_weight = cfg.DFKD.LOSS.FEAT_WEIGHT
-        self.hint_layer = cfg.FITNET.HINT_LAYER
+        self.hint_layer = cfg.DFKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
