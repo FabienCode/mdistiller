@@ -49,7 +49,7 @@ class DFKD(Distiller):
 
         # DFKD config
         self.dfkd_t = cfg.DFKD.TEMPERATURE
-        self.kd_loss_weight = cfg.LOSS.KD_WEIGHT
+        self.kd_loss_weight = cfg.DFKD.LOSS.KD_WEIGHT
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())
