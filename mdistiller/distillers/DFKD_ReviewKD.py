@@ -120,9 +120,18 @@ class DFKDReviewKD(Distiller):
             * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
             * hcl_loss(results, features_teacher_aug)
         )
+        b, c, h, w = features_teacher_aug[1].shape
+        share_classifier = self.teacher.fc
+        with torch.no_grad():
+            share_f_t = share_classifier(features_teacher_aug[-1].reshape(b, -1))
+            share_f_s = share_classifier(results[-1].reshape(b, -1))
+        loss_kd = self.kd_loss_weight * kd_loss(
+            share_f_s, share_f_t, self.temperature
+        )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_reviewkd,
+            "loss_feat": loss_reviewkd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
@@ -303,3 +312,10 @@ class ABF(nn.Module):
             x = F.interpolate(x, (out_shape, out_shape), mode="nearest")
         y = self.conv2(x)
         return y, x
+    
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd
