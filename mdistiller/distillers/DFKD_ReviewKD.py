@@ -66,6 +66,7 @@ class DFKDReviewKD(Distiller):
         # self.augment_parameters = self._initialize_augment_parameters()
         self._initialize_augment_parameters()
         self.temperature = 0.5
+        self.cfg = cfg
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.abfs.parameters())
