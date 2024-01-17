@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "fitnet,res32x4,res8x4"
-  PROJECT: "cifar100_baselines"
+  TAG: "vx-1-1"
+  PROJECT: "DFKD_res324_84_v1"
 DISTILLER:
   TYPE: "DFKD"
   TEACHER: "resnet32x4"
