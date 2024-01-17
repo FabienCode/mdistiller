@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
   TAG: "vx-1-1"
-  PROJECT: "mvkd_402_162_v1"
+  PROJECT: "mvkd_402_sv1_v1"
 DISTILLER:
   TYPE: "MVKD"
   TEACHER: "wrn_40_2"
