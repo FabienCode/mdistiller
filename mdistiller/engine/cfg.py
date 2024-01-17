@@ -252,6 +252,7 @@ CFG.DFKD.momentum = 0.9
 CFG.DFKD.weight_decay = 1e-4
 CFG.DFKD.arch_learning_rate = 3e-4
 CFG.DFKD.arch_weight_decay = 1e-3
+CFG.DFKD.SERACH_EPOCH = 20
 CFG.DFKD.TEMPERATURE = 4.0
 CFG.DFKD.HINT_LAYER = 3
 CFG.DFKD.LOSS = CN()

@@ -348,6 +348,7 @@ class DFKDTrainer(BaseTrainer):
     def __init__(self, experiment_name, distiller, train_loader, val_loader, cfg):
         super().__init__(experiment_name, distiller, train_loader, val_loader, cfg)
         self.architect = Architect(self.distiller, cfg)
+        self.cfg = cfg
 
     def train(self, resume=False):
         epoch = 1
@@ -436,7 +437,7 @@ class DFKDTrainer(BaseTrainer):
         target = target.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
         arc_optimizer = copy.deepcopy(self.optimizer)
-        if epoch <= 20:
+        if epoch <= self.cfg.DFKD.SERACH_EPOCH:
             self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True, epoch=epoch)
 
         self.optimizer.zero_grad()
