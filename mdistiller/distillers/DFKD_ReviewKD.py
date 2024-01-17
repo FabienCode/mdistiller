@@ -4,6 +4,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 import math
 import pdb
+from mdistiller.engine.dfkd_primitives import sub_policies
+import random
+from mdistiller.engine.dfkd_utils import MixedAugment, QFunc
+from torch.autograd import Variable
+from mdistiller.models import cifar_model_dict, imagenet_model_dict
 
 from ._base import Distiller
 
@@ -53,6 +58,14 @@ class DFKDReviewKD(Distiller):
                 )
             )
         self.abfs = abfs[::-1]
+
+        # DFKD submodule
+        self.sub_policies = random.sample(sub_policies, 105)
+        self.mix_augment = MixedAugment(sub_policies)
+        self.augmenting = True
+        # self.augment_parameters = self._initialize_augment_parameters()
+        self._initialize_augment_parameters()
+        self.temperature = 0.5
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.abfs.parameters())
