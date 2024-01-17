@@ -104,12 +104,20 @@ class DFKDReviewKD(Distiller):
         features_teacher = features_teacher["preact_feats"][1:] + [
             features_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
         ]
+        if self.augmenting:
+            features_teacher_aug = []
+            for feature in features_teacher:
+                feature_aug = self.mix_augment(feature, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+                features_teacher_aug.append(feature_aug)
+        else:
+            features_teacher_aug = features_teacher
+
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         loss_reviewkd = (
             self.reviewkd_loss_weight
             * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
-            * hcl_loss(results, features_teacher)
+            * hcl_loss(results, features_teacher_aug)
         )
         losses_dict = {
             "loss_ce": loss_ce,
