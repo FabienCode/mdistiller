@@ -160,7 +160,7 @@ class MVKD(Distiller):
             context_embd = self.clip_model.get_text_features(**code_inputs)
         # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
-        diff_con = torch.concat((context_embd, logits_teacher_strong), dim=-1)
+        diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
         rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
