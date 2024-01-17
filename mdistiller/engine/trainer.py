@@ -437,11 +437,11 @@ class DFKDTrainer(BaseTrainer):
         index = index.cuda(non_blocking=True)
         arc_optimizer = copy.deepcopy(self.optimizer)
         if epoch <= 20:
-            self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True)
+            self.architect.step(image, target, 0.01, arc_optimizer, unrolled=True, epoch=epoch)
 
         self.optimizer.zero_grad()
         # forward
-        preds, losses_dict = self.distiller(image=image, target=target, epoch=epoch)
+        preds, losses_dict = self.distiller(image=image, epoch=epoch, target=target)
 
         # backward
         loss = sum([l.mean() for l in losses_dict.values()])

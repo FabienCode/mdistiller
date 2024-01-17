@@ -53,8 +53,8 @@ class Architect(object):
                                           lr=args.DFKD.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.DFKD.arch_weight_decay)
 
-    def _compute_unrolled_model(self, image, target, eta, network_optimizer):
-        pred, loss_dict = self.model.module.forward_train(image, target)
+    def _compute_unrolled_model(self, image, target, eta, network_optimizer, epoch):
+        pred, loss_dict = self.model.module.forward_train(image, target, epoch=epoch)
         loss = sum(loss_dict.values())
         theta = _concat(self.model.module.get_learnable_parameters()).data.detach()
         try:
@@ -67,13 +67,13 @@ class Architect(object):
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
         return unrolled_model
 
-    def step(self, image, target, eta, network_optimizer, unrolled=True):
+    def step(self, image, target, eta, network_optimizer, epoch, unrolled=True):
         self.optimizer.zero_grad()
-        self._backward_step_unrolled(image, target, eta, network_optimizer)
+        self._backward_step_unrolled(image, target, eta, network_optimizer, epoch)
         self.optimizer.step()
 
-    def _backward_step_unrolled(self, input_train, target_train, eta, network_optimizer):
-        unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
+    def _backward_step_unrolled(self, input_train, target_train, eta, network_optimizer, epoch):
+        unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer, epoch)
         unrolled_model.module.set_augmenting(False)
         pred, loss_dict = unrolled_model.module.forward_train(input_train, target_train)
         unrolled_loss = sum(loss_dict.values())
