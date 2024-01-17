@@ -40,8 +40,9 @@ class DFKDReviewKD(Distiller):
         self.out_shapes = cfg.REVIEWKD.OUT_SHAPES
         in_channels = cfg.REVIEWKD.IN_CHANNELS
         out_channels = cfg.REVIEWKD.OUT_CHANNELS
-        self.ce_loss_weight = cfg.REVIEWKD.CE_WEIGHT
-        self.reviewkd_loss_weight = cfg.REVIEWKD.REVIEWKD_WEIGHT
+        self.ce_loss_weight = cfg.REVIEWKD.DFKD_CE_WEIGHT
+        self.reviewkd_loss_weight = cfg.REVIEWKD.DFKD_REVIEWKD_WEIGHT
+        self.kd_loss_weight = cfg.REVIEWKD.DFKD_KD_WEIGHT
         self.warmup_epochs = cfg.REVIEWKD.WARMUP_EPOCHS
         self.stu_preact = cfg.REVIEWKD.STU_PREACT
         self.max_mid_channel = cfg.REVIEWKD.MAX_MID_CHANNEL
