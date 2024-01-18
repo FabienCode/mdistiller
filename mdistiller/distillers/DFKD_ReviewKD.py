@@ -36,10 +36,10 @@ def hcl_loss(fstudent, fteacher):
 class DFKDReviewKD(Distiller):
     def __init__(self, student, teacher, cfg):
         super(DFKDReviewKD, self).__init__(student, teacher)
-        self.shapes = cfg.REVIEWKD.SHAPES
-        self.out_shapes = cfg.REVIEWKD.OUT_SHAPES
-        in_channels = cfg.REVIEWKD.IN_CHANNELS
-        out_channels = cfg.REVIEWKD.OUT_CHANNELS
+        self.shapes = cfg.DFKD.SHAPES
+        self.out_shapes = cfg.DFKD.OUT_SHAPES
+        in_channels = cfg.DFKD.IN_CHANNELS
+        out_channels = cfg.DFKD.OUT_CHANNELS
         self.ce_loss_weight = cfg.REVIEWKD.DFKD_CE_WEIGHT
         self.reviewkd_loss_weight = cfg.REVIEWKD.DFKD_REVIEWKD_WEIGHT
         self.kd_loss_weight = cfg.REVIEWKD.DFKD_KD_WEIGHT
