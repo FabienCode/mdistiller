@@ -121,7 +121,10 @@ class DFKDReviewKD(Distiller):
             * hcl_loss(results, features_teacher_aug)
         )
         b, c, h, w = features_teacher_aug[1].shape
-        share_classifier = self.teacher.fc
+        if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
+            share_classifier = self.teacher.fc
+        else:
+            share_classifier = self.teacher.classifier
         with torch.no_grad():
             share_f_t = share_classifier(features_teacher_aug[-1].reshape(b, -1))
             share_f_s = share_classifier(results[-1].reshape(b, -1))
