@@ -121,16 +121,17 @@ class DFKDReviewKD(Distiller):
             * hcl_loss(results, features_teacher_aug)
         )
         b, c, h, w = features_teacher_aug[1].shape
-        if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
-            share_classifier = self.teacher.fc
-        else:
-            share_classifier = self.teacher.classifier
-        with torch.no_grad():
-            share_f_t = share_classifier(features_teacher_aug[-1].reshape(b, -1))
-            share_f_s = share_classifier(results[-1].reshape(b, -1))
-        loss_kd = self.kd_loss_weight * kd_loss(
-            share_f_s, share_f_t, self.temperature
-        )
+        # if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
+        #     share_classifier = self.teacher.fc
+        # else:
+        #     share_classifier = self.teacher.classifier
+        # with torch.no_grad():
+        #     share_f_t = share_classifier(features_teacher_aug[-1].reshape(b, -1))
+        #     share_f_s = share_classifier(results[-1].reshape(b, -1))
+        # loss_kd = self.kd_loss_weight * kd_loss(
+        #     share_f_s, share_f_t, self.temperature
+        # )
+        loss_kd = self.kd_loss_weight * (kd_loss(logits_student, logits_student, self.temperature))
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat": loss_reviewkd,
