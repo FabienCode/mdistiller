@@ -40,8 +40,9 @@ class DFKDReviewKD(Distiller):
         self.out_shapes = cfg.REVIEWKD.OUT_SHAPES
         in_channels = cfg.REVIEWKD.IN_CHANNELS
         out_channels = cfg.REVIEWKD.OUT_CHANNELS
-        self.ce_loss_weight = cfg.REVIEWKD.CE_WEIGHT
-        self.reviewkd_loss_weight = cfg.REVIEWKD.REVIEWKD_WEIGHT
+        self.ce_loss_weight = cfg.REVIEWKD.DFKD_CE_WEIGHT
+        self.reviewkd_loss_weight = cfg.REVIEWKD.DFKD_REVIEWKD_WEIGHT
+        self.kd_loss_weight = cfg.REVIEWKD.DFKD_KD_WEIGHT
         self.warmup_epochs = cfg.REVIEWKD.WARMUP_EPOCHS
         self.stu_preact = cfg.REVIEWKD.STU_PREACT
         self.max_mid_channel = cfg.REVIEWKD.MAX_MID_CHANNEL
@@ -104,16 +105,33 @@ class DFKDReviewKD(Distiller):
         features_teacher = features_teacher["preact_feats"][1:] + [
             features_teacher["pooled_feat"].unsqueeze(-1).unsqueeze(-1)
         ]
+        if self.augmenting:
+            features_teacher_aug = []
+            for feature in features_teacher:
+                feature_aug = self.mix_augment(feature, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+                features_teacher_aug.append(feature_aug)
+        else:
+            features_teacher_aug = features_teacher
+
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         loss_reviewkd = (
             self.reviewkd_loss_weight
             * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
-            * hcl_loss(results, features_teacher)
+            * hcl_loss(results, features_teacher_aug)
+        )
+        b, c, h, w = features_teacher_aug[1].shape
+        share_classifier = self.teacher.fc
+        with torch.no_grad():
+            share_f_t = share_classifier(features_teacher_aug[-1].reshape(b, -1))
+            share_f_s = share_classifier(results[-1].reshape(b, -1))
+        loss_kd = self.kd_loss_weight * kd_loss(
+            share_f_s, share_f_t, self.temperature
         )
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_kd": loss_reviewkd,
+            "loss_feat": loss_reviewkd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
@@ -294,3 +312,10 @@ class ABF(nn.Module):
             x = F.interpolate(x, (out_shape, out_shape), mode="nearest")
         y = self.conv2(x)
         return y, x
+    
+def kd_loss(logits_student, logits_teacher, temperature):
+    log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+    pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+    loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+    loss_kd *= temperature**2
+    return loss_kd

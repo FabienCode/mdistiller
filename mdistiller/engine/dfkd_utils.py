@@ -81,7 +81,7 @@ class Architect(object):
         unrolled_loss.backward()
         dalpha = []
         vector = [v.grad.data.detach() for k, v in unrolled_model.named_parameters() if 'teacher' not in k]
-        implicit_grads = self._hessian_vector_product(vector, input_train, target_train)
+        implicit_grads = self._hessian_vector_product(vector, input_train, target_train, epoch=epoch)
         for ig in implicit_grads:
             dalpha += [-ig]
 
@@ -109,12 +109,12 @@ class Architect(object):
         model_new.load_state_dict(model_dict)
         return model_new.cuda()
 
-    def _hessian_vector_product(self, vector, input, target, r=1e-2):
+    def _hessian_vector_product(self, vector, input, target, epoch, r=1e-2):
         R = r / _concat(vector).data.detach().norm()
         for p, v in zip(self.model.module.get_learnable_parameters(), vector):
             p.data.add_(R, v)
         # loss = self.model._loss(input, target)
-        pred, loss_dict = self.model.module.forward_train(input, target)
+        pred, loss_dict = self.model.module.forward_train(input, target, epoch=epoch)
         loss = sum(loss_dict.values())
         # grads_p = torch.autograd.grad(loss, self.model.augment_parameters(), retain_graph=True, allow_unused=True)
         grads_p = self.model.module.relax(loss)
@@ -125,7 +125,7 @@ class Architect(object):
 
         for p, v in zip(self.model.module.get_learnable_parameters(), vector):
             p.data.sub_(2 * R, v)
-        pred, loss_dict = self.model.module.forward_train(input, target)
+        pred, loss_dict = self.model.module.forward_train(input, target, epoch=epoch)
         loss = sum(loss_dict.values())
         grads_n = self.model.module.relax(loss)
         m_grads_n = torch.autograd.grad(loss, [self.model.module.augment_parameters()[2]], retain_graph=True, allow_unused=True)[0]
