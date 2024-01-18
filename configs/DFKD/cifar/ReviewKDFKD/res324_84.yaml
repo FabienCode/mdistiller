@@ -17,6 +17,7 @@ SOLVER:
   TYPE: "SGD"
   TRAINER: "dfkd"
 DFKD:
+  SERACH_EPOCH: 20
   LOSS:
     CE_WEIGHT: 1.0
     KD_WEIGHT: 1.0
