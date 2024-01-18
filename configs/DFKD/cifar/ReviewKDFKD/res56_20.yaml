@@ -1,11 +1,11 @@
 EXPERIMENT:
   NAME: ""
   TAG: "vx-1-1"
-  PROJECT: "dfkdRK_res324_84_v1"
+  PROJECT: "dfkdRK_56_20_v1"
 DISTILLER:
   TYPE: "DFKDReviewKD"
-  TEACHER: "resnet32x4"
-  STUDENT: "resnet8x4"
+  TEACHER: "resnet56"
+  STUDENT: "resnet20"
 SOLVER:
   BATCH_SIZE: 64
   EPOCHS: 240
