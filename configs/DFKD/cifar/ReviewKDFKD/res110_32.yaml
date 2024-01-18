@@ -1,11 +1,11 @@
 EXPERIMENT:
   NAME: ""
   TAG: "vx-1-1"
-  PROJECT: "dfkdrk_vgg13_8_v1"
+  PROJECT: "dfkdkr_110_32_v1"
 DISTILLER:
   TYPE: "DFKDReviewKD"
-  TEACHER: "vgg13"
-  STUDENT: "vgg8"
+  TEACHER: "resnet110"
+  STUDENT: "resnet32"
 SOLVER:
   BATCH_SIZE: 64
   EPOCHS: 240
@@ -17,10 +17,9 @@ SOLVER:
   TYPE: "SGD"
   TRAINER: "dfkd"
 DFKD:
-  SHAPES: [ 1,4,4,8,16 ]
-  OUT_SHAPES: [ 1,4,4,8,16 ]
-  IN_CHANNELS: [ 128,256,512,512,512 ]
-  OUT_CHANNELS: [ 128,256,512,512,512 ]
+  OUT_SHAPES: [ 1, 8, 16, 32 ]
+  IN_CHANNELS: [ 16, 32, 64, 64 ]
+  OUT_CHANNELS: [ 16, 32, 64, 64 ]
   MAX_MID_CHANNEL: 128
   LOSS:
     CE_WEIGHT: 1.0
