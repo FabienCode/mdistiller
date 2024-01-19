@@ -136,7 +136,7 @@ class DFKDReviewKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat": loss_reviewkd,
-            # "loss_kd": loss_kd,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
