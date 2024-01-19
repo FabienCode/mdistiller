@@ -115,12 +115,12 @@ class DFKDReviewKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        loss_reviewkd = (
-            self.reviewkd_loss_weight
-            * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
-            * hcl_loss(results, features_teacher_aug)
-        )
-        # loss_reviewkd = self.reviewkd_loss_weight * hcl_loss(results, features_teacher_aug)
+        # loss_reviewkd = (
+        #     self.reviewkd_loss_weight
+        #     * min(kwargs["epoch"] / self.warmup_epochs, 1.0)
+        #     * hcl_loss(results, features_teacher_aug)
+        # )
+        loss_reviewkd = self.reviewkd_loss_weight * hcl_loss(results, features_teacher_aug)
         b, c, h, w = features_teacher_aug[1].shape
         if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
             share_classifier = self.teacher.fc
