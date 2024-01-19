@@ -40,12 +40,12 @@ class DFKDReviewKD(Distiller):
         self.out_shapes = cfg.DFKD.OUT_SHAPES
         in_channels = cfg.DFKD.IN_CHANNELS
         out_channels = cfg.DFKD.OUT_CHANNELS
-        self.ce_loss_weight = cfg.REVIEWKD.DFKD_CE_WEIGHT
-        self.reviewkd_loss_weight = cfg.REVIEWKD.DFKD_REVIEWKD_WEIGHT
-        self.kd_loss_weight = cfg.REVIEWKD.DFKD_KD_WEIGHT
-        self.warmup_epochs = cfg.REVIEWKD.WARMUP_EPOCHS
-        self.stu_preact = cfg.REVIEWKD.STU_PREACT
-        self.max_mid_channel = cfg.REVIEWKD.MAX_MID_CHANNEL
+        self.ce_loss_weight = cfg.DFKD.DFKD_CE_WEIGHT
+        self.reviewkd_loss_weight = cfg.DFKD.DFKD_REVIEWKD_WEIGHT
+        self.kd_loss_weight = cfg.DFKD.DFKD_KD_WEIGHT
+        self.warmup_epochs = cfg.DFKD.WARMUP_EPOCHS
+        self.stu_preact = cfg.DFKD.STU_PREACT
+        self.max_mid_channel = cfg.DFKD.MAX_MID_CHANNEL
 
         abfs = nn.ModuleList()
         mid_channel = min(512, in_channels[-1])
