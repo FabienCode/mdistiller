@@ -69,9 +69,9 @@ class DFKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_t.shape
         if self.augmenting:
-            aug_f_s = self.mix_augment.forward(f_s, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+            aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
-            aug_f_s = f_s
+            aug_f_t = f_t
         # if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
         #     share_classifier = self.teacher.fc
         # else:
@@ -82,8 +82,7 @@ class DFKD(Distiller):
         # loss_kd = self.kd_loss_weight * kd_loss(
         #     share_f_s, share_f_t, self.temperature
         # )
-        print("new")
-        loss_feat = self.feat_loss_weight * F.mse_loss(aug_f_s, f_t)
+        loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_feat": loss_feat,
