@@ -52,7 +52,7 @@ class DFKD(Distiller):
         self.kd_loss_weight = cfg.DFKD.LOSS.KD_WEIGHT
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + self._augment_parameters
 
     def get_extra_parameters(self):
         num_p = 0
