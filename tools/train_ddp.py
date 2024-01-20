@@ -147,4 +147,4 @@ if __name__ == "__main__":
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
-    main(cfg, args.resume, args.local_rank, args.opts)
+    main(cfg, args.resume, args.opts)
