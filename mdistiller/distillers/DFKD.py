@@ -72,7 +72,10 @@ class DFKD(Distiller):
             aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
             aug_f_t = f_t
-        share_classifier = self.teacher.fc
+        if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
+            share_classifier = self.teacher.fc
+        else:
+            share_classifier = self.teacher.classifier
         with torch.no_grad():
             share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
             share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
