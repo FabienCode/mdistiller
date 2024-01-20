@@ -69,9 +69,9 @@ class DFKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_t.shape
         if self.augmenting:
-            aug_f_s = self.mix_augment.forward(f_s, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+            aug_f_s = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
-            aug_f_s = f_s
+            aug_f_s = f_t
         if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
             share_classifier = self.teacher.fc
         else:
