@@ -82,6 +82,7 @@ class DFKD(Distiller):
         # loss_kd = self.kd_loss_weight * kd_loss(
         #     share_f_s, share_f_t, self.temperature
         # )
+        print("new")
         loss_feat = self.feat_loss_weight * F.mse_loss(aug_f_s, f_t)
         losses_dict = {
             "loss_ce": loss_ce,
