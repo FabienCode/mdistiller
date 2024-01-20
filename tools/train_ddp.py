@@ -117,7 +117,7 @@ def main_worker(rank, world_size, cfg, resume, opts):
     cleanup()
 
 
-def main(cfg, resume, local_rank, opts):
+def main(cfg, resume, opts):
     seed_torch(42)
     world_size = torch.cuda.device_count()
     mp.spawn(main_worker, args=(world_size, cfg, resume, opts), nprocs=world_size, join=True)
