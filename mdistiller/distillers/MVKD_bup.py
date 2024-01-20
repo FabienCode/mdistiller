@@ -13,6 +13,7 @@ from mdistiller.engine.mvkd_utils import Model
 from transformers import CLIPProcessor, CLIPModel, ViltProcessor, ViltForQuestionAnswering
 import numpy as np
 from mdistiller.engine.light_diffusion import DiffusionModel, AutoEncoder
+from mdistiller.engine.classes_datasets import CIFAR100_Labels, Imagenet_Labels
 
 
 def kd_loss(logits_student, logits_teacher, temperature):
@@ -33,6 +34,7 @@ class MVKD(Distiller):
         self.hint_layer = cfg.MVKD.HINT_LAYER
         self.rec_weight = cfg.MVKD.LOSS.REC_WEIGHT
         self.mvkd_weight = cfg.MVKD.LOSS.INFER_WEIGHT
+        self.mlkd_weight = cfg.MVKD.LOSS.MLKD_WEIGHT
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
@@ -85,18 +87,15 @@ class MVKD(Distiller):
 
         t_b, t_c, t_w, t_h = feat_t_shapes[self.hint_layer]
         self.use_condition = cfg.MVKD.DIFFUSION.USE_CONDITION
-        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w//2, t_w],
+        self.rec_module = Model(ch=t_c, out_ch=t_c, ch_mult=(1, 2), num_res_blocks=2, attn_resolutions=[t_w // 2, t_w],
                                 in_channels=t_c, resolution=t_w, dropout=0.0, use_condition=self.use_condition,
                                 condition_dim=self.condition_dim)
-        latent_dim = t_c
-        self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
-        # self.conv_reg = ConvReg(
-        #     feat_s_shapes[self.hint_layer], latent_dim
-        # )
-        self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
-
-        # at config
-        self.p = cfg.AT.P
+        # latent_dim = t_c
+        # self.ae = AutoEncoder(channels=t_c, latent_channels=latent_dim)
+        # # self.conv_reg = ConvReg(
+        # #     feat_s_shapes[self.hint_layer], latent_dim
+        # # )
+        # self.conv_reg = nn.Conv2d(feat_s_shapes[self.hint_layer][1], latent_dim, 1)
 
         # CLIP model init
         # clip_dir = os.path.join(os.getcwd(), "../", 'clip_models')
@@ -104,9 +103,6 @@ class MVKD(Distiller):
         # clip_path = str(Path(clip_dir).resolve())
         self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
         self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
-
-        self.color_token = nn.Parameter(torch.zeros(1, t_c))
-        self.shape_token = nn.Parameter(torch.zeros(1, t_c))
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(
@@ -132,70 +128,54 @@ class MVKD(Distiller):
         # losses
         batch_size, class_num = logits_student_strong.shape
 
-        # pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
-        # confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
-        # confidence = confidence.detach()
-        # conf_thresh = np.percentile(
-        #     confidence.cpu().numpy().flatten(), 50
-        # )
-        # mask = confidence.le(conf_thresh).bool()
-
         # losses
-        loss_ce = self.ce_loss_weight * (
-                F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
-        # loss_logits = multi_loss(logits_student_weak, logits_teacher_weak,
-        #                          logits_student_strong, logits_teacher_strong,
-        #                          mask, self.ce_loss_weight)
+        loss_ce = self.ce_loss_weight * (F.cross_entropy(logits_student_weak, target) + F.cross_entropy(logits_student_strong, target))
 
         # loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student_weak, target)
         f_s = self.conv_reg(feature_student_weak["feats"][self.hint_layer])
         f_t = feature_teacher_weak["feats"][self.hint_layer]
 
-        hidden_f_t, rec_f_t = self.ae(f_t)
-        loss_ae = F.mse_loss(f_t, rec_f_t)
-        f_t = hidden_f_t
-
+        # MKD loss
+        loss_mkd = multi_loss(logits_student_weak, logits_teacher_weak,
+                              logits_student_strong, logits_teacher_strong,
+                              self.mlkd_weight)
         # MVKD loss
         b, c, h, w = f_t.shape
         temp_text = 'A new reconstructed feature map of '
+        # code_tmp = ['A new reconstructed feature map.'] * b
         code_tmp = []
         for i in range(b):
-            article = determine_article(CIFAR100_Labels[target[i].item()])
-            color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
-            size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
+            # article = determine_article(CIFAR100_Labels[target[i].item()])
+            # color_choice = COLORS[torch.randint(0, len(COLORS), (1,)).item()]
+            # size_choice = SIZES[torch.randint(0, len(SIZES), (1,)).item()]
 
             # A reconstructed feature map of a medium-sized, red turtle
-            # code_tmp.append(temp_text + article + " " + CIFAR100_Labels[target[i].item()] + '.')
-            code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()])
+            # code_tmp.append(temp_text + size_choice + ", " + color_choice + " " + CIFAR100_Labels[target[i].item()] + ".")
+            if logits_student_strong.shape[-1] == 100:
+                code_tmp.append(temp_text + CIFAR100_Labels[target[i].item()] + ".")
+            else:
+                code_tmp.append(temp_text + Imagenet_Labels[target[i].item()] + ".")
         with torch.no_grad():
             code_inputs = self.clip_processor(text=code_tmp, return_tensors="pt", padding=True).to(device)
             context_embd = self.clip_model.get_text_features(**code_inputs)
-        diff_con = torch.concat((context_embd, logits_student_strong), dim=-1)
-
-        # add noise to
-        # perturbation_strength = 0.5
-        # perturbation = torch.randn_like(diff_con) * perturbation_strength
-        # perturbed_diff_con = diff_con + perturbation
-
-        mvkd_loss = 0.
-        for i in range(self.diff_num):
-            perturbation_strength = 0.5
-            perturbation = torch.randn_like(diff_con) * perturbation_strength
-            perturbed_diff_con = diff_con + perturbation
-            diffusion_f_t = self.ddim_sample(f_t, conditional=perturbed_diff_con) if self.use_condition else self.ddim_sample(
-                f_t)
-            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
-
-        loss_kd_infer = self.mvkd_weight * mvkd_loss
-
+        # diff_con = torch.concat((context_embd, logits_student_weak), dim=-1)
+        pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
+        diff_con = torch.concat((context_embd, pooled_f_t), dim=-1)
         # train process
         x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t,
-                                        conditional=diff_con) if self.use_condition else self.rec_module(
-            x_feature_t.float(), t)
+        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
         rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
+
+        # Multi feature process
+
+        mvkd_loss = 0.
+        for i in range(self.diff_num):
+            diffusion_f_t = self.ddim_sample(f_t, None, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
+            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
+
+        loss_kd_infer = self.mvkd_weight * mvkd_loss
 
         # fully kd loss
         loss_kd = loss_kd_train + loss_kd_infer
@@ -203,8 +183,7 @@ class MVKD(Distiller):
         losses_dict = {
             "loss_ce": loss_ce,
             "loss_kd": loss_kd,
-            # "loss_logits": loss_logits
-            "loss_ae": loss_ae,
+            "loss_mkd": loss_mkd,
         }
         return logits_student_weak, losses_dict
 
@@ -237,7 +216,7 @@ class MVKD(Distiller):
         return sqrt_alpha_cumprod_t * x_start + sqrt_one_minus_alpha_cumprod_t * noise
 
     @torch.no_grad()
-    def ddim_sample(self, feature, conditional=None):
+    def ddim_sample(self, feature, s_feature, conditional=None):
         batch = feature.shape[0]
         total_timesteps, sampling_timesteps, eta = self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta
 
@@ -253,9 +232,9 @@ class MVKD(Distiller):
             self_cond = x_start if self.self_condition else None
 
             if conditional is not None:
-                pred_noise, x_start = self.model_predictions(f.float(), time_cond, conditional)
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, s_feature, conditional)
             else:
-                pred_noise, x_start = self.model_predictions(f.float(), time_cond)
+                pred_noise, x_start = self.model_predictions(f.float(), time_cond, s_feature)
 
             if time_next < 0:
                 f = x_start
@@ -274,13 +253,13 @@ class MVKD(Distiller):
                 sigma * noise
         return f
 
-    def model_predictions(self, f, t, conditional=None):
+    def model_predictions(self, f, t, context=None, conditional=None):
         x_f = torch.clamp(f, min=-1 * self.scale, max=self.scale)
         x_f = ((x_f / self.scale) + 1.) / 2.
         if conditional is not None:
-            pred_f = self.rec_module(x=x_f, t=t, conditional=conditional)
+            pred_f = self.rec_module(x=x_f, t=t, context=context, conditional=conditional)
         else:
-            pred_f = self.rec_module(x_f, t)
+            pred_f = self.rec_module(x_f, t, context=context)
         pred_f = (pred_f * 2 - 1.) * self.scale
         pred_f = torch.clamp(pred_f, min=-1 * self.scale, max=self.scale)
         pred_noise = self.predict_noise_from_start(f, t, pred_f)
@@ -310,19 +289,58 @@ def at_loss(g_s, g_t, p):
 
 
 def multi_loss(logits_student_weak, logits_teacher_weak,
-               logits_student_strong, logits_teacher_strong,
-               mask, weight):
-    # loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
-    #                           (kd_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
+               logits_student_strong, logits_teacher_strong, weight):
+    pred_teacher_weak = F.softmax(logits_teacher_weak.detach(), dim=1)
+    confidence, pseudo_labels = pred_teacher_weak.max(dim=1)
+    confidence = confidence.detach()
+    conf_thresh = np.percentile(
+        confidence.cpu().numpy().flatten(), 50
+    )
+    mask = confidence.le(conf_thresh).bool()
 
-    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean()))
+    class_confidence = torch.sum(pred_teacher_weak, dim=0)
+    class_confidence = class_confidence.detach()
+    class_confidence_thresh = np.percentile(
+        class_confidence.cpu().numpy().flatten(), 50
+    )
+    class_conf_mask = class_confidence.le(class_confidence_thresh).bool()
+    loss_kd_weak = (weight * ((kd_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
+                              (kd_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
+                              (kd_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
+                              (kd_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
+                              (kd_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
 
-    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean()))
+    loss_kd_strong = (weight * ((kd_loss(logits_student_strong, logits_teacher_strong, 4)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 2)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 3)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 5)) +
+                                (kd_loss(logits_student_strong, logits_teacher_strong, 6))))
 
-    return loss_kd_weak + loss_kd_strong
+    loss_cc_weak = (weight * ((cc_loss(logits_student_weak, logits_teacher_weak, 4) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 2) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 3) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 5) * class_conf_mask).mean() +
+                              (cc_loss(logits_student_weak, logits_teacher_weak, 6) * class_conf_mask).mean()))
+
+    loss_cc_strong = (weight * ((cc_loss(logits_student_strong, logits_teacher_strong, 4)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 2)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 3)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 5)) +
+                                (cc_loss(logits_student_strong, logits_teacher_strong, 6))))
+
+    loss_bc_weak = (weight * ((bc_loss(logits_student_weak, logits_teacher_weak, 4) * mask).mean() +
+                              (bc_loss(logits_student_weak, logits_teacher_weak, 2) * mask).mean() +
+                              (bc_loss(logits_student_weak, logits_teacher_weak, 3) * mask).mean() +
+                              (bc_loss(logits_student_weak, logits_teacher_weak, 5) * mask).mean() +
+                              (bc_loss(logits_student_weak, logits_teacher_weak, 6) * mask).mean()))
+
+    loss_bc_strong = (weight * ((bc_loss(logits_student_strong, logits_teacher_strong, 4) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 2) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 3) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 5) * mask).mean() +
+                                (bc_loss(logits_student_strong, logits_teacher_strong, 6) * mask).mean()))
+
+    return loss_kd_weak + loss_kd_strong + loss_cc_weak + loss_bc_weak
 
 
 def determine_article(word):
@@ -331,28 +349,7 @@ def determine_article(word):
     return "an" if word[0].lower() in vowels else "a"
 
 
-CIFAR100_Labels = {
-    0: "apple", 1: "aquarium_fish", 2: "baby", 3: "bear", 4: "beaver",
-    5: "bed", 6: "bee", 7: "beetle", 8: "bicycle", 9: "bottle",
-    10: "bowl", 11: "boy", 12: "bridge", 13: "bus", 14: "butterfly",
-    15: "camel", 16: "can", 17: "castle", 18: "caterpillar", 19: "cattle",
-    20: "chair", 21: "chimpanzee", 22: "clock", 23: "cloud", 24: "cockroach",
-    25: "couch", 26: "crab", 27: "crocodile", 28: "cup", 29: "dinosaur",
-    30: "dolphin", 31: "elephant", 32: "flatfish", 33: "forest", 34: "fox",
-    35: "girl", 36: "hamster", 37: "house", 38: "kangaroo", 39: "keyboard",
-    40: "lamp", 41: "lawn_mower", 42: "leopard", 43: "lion", 44: "lizard",
-    45: "lobster", 46: "man", 47: "maple_tree", 48: "motorcycle", 49: "mountain",
-    50: "mouse", 51: "mushroom", 52: "oak_tree", 53: "orange", 54: "orchid",
-    55: "otter", 56: "palm_tree", 57: "pear", 58: "pickup_truck", 59: "pine_tree",
-    60: "plain", 61: "plate", 62: "poppy", 63: "porcupine", 64: "possum",
-    65: "rabbit", 66: "raccoon", 67: "ray", 68: "road", 69: "rocket",
-    70: "rose", 71: "sea", 72: "seal", 73: "shark", 74: "shrew",
-    75: "skunk", 76: "skyscraper", 77: "snail", 78: "snake", 79: "spider",
-    80: "squirrel", 81: "streetcar", 82: "sunflower", 83: "sweet_pepper", 84: "table",
-    85: "tank", 86: "telephone", 87: "television", 88: "tiger", 89: "tractor",
-    90: "train", 91: "trout", 92: "tulip", 93: "turtle", 94: "wardrobe",
-    95: "whale", 96: "willow_tree", 97: "wolf", 98: "woman", 99: "worm"
-}
+
 
 COLORS = ["red", "green", "blue", "yellow", "purple", "orange", "black", "white", "grey", "pink"]
 SIZES = ["small", "large", "tiny", "big", "huge"]

@@ -162,9 +162,9 @@ class MVKD(Distiller):
         pooled_f_t = nn.AvgPool2d(h)(f_t).reshape(b, -1)
         diff_con = torch.concat((context_embd, pooled_f_t), dim=-1)
         # train process
-        x_feature_t, noise, t = self.prepare_diffusion_concat(f_t)
-        rec_feature_t = self.rec_module(x=x_feature_t.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_t.float(), t)
-        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_t)
+        x_feature_s, noise, t = self.prepare_diffusion_concat(f_s)
+        rec_feature_t = self.rec_module(x=x_feature_s.float(), t=t, context=None, conditional=diff_con) if self.use_condition else self.rec_module(x_feature_s.float(), t)
+        rec_loss = self.rec_weight * F.mse_loss(rec_feature_t, f_s)
         fitnet_loss = self.feat_loss_weight * F.mse_loss(f_s, f_t)
         loss_kd_train = rec_loss + fitnet_loss
 
@@ -172,8 +172,8 @@ class MVKD(Distiller):
 
         mvkd_loss = 0.
         for i in range(self.diff_num):
-            diffusion_f_t = self.ddim_sample(f_t, None, conditional=diff_con) if self.use_condition else self.ddim_sample(f_t)
-            mvkd_loss += F.mse_loss(f_s, diffusion_f_t)
+            diffusion_f_s = self.ddim_sample(f_s, None, conditional=diff_con) if self.use_condition else self.ddim_sample(f_s)
+            mvkd_loss += F.mse_loss(diffusion_f_s, f_t)
 
         loss_kd_infer = self.mvkd_weight * mvkd_loss
 
