@@ -12,7 +12,10 @@ class DifferentiableAugment(nn.Module):
         self.sub_policy = sub_policy
 
     def forward(self, origin_images, probability_b, magnitude):
-        images = origin_images
+        device = origin_images.device
+        images = origin_images.to(device)
+        probability_b = probability_b.to(device)
+        magnitude = magnitude.to(device)
         adds = 0
         for i in range(len(self.sub_policy)):
             if probability_b[i].item() != 0.0:
