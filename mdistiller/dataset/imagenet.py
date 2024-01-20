@@ -338,8 +338,9 @@ def get_imagenet_dataloaders_sample(batch_size, val_batch_size, num_workers, k=4
     train_folder = os.path.join(data_folder, 'train')
     train_set = ImageNetInstanceSample(train_folder, transform=train_transform, is_sample=True, k=k)
     num_data = len(train_set)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-                                               shuffle=True, num_workers=num_workers, pin_memory=True)
+    # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+    #                                            shuffle=True, num_workers=num_workers, pin_memory=True)
+    train_loader = torch.utils.data.distributed.DistributedSampler(train_set, batch_size=batch_size, huffle=True, num_workers=num_workers)
     test_loader = get_imagenet_val_loader(val_batch_size, mean, std)
     return train_loader, test_loader, num_data
 
@@ -348,6 +349,7 @@ def get_imagenet_val_loader(val_batch_size, mean=[0.485, 0.456, 0.406], std=[0.2
     test_transform = get_imagenet_test_transform(mean, std)
     test_folder = os.path.join(data_folder, 'val')
     test_set = ImageFolder(test_folder, transform=test_transform)
-    test_loader = torch.utils.data.DataLoader(test_set,
-                                              batch_size=val_batch_size, shuffle=False, num_workers=16, pin_memory=True)
+    # test_loader = torch.utils.data.DataLoader(test_set,
+    #                                           batch_size=val_batch_size, shuffle=False, num_workers=16, pin_memory=True)
+    test_loader = torch.utils.data.distributed.DistributedSampler(test_set, batch_size=val_batch_size, shuffle=False, num_workers=16, pin_memory=True)
     return test_loader
