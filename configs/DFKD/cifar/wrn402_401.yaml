@@ -16,3 +16,8 @@ SOLVER:
   MOMENTUM: 0.9
   TYPE: "SGD"
   TTRAINER: "dfkd"
+DFKD:
+  LOSS:
+    CE_WEIGHT: 1.0
+    KD_WEIGHT: 1.0
+    FEAT_WEIGHT: 1.0
