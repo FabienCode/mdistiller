@@ -78,9 +78,9 @@ class DFKD(Distiller):
             share_classifier = self.teacher.classifier
         with torch.no_grad():
             share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
-            # share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
+            share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
         loss_kd = self.kd_loss_weight * kd_loss(
-            logits_student, share_f_t, self.temperature
+            share_f_s, share_f_t, self.temperature
         )
         loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
         losses_dict = {
