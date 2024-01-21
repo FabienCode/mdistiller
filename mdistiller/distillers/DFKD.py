@@ -72,21 +72,21 @@ class DFKD(Distiller):
             aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
             aug_f_t = f_t
-        # if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
-        #     share_classifier = self.teacher.fc
-        # else:
-        #     share_classifier = self.teacher.classifier
-        # with torch.no_grad():
-        #     share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
-        #     share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
-        # loss_kd = self.kd_loss_weight * kd_loss(
-        #     share_f_s, share_f_t, self.temperature
-        # )
-        loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
+        if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
+            share_classifier = self.teacher.fc
+        else:
+            share_classifier = self.teacher.classifier
+        with torch.no_grad():
+            share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
+            # share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
+        loss_kd = self.kd_loss_weight * kd_loss(
+            logits_student, share_f_t, self.temperature
+        )
+        # loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat": loss_feat,
-            # "loss_kd": loss_kd,
+            # "loss_feat": loss_feat,
+            "loss_kd": loss_kd,
         }
         return logits_student, losses_dict
 
