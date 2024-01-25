@@ -307,6 +307,68 @@ class DoubleLRTrainer(BaseTrainer):
 
 
 class AugTrainer(BaseTrainer):
+
+    def train_epoch(self, epoch):
+        lr = adjust_learning_rate(epoch, self.cfg, self.optimizer)
+        train_meters = {
+            "training_time": AverageMeter(),
+            "data_time": AverageMeter(),
+            "losses": AverageMeter(),
+            "loss_ce": AverageMeter(),
+            "top1": AverageMeter(),
+            "top5": AverageMeter(),
+        }
+        num_iter = len(self.train_loader)
+        pbar = tqdm(range(num_iter))
+
+        # train loops
+        self.distiller.train()
+        for idx, data in enumerate(self.train_loader):
+            msg = self.train_iter(data, epoch, train_meters)
+            pbar.set_description(log_msg(msg, "TRAIN"))
+            pbar.update()
+        pbar.close()
+
+        # validate
+        test_acc, test_acc_top5, test_loss = validate(self.val_loader, self.distiller)
+
+        # log
+        log_dict = OrderedDict(
+            {
+                "train_acc": train_meters["top1"].avg,
+                "train_loss": train_meters["losses"].avg,
+                "test_acc": test_acc,
+                "test_acc_top5": test_acc_top5,
+                "test_loss": test_loss,
+            }
+        )
+        self.log(lr, epoch, log_dict)
+        # saving checkpoint
+        state = {
+            "epoch": epoch,
+            "model": self.distiller.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "best_acc": self.best_acc,
+        }
+        student_state = {"model": self.distiller.module.student.state_dict()}
+        save_checkpoint(state, os.path.join(self.log_path, "latest"))
+        save_checkpoint(
+            student_state, os.path.join(self.log_path, "student_latest")
+        )
+        if epoch % self.cfg.LOG.SAVE_CHECKPOINT_FREQ == 0:
+            save_checkpoint(
+                state, os.path.join(self.log_path, "epoch_{}".format(epoch))
+            )
+            save_checkpoint(
+                student_state,
+                os.path.join(self.log_path, "student_{}".format(epoch)),
+            )
+        # update the best
+        if test_acc >= self.best_acc:
+            save_checkpoint(state, os.path.join(self.log_path, "best"))
+            save_checkpoint(
+                student_state, os.path.join(self.log_path, "student_best")
+            )
     def train_iter(self, data, epoch, train_meters):
         self.optimizer.zero_grad()
         train_start_time = time.time()
