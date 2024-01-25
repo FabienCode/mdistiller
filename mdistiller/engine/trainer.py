@@ -97,6 +97,7 @@ class BaseTrainer(object):
             "training_time": AverageMeter(),
             "data_time": AverageMeter(),
             "losses": AverageMeter(),
+            "loss_ce": AverageMeter(),
             "top1": AverageMeter(),
             "top5": AverageMeter(),
         }
@@ -166,6 +167,7 @@ class BaseTrainer(object):
         preds, losses_dict = self.distiller(image=image, target=target, epoch=epoch)
 
         # backward
+        loss_ce = losses_dict["loss_ce"]
         loss = sum([l.mean() for l in losses_dict.values()])
         loss.backward()
         self.optimizer.step()
@@ -174,14 +176,16 @@ class BaseTrainer(object):
         batch_size = image.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
         train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["loss_ce"].update(loss_ce.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
         # print info
-        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
+        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Loss_task:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
             epoch,
             train_meters["data_time"].avg,
             train_meters["training_time"].avg,
             train_meters["losses"].avg,
+            train_meters["loss_ce"].avg,
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
