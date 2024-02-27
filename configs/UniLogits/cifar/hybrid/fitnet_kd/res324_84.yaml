@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-2"
-  PROJECT: "fitnet_kd_v1"
+  TAG: "fitnet&kd, vx-1-2"
+  PROJECT: "unikd_loss_vis_v1"
 DISTILLER:
   TYPE: "FitNet_KD"
   TEACHER: "resnet32x4"
