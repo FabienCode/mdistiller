@@ -1,4 +1,4 @@
-from .trainer import BaseTrainer, CRDTrainer, AugTrainer, DoubleLRTrainer, DFKDTrainer
+from .trainer import BaseTrainer, CRDTrainer, AugTrainer, DoubleLRTrainer, DFKDTrainer, BaseTrainer_addloss_info
 
 trainer_dict = {
     "base": BaseTrainer,
@@ -6,4 +6,5 @@ trainer_dict = {
     "aug": AugTrainer,
     "double": DoubleLRTrainer,
     "dfkd": DFKDTrainer,
+    "base_aug": BaseTrainer_addloss_info
 }

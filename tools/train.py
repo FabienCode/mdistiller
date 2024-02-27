@@ -14,7 +14,6 @@ import numpy as np
 
 cudnn.benchmark = True
 
-
 def main(cfg, resume, opts):
     seed_torch(42)
     experiment_name = cfg.EXPERIMENT.NAME
