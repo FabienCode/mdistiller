@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "6.13,v5,kd,res32x4,res8x4"
-  PROJECT: "cifar100_cld"
+  TAG: "kd,res32x4,res8x4"
+  PROJECT: "unikd_loss_vis_v1"
 DISTILLER:
   TYPE: "KD"
   TEACHER: "resnet32x4"
