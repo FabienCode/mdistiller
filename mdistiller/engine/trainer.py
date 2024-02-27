@@ -637,6 +637,8 @@ class BaseTrainer_addloss_info(object):
             {
                 "train_acc": train_meters["top1"].avg,
                 "train_loss": train_meters["losses"].avg,
+                "train_fitnet_loss": train_meters["loss_fitnet"].avg,
+                "train_logits_loss": train_meters["loss_logits"].avg,
                 "test_acc": test_acc,
                 "test_acc_top5": test_acc_top5,
                 "test_loss": test_loss,
