@@ -120,6 +120,7 @@ class BaseTrainer(object):
             {
                 "train_acc": train_meters["top1"].avg,
                 "train_loss": train_meters["losses"].avg,
+                "train_loss_task": train_meters["loss_ce"].avg,
                 "test_acc": test_acc,
                 "test_acc_top5": test_acc_top5,
                 "test_loss": test_loss,
