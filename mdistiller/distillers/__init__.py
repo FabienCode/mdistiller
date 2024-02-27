@@ -34,6 +34,7 @@ from .MVKD_CRD import MVKD_CRD
 from .LogitsMVKD import LMVKD
 from .DFKD import DFKD
 from .DFKD_ReviewKD import DFKDReviewKD
+from .UniKD import UniKDFitNetKd
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -72,4 +73,5 @@ distiller_dict = {
     "LMVKD": LMVKD,
     "DFKD": DFKD,
     "DFKDReviewKD": DFKDReviewKD,
+    "UniKDFitKD": UniKDFitNetKd,
 }
