@@ -13,7 +13,7 @@ class UniKDFitNetKd(Distiller):
         super(UniKDFitNetKd, self).__init__(student, teacher)
         self.ce_loss_weight = cfg.FITNET.LOSS.CE_WEIGHT
         self.feat_loss_weight = cfg.FITNET.LOSS.FEAT_WEIGHT
-        self.hint_layer = cfg.FITNET.HINT_LAYER
+        self.hint_layer = 3
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
         )
@@ -22,7 +22,7 @@ class UniKDFitNetKd(Distiller):
         )
 
         # self.feat2pro_s = featPro(feat_s_shapes[-1][1], feat_s_shapes[-1][1], feat_s_shapes[-1][-1], self.class_num)
-        self.feat2pro = featPro(feat_t_shapes[int(cfg.FITNET.HINT_LAYER)][1], feat_t_shapes[int(cfg.FITNET.HINT_LAYER)][-1], 100)
+        self.feat2pro = featPro(feat_t_shapes[self.hint_layer][1], feat_t_shapes[self.hint_layer][-1], 100)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters())+ list(self.feat2pro.parameters())

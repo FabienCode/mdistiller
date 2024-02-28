@@ -120,7 +120,7 @@ class BaseTrainer(object):
             {
                 "train_acc": train_meters["top1"].avg,
                 "train_loss": train_meters["losses"].avg,
-                "train_loss_task": train_meters["loss_ce"].avg,
+                "task_loss": train_meters["loss_ce"].avg,
                 "test_acc": test_acc,
                 "test_acc_top5": test_acc_top5,
                 "test_loss": test_loss,
@@ -638,6 +638,7 @@ class BaseTrainer_addloss_info(object):
             {
                 "train_acc": train_meters["top1"].avg,
                 "train_loss": train_meters["losses"].avg,
+                "task_loss": train_meters["loss_ce"].avg,
                 "train_fitnet_loss": train_meters["loss_fitnet"].avg,
                 "train_logits_loss": train_meters["loss_logits"].avg,
                 "test_acc": test_acc,
