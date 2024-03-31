@@ -13,7 +13,7 @@ from mdistiller.models import cifar_model_dict, imagenet_model_dict
 from mdistiller.dataset import get_dataset
 from mdistiller.engine.utils import load_checkpoint, log_msg
 # from mdistiller.distillers import distiller_dict
-
+from mdistiller.engine.dfkd_operation import apply_augment
 
 def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
@@ -40,7 +40,7 @@ class DFKD(Distiller):
         )
 
         # DFKD submodule
-        self.sub_policies = random.sample(sub_policies, 105)
+        self.sub_policies = random.sample(sub_policies, 35)
         self.mix_augment = MixedAugment(sub_policies)
         self.augmenting = True
         # self.augment_parameters = self._initialize_augment_parameters()
@@ -69,6 +69,12 @@ class DFKD(Distiller):
         f_t = feature_teacher["feats"][self.hint_layer]
         b, c, h, w = f_t.shape
         if self.augmenting:
+            magnitude = self.magnitudes.clamp(0, 1)[self.ops_weights_b.item()]
+            sub_policies = self.sub_policies[self.ops_weights_b.item()]
+            probabilties = self.probabilities_b[self.ops_weights_b.item()]
+            for i , ops_name in enumerate(sub_policies):
+                if probabilties[i].item() != 0.0:
+                    f_t = apply_augment(f_t, ops_name, magnitude[i])
             aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
             aug_f_t = f_t

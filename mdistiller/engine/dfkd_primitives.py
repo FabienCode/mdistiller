@@ -5,16 +5,10 @@ ops_names = [
     'TranslateX',
     'TranslateY',
     'Rotate',
-    'AutoContrast',
-    'Invert',
-    'Equalize',
-    'Solarize',
-    'Posterize',
-    'Contrast',
-    'Color',
-    'Brightness',
-    'Sharpness',
     'Cutout',
+    'Noise',
+    'ChannelShuffle',
+    'ChannelDrop',
 ]
 K = 2
 sub_policies = []
