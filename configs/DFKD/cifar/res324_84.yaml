@@ -1,7 +1,7 @@
 EXPERIMENT:
   NAME: ""
   TAG: "vx-1-1"
-  PROJECT: "DFKD_res324_84_v1"
+  PROJECT: "MM_DFKD_res324_84_v1"
 DISTILLER:
   TYPE: "DFKD"
   TEACHER: "resnet32x4"
@@ -16,7 +16,10 @@ SOLVER:
   MOMENTUM: 0.9
   TYPE: "SGD"
   TRAINER: "dfkd"
+LOG:
+  WANDB: False
 DFKD:
+  DFKD_TEMPERATURE: 0.5
   LOSS:
     CE_WEIGHT: 1.0
     AUG_FEAT_WEIGHT: 1.0

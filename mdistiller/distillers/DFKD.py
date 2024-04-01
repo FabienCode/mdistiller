@@ -46,11 +46,10 @@ class DFKD(Distiller):
         self.mix_augment = MixedAugment(sub_policies)
         self.augmenting = True
         # self.augment_parameters = self._initialize_augment_parameters()
-        self.temperature = 0.5
+        self.temperature = cfg.DFKD.DFKD_TEMPERATURE 
         self._initialize_augment_parameters()
         self.sample()
         
-
         # DFKD config
         self.dfkd_t = cfg.DFKD.TEMPERATURE
         self.area_num = cfg.DFKD.AREA_NUM
