@@ -69,8 +69,8 @@ class RegKD(Distiller):
         # f_t = feature_teacher["preact_feats"][self.hint_layer]
         # heat_map, wh, offset, s_thresh, s_fc_mask = self.area_det(f_s, logits_student)
         # t_heat_map, t_wh, t_offset, t_thresh, t_fc_mask = self.area_det(f_t, logits_teacher)
-        heat_map, wh, offset, s_fc_mask = self.area_det(f_s, logits_student)
-        t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t, logits_teacher)
+        heat_map, wh, offset, s_fc_mask = self.area_det(f_s)
+        t_heat_map, t_wh, t_offset, t_fc_mask = self.area_det(f_t)
         # tmp_mask = s_fc_mask - t_fc_mask
         # fc_mask = torch.zeros_like(tmp_mask)
         # fc_mask[tmp_mask == 0] = 1

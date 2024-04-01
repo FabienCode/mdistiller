@@ -14,6 +14,7 @@ from mdistiller.dataset import get_dataset
 from mdistiller.engine.utils import load_checkpoint, log_msg
 # from mdistiller.distillers import distiller_dict
 from mdistiller.engine.dfkd_operation import apply_augment
+from mdistiller.engine.area_utils import AreaDetection, extract_regions, RegKD_pred
 
 def kd_loss(logits_student, logits_teacher, temperature):
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
@@ -30,7 +31,8 @@ class DFKD(Distiller):
         super(DFKD, self).__init__(student, teacher)
         self.cfg = cfg
         self.ce_loss_weight = cfg.DFKD.LOSS.CE_WEIGHT
-        self.feat_loss_weight = cfg.DFKD.LOSS.FEAT_WEIGHT
+        self.feat_loss_weight = cfg.DFKD.LOSS.AUG_FEAT_WEIGHT
+        self.dam_area_weight = cfg.DFKD.LOSS.DAM_AREA_WEIGHT
         self.hint_layer = cfg.DFKD.HINT_LAYER
         feat_s_shapes, feat_t_shapes = get_feat_shapes(
             self.student, self.teacher, cfg.FITNET.INPUT_SIZE
@@ -44,18 +46,25 @@ class DFKD(Distiller):
         self.mix_augment = MixedAugment(sub_policies)
         self.augmenting = True
         # self.augment_parameters = self._initialize_augment_parameters()
-        self._initialize_augment_parameters()
         self.temperature = 0.5
+        self._initialize_augment_parameters()
+        self.sample()
+        
 
         # DFKD config
         self.dfkd_t = cfg.DFKD.TEMPERATURE
-        self.kd_loss_weight = cfg.DFKD.LOSS.KD_WEIGHT
+        self.area_num = cfg.DFKD.AREA_NUM
+
+        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]),
+                                   int(feat_t_shapes[self.hint_layer][1]), 2, 100, cfg.RegKD.LOGITS_THRESH)
 
     def get_learnable_parameters(self):
-        return super().get_learnable_parameters() + list(self.conv_reg.parameters())
+        return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.area_det.parameters())
 
     def get_extra_parameters(self):
         num_p = 0
+        for p in self.area_det.parameters():
+            num_p += p.numel()
         for p in self.conv_reg.parameters():
             num_p += p.numel()
         return num_p
@@ -75,24 +84,39 @@ class DFKD(Distiller):
             for i , ops_name in enumerate(sub_policies):
                 if probabilties[i].item() != 0.0:
                     f_t = apply_augment(f_t, ops_name, magnitude[i])
-            aug_f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
+            f_t = self.mix_augment.forward(f_t, self.probabilities_b, self.magnitudes, self.ops_weights_b)
         else:
-            aug_f_t = f_t
-        if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
-            share_classifier = self.teacher.fc
-        else:
-            share_classifier = self.teacher.classifier
-        with torch.no_grad():
-            share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
-            share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
-        loss_kd = self.kd_loss_weight * kd_loss(
-            share_f_s, share_f_t, self.temperature
-        )
-        loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
+            magnitude = self.magnitudes.clamp(0, 1)[self.ops_weights_b.item()]
+            sub_policies = self.sub_policies[self.ops_weights_b.item()]
+            probabilties = self.probabilities_b[self.ops_weights_b.item()]
+            for i , ops_name in enumerate(sub_policies):
+                if probabilties[i].item() != 0.0:
+                    f_t = apply_augment(f_t, ops_name, magnitude[i])
+        #     # aug_f_t = f_t
+        # if "vgg" not in str(self.cfg.DISTILLER.TEACHER):
+        #     share_classifier = self.teacher.fc
+        # else:
+        #     share_classifier = self.teacher.classifier
+        # with torch.no_grad():
+        #     share_f_t = share_classifier(nn.AvgPool2d(h)(aug_f_t).reshape(b, -1))
+        #     share_f_s = share_classifier(nn.AvgPool2d(h)(f_s).reshape(b, -1))
+        # loss_kd = self.kd_loss_weight * kd_loss(
+        #     share_f_s, share_f_t, self.temperature
+        # )
+        # loss_feat = self.feat_loss_weight * F.mse_loss(f_s, aug_f_t)
+        heat_map, wh, offset = self.area_det(f_s)
+        t_heat_map, t_wh, t_offset = self.area_det(f_t)
+        t_area = torch.cat((heat_map, wh, offset), dim=1)
+        s_area = torch.cat((t_heat_map, t_wh, t_offset), dim=1)
+        loss_dam = self.dam_area_weight * F.mse_loss(s_area, t_area)
+
+        masks, scores = extract_regions(f_s, heat_map, wh, offset, self.area_num, 3)
+        loss_feature = self.feat_loss_weight * aaloss(f_s, f_t, masks, scores)
+
         losses_dict = {
             "loss_ce": loss_ce,
-            "loss_feat": loss_feat,
-            "loss_kd": loss_kd,
+            "loss_aug_feat": loss_feature,
+            "loss_area": loss_dam,
         }
         return logits_student, losses_dict
 
@@ -232,3 +256,14 @@ class DFKD(Distiller):
         distiller = DFKD(model_student, model_teacher, self.cfg)
         distiller = torch.nn.DataParallel(distiller.cuda())
         return distiller
+    
+def aaloss(feature_student,
+           feature_teacher,
+           masks,
+           scores):
+    masks_stack = torch.stack(masks)
+    # scores_expand = scores.unsqueeze(-1).unsqueeze(-1).expand_as(masks_stack)
+    # weight_masks = masks_stack * scores_expand
+    s_masks = masks_stack.sum(1)
+    loss = F.mse_loss(feature_student * s_masks.unsqueeze(1), feature_teacher * s_masks.unsqueeze(1))
+    return loss

@@ -66,7 +66,7 @@ def get_import_region(center_heatmap_pred, wh_pred, offset_pred, k, kernel):
 
 
 def extract_regions(features, heatmap, wh_pred, offset_pred, k, kernel):
-    areas, topk_cls = get_import_region(features, heatmap, wh_pred, offset_pred, k, kernel)
+    areas, topk_cls = get_import_region(heatmap, wh_pred, offset_pred, k, kernel)
     # Initialize a list to hold the masks
     masks = []
     # Iterate over the images and areas
