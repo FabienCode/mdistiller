@@ -16,6 +16,8 @@ SOLVER:
   MOMENTUM: 0.9
   TYPE: "SGD"
   TRAINER: "dfkd"
+LOG:
+  WANDB: True
 DFKD:
   SERACH_EPOCH: 20
   AREA_NUM: 8

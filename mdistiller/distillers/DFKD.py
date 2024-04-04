@@ -54,8 +54,9 @@ class DFKD(Distiller):
         self.dfkd_t = cfg.DFKD.TEMPERATURE
         self.area_num = cfg.DFKD.AREA_NUM
 
-        self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]),
-                                   int(feat_t_shapes[self.hint_layer][1]), 2, 100, cfg.RegKD.LOGITS_THRESH)
+        # self.area_det = RegKD_pred(int(feat_t_shapes[self.hint_layer][1]),
+        #                            int(feat_t_shapes[self.hint_layer][1]), 2, 100, cfg.RegKD.LOGITS_THRESH)
+        self.area_det = AreaDetection(int(feat_t_shapes[self.hint_layer][1]), int(feat_t_shapes[self.hint_layer][1]), 100)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.conv_reg.parameters()) + list(self.area_det.parameters())
