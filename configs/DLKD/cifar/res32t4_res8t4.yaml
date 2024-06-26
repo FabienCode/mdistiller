@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "vx-1-1"
+  TAG: "vx-1-1-debug"
   PROJECT: "mvkd_324_84_v1"
 DISTILLER:
   TYPE: "DLKD"
