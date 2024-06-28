@@ -17,11 +17,26 @@ from mdistiller.engine.light_diffusion import DiffusionModel, AutoEncoder
 from mdistiller.engine.classes_datasets import CIFAR100_Labels, Imagenet_Labels
 
 
-def kd_loss(logits_student, logits_teacher, temperature):
+# def kd_loss(logits_student, logits_teacher, temperature):
+#     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
+#     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
+#     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
+#     loss_kd *= temperature ** 2
+#     return loss_kd
+
+
+def normalize(logit):
+    mean = logit.mean(dim=-1, keepdims=True)
+    stdv = logit.std(dim=-1, keepdims=True)
+    return (logit - mean) / (1e-7 + stdv)
+
+def kd_loss(logits_student_in, logits_teacher_in, temperature, logit_stand=True):
+    logits_student = normalize(logits_student_in) if logit_stand else logits_student_in
+    logits_teacher = normalize(logits_teacher_in) if logit_stand else logits_teacher_in
     log_pred_student = F.log_softmax(logits_student / temperature, dim=1)
     pred_teacher = F.softmax(logits_teacher / temperature, dim=1)
     loss_kd = F.kl_div(log_pred_student, pred_teacher, reduction="none").sum(1).mean()
-    loss_kd *= temperature ** 2
+    loss_kd *= temperature**2
     return loss_kd
 
 
@@ -41,7 +56,7 @@ class DLKD(Distiller):
 
         # build diffusion
         timesteps = 1000
-        sampling_timesteps = cfg.MVKD.DIFFUSION.SAMPLE_STEP
+        sampling_timesteps = cfg.DLKD.DIFF.SAMPLE_STEP
         betas = cosine_beta_schedule(timesteps)
         alphas = 1. - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
@@ -94,10 +109,10 @@ class DLKD(Distiller):
 
         # CLIP model init
         # clip_dir = os.path.join(os.getcwd(), "../", 'clip_models')
-        clip_dir = os.path.join(os.getcwd(), 'clip_models')
-        # clip_path = str(Path(clip_dir).resolve())
-        self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
-        self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
+        # clip_dir = os.path.join(os.getcwd(), 'clip_models')
+        # # clip_path = str(Path(clip_dir).resolve())
+        # self.clip_model = CLIPModel.from_pretrained(clip_dir).cuda()
+        # self.clip_processor = CLIPProcessor.from_pretrained(clip_dir)
 
     def get_learnable_parameters(self):
         return super().get_learnable_parameters() + list(self.rec_module.parameters())
@@ -122,9 +137,6 @@ class DLKD(Distiller):
 
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
-        # loss_kd = self.kd_loss_weight * kd_loss(
-        #     logits_student, logits_teacher, self.temperature
-        # )
 
         # diffusion logit
 
@@ -133,20 +145,32 @@ class DLKD(Distiller):
         dif_logits_t = self.rec_module(logits_teacher, t)
         rec_loss = self.rec_logits_weight * kd_loss(dif_logits_t, logits_teacher, self.temperature)
 
-        # diffusion logits
-        weighted_logits = logits_teacher
-        for i in range(self.diff_num):
-            dif_l_t = self.ddim_sample(logits_teacher, logits_student)
-            weighted_logits = weighted_logits + epoch_weight * dif_l_t
-        normalized_logits = F.softmax(weighted_logits, dim=1)
-        dlkd_loss = self.kd_loss_weight * kd_loss(logits_student, normalized_logits, self.temperature)
+        # diffusion logits kd
+        if epoch > 150:
+            logits_teacher_accum = logits_teacher.clone()  # 避免就地操作，克隆 logits_teacher
+            for i in range(self.diff_num):
+                dif_l_t = self.ddim_sample(logits_teacher_accum, logits_student)
+                logits_teacher_accum = logits_teacher_accum + dif_l_t
+                # cos_sim = F.cosine_similarity(logits_teacher_accum, dif_l_t, dim=1)
+                # print("Cosine Similarity {i}:", cos_sim)
+                # weighted_logits = weighted_logits + epoch_weight * dif_l_t
+            normalized_logits = F.normalize(logits_teacher_accum, dim=1)
+            dlkd_loss = self.kd_loss_weight * kd_loss(logits_student, normalized_logits, self.temperature)
 
-        losses_dict = {
-            "loss_ce": loss_ce,
-            # "loss_kd": loss_kd,
-            "rec_loss": rec_loss,
-            "dlkd_loss": dlkd_loss,
-        }
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "rec_loss": rec_loss,
+                "dlkd_loss": dlkd_loss,
+            }
+        else:
+            loss_kd = self.kd_loss_weight * kd_loss(
+                logits_student, logits_teacher, self.temperature
+            )
+            losses_dict = {
+                "loss_ce": loss_ce,
+                "loss_kd": loss_kd,
+                "rec_loss": rec_loss,
+            }
         return logits_student, losses_dict
 
     def prepare_diffusion_concat(self, feature):
